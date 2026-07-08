@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Zen Kaplumbağa: Sonsuz Ada Bahçesi</title>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+      <div class="top-bar">
+        <div id="level-indicator" class="hud-element">
+          🐢 Ada Seviyesi: <span id="lvl-val">1</span>
+        </div>
+
+        <div id="sound-toggle" class="hud-element">🎵 Ses: Açık</div>
+      </div>
+
+      <div class="middle-bar">
+        <div id="move-counter" class="hud-element compact">👣 Hamle: <span id="move-val">0</span></div>
+        <div id="hint-counter" class="hud-element compact">✨ İpucu: <span id="hint-val">0</span></div>
+      </div>
+
+      <div class="bottom-bar">
+        <div id="hint-btn" class="hud-element">✨ Akış İpucu</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="completion-overlay">
+    <div class="modal-content">
+      <h2>Harika Bir Uyum! 🌸</h2>
+      <p id="complete-text">Kaplumbağa adadaki tüm su yollarını birleştirdi, çiçekler açtı!</p>
+      <div id="star-result" class="star-result">⭐</div>
+      <button class="next-btn" id="next-lvl-btn">Sonraki Adaya Yüz 🌊</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
