@@ -29,11 +29,15 @@ export class PuzzleGenerator {
     PuzzleGenerator.markEndpoints(grid);
     PuzzleGenerator.shuffleLevelRotations(grid);
 
-    return {
-      grid,
-      mapRadius,
-      activeTileCount: Object.values(grid).filter((tile) => tile.active).length
-    };
+    const activeTiles = Object.values(grid).filter((tile) => tile.active);
+const minimumMoves = PuzzleGenerator.calculateMinimumMoves(grid);
+
+return {
+  grid,
+  mapRadius,
+  activeTileCount: activeTiles.length,
+  minimumMoves
+};
   }
 
   static createCleanSolvedMap(coords, level, mapRadius) {
@@ -174,6 +178,50 @@ export class PuzzleGenerator {
       tile.endpoint = tile.active && tile.degree() === 1;
     });
   }
+
+static calculateMinimumMoves(grid) {
+  return Object.values(grid)
+    .filter((tile) => tile.active)
+    .reduce((total, tile) => {
+      return total + PuzzleGenerator.getMinimumMovesForTile(tile);
+    }, 0);
+}
+
+static getMinimumMovesForTile(tile) {
+  const exits = tile.exits;
+
+  let bestMoves = Infinity;
+
+  for (let targetRotation = 0; targetRotation < 6; targetRotation += 1) {
+    if (!PuzzleGenerator.hasSameExitShape(exits, targetRotation)) {
+      continue;
+    }
+
+    const moves = (targetRotation - tile.rotation + 6) % 6;
+
+    if (moves < bestMoves) {
+      bestMoves = moves;
+    }
+  }
+
+  if (!Number.isFinite(bestMoves)) {
+    return (6 - tile.rotation) % 6;
+  }
+
+  return bestMoves;
+}
+
+static hasSameExitShape(exits, rotation) {
+  for (let i = 0; i < 6; i += 1) {
+    const rotatedIndex = (i + rotation) % 6;
+
+    if (exits[i] !== exits[rotatedIndex]) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
   static shuffleLevelRotations(grid) {
     const tiles = Object.values(grid).filter((tile) => tile.active);
