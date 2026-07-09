@@ -17,8 +17,6 @@ export class Renderer {
     ctx.save();
     ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
 
-    // Merkezden gerçekten su ulaşan taşlar.
-    // Böylece puzzle bitmeden de bağlı kollar akabilir.
     const connectedKeys = PuzzleValidator.calculateConnectedKeys(grid);
 
     const tiles = Object.keys(grid).map((key) => {
@@ -36,7 +34,6 @@ export class Renderer {
       };
     });
 
-    // Yükselen taşlar üstte çizilsin.
     tiles.sort((a, b) => a.liftWave - b.liftWave);
 
     tiles.forEach(({ tile, x, y }) => {
@@ -121,8 +118,11 @@ export class Renderer {
       const hX = radius * Math.cos(angle);
       const hY = radius * Math.sin(angle);
 
-      if (i === 0) ctx.moveTo(hX, hY);
-      else ctx.lineTo(hX, hY);
+      if (i === 0) {
+        ctx.moveTo(hX, hY);
+      } else {
+        ctx.lineTo(hX, hY);
+      }
     }
 
     ctx.closePath();
@@ -148,12 +148,11 @@ export class Renderer {
 
   drawWaterChannels(ctx, radius, tile, grid, connectedKeys) {
     const channelLength = radius * Math.cos(Math.PI / 6) + 2;
+    const currentKey = tileKey(tile.q, tile.r);
+    const currentConnected = connectedKeys.has(currentKey);
 
     ctx.lineWidth = 12;
     ctx.lineCap = "round";
-
-    const currentKey = tileKey(tile.q, tile.r);
-    const currentConnected = connectedKeys.has(currentKey);
 
     for (let i = 0; i < 6; i += 1) {
       if (!tile.exits[i]) continue;
@@ -165,8 +164,6 @@ export class Renderer {
       const neighborKey = tileKey(tile.q + dir.q, tile.r + dir.r);
       const neighborConnected = connectedKeys.has(neighborKey);
 
-      // Yeni akış mantığı:
-      // Puzzle komple bitmese bile merkezden ulaşılabilen ve eşleşen bağlantı aksın.
       const isActiveFlow = currentConnected && neighborConnected && matched;
 
       const visualAngle =
@@ -260,6 +257,7 @@ export class Renderer {
 
     ctx.beginPath();
     ctx.arc(0, 0, tile.endpoint ? 5 : 4, 0, Math.PI * 2);
+
     ctx.fillStyle = tile.endpoint
       ? CONFIG.colors.endpointCenter
       : CONFIG.colors.flowerCenter;
@@ -270,66 +268,64 @@ export class Renderer {
   }
 
   drawTurtle(ctx, turtle, hexRadius) {
-  const legWiggle = Math.sin(turtle.animFrame) * 3;
-  const bob = Math.sin(turtle.animFrame) * 1.2;
+    const legWiggle = Math.sin(turtle.animFrame) * 3;
+    const bob = Math.sin(turtle.animFrame) * 1.2;
 
-  // Kaplumbağa aynı hex üzerinde kalıyor ama merkez su düğümünü kapatmasın diye
-  // görsel olarak azıcık sağ-alt tarafa oturuyor.
-  const visualOffsetX = Math.min(18, hexRadius * 0.42);
-  const visualOffsetY = Math.min(12, hexRadius * 0.30);
-  const turtleScale = 0.82;
+    const visualOffsetX = Math.min(18, hexRadius * 0.42);
+    const visualOffsetY = Math.min(12, hexRadius * 0.30);
+    const turtleScale = 0.82;
 
-  ctx.save();
-  ctx.translate(turtle.x + visualOffsetX, turtle.y + visualOffsetY + bob);
-  ctx.scale(turtleScale, turtleScale);
-  ctx.rotate(turtle.angle + Math.PI / 2);
+    ctx.save();
 
-  ctx.fillStyle = "#81c784";
+    ctx.translate(turtle.x + visualOffsetX, turtle.y + visualOffsetY + bob);
+    ctx.scale(turtleScale, turtleScale);
+    ctx.rotate(turtle.angle + Math.PI / 2);
 
-  ctx.save();
-  ctx.translate(-14, -10);
-  ctx.rotate(-0.3 + legWiggle * 0.05);
-  ctx.fillRect(-4, -12, 7, 14);
-  ctx.restore();
+    ctx.fillStyle = "#81c784";
 
-  ctx.save();
-  ctx.translate(14, -10);
-  ctx.rotate(0.3 - legWiggle * 0.05);
-  ctx.fillRect(-3, -12, 7, 14);
-  ctx.restore();
+    ctx.save();
+    ctx.translate(-14, -10);
+    ctx.rotate(-0.3 + legWiggle * 0.05);
+    ctx.fillRect(-4, -12, 7, 14);
+    ctx.restore();
 
-  ctx.fillRect(-10, 10, 5, 8);
-  ctx.fillRect(5, 10, 5, 8);
+    ctx.save();
+    ctx.translate(14, -10);
+    ctx.rotate(0.3 - legWiggle * 0.05);
+    ctx.fillRect(-3, -12, 7, 14);
+    ctx.restore();
 
-  ctx.beginPath();
-  ctx.arc(0, 0, 16, 0, Math.PI * 2);
-  ctx.fillStyle = "#4caf50";
-  ctx.fill();
+    ctx.fillRect(-10, 10, 5, 8);
+    ctx.fillRect(5, 10, 5, 8);
 
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = "#2e7d32";
-  ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 0, 16, 0, Math.PI * 2);
+    ctx.fillStyle = "#4caf50";
+    ctx.fill();
 
-  ctx.beginPath();
-  ctx.arc(0, 0, 9, 0, Math.PI * 2);
-  ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#2e7d32";
+    ctx.stroke();
 
-  ctx.beginPath();
-  ctx.arc(0, -20, 6, 0, Math.PI * 2);
-  ctx.fillStyle = "#a5d6a7";
-  ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0, 0, 9, 0, Math.PI * 2);
+    ctx.stroke();
 
-  ctx.fillStyle = "#333";
-  ctx.beginPath();
-  ctx.arc(-2, -22, 1, 0, Math.PI * 2);
-  ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0, -20, 6, 0, Math.PI * 2);
+    ctx.fillStyle = "#a5d6a7";
+    ctx.fill();
 
-  ctx.beginPath();
-  ctx.arc(2, -22, 1, 0, Math.PI * 2);
-  ctx.fill();
+    ctx.fillStyle = "#333";
 
-  ctx.restore();
+    ctx.beginPath();
+    ctx.arc(-2, -22, 1, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(2, -22, 1, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
 }
-    
-    
-    
