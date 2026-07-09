@@ -199,8 +199,9 @@ export class UIController {
     this.starResult.innerText = stars;
 
     this.completeText.innerText =
-      `Hamle: ${result.moves} / Hedef: ${result.targetMoves} · İpucu: ${result.hintsUsed}`;
+  `Hamle: ${result.moves} · 3⭐ hedef: ${result.targetMoves} · Minimum: ${result.minimumMoves} · İpucu: ${result.hintsUsed}`;
 
     this.overlay.classList.add("active");
   }
 }
+
