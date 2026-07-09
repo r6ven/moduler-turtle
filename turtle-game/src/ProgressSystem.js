@@ -42,23 +42,18 @@ export class ProgressSystem {
 
   completeCurrentLevel() {
     const stars = this.calculateStars();
-    const existing = this.bestByLevel[this.level] || { stars: 0, bestMoves: null };
+    const existing = this.bestByLevel[this.level] || {
+      stars: 0,
+      bestMoves: null
+    };
 
     this.bestByLevel[this.level] = {
       stars: Math.max(existing.stars || 0, stars),
-      bestMoves: existing.bestMoves == null ? this.moves : Math.min(existing.bestMoves, this.moves)
+      bestMoves:
+        existing.bestMoves == null
+          ? this.moves
+          : Math.min(existing.bestMoves, this.moves)
     };
-
-    resetAll() {
-  this.bestByLevel = {};
-
-  try {
-    localStorage.removeItem(CONFIG.saveKey);
-  } catch {
-    // Kayıt silinemezse oyunu bozmuyoruz.
-  }
-}
-    
 
     this.save();
 
@@ -68,6 +63,16 @@ export class ProgressSystem {
       hintsUsed: this.hintsUsed,
       targetMoves: this.targetMoves
     };
+  }
+
+  resetAll() {
+    this.bestByLevel = {};
+
+    try {
+      localStorage.removeItem(CONFIG.saveKey);
+    } catch {
+      // Kayıt silinemezse oyunu bozmuyoruz.
+    }
   }
 
   load() {
