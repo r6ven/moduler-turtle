@@ -25,10 +25,17 @@ export class UIController {
 
     this.currentUserLabel = document.getElementById("current-user-label");
     this.savedLevelLabel = document.getElementById("saved-level-label");
+    this.completedLevelLabel = document.getElementById("completed-level-label");
+
     this.startGameButton = document.getElementById("start-game-btn");
     this.continueGameButton = document.getElementById("continue-game-btn");
+    this.levelsButton = document.getElementById("levels-btn");
     this.restartGameButton = document.getElementById("restart-game-btn");
     this.logoutButton = document.getElementById("logout-btn");
+
+    this.levelSelectOverlay = document.getElementById("level-select-overlay");
+    this.levelList = document.getElementById("level-list");
+    this.levelSelectBackButton = document.getElementById("level-select-back-btn");
 
     this.resetConfirmOverlay = document.getElementById("reset-confirm-overlay");
     this.confirmResetButton = document.getElementById("confirm-reset-btn");
@@ -43,6 +50,8 @@ export class UIController {
     onRegister,
     onStartGame,
     onContinueGame,
+    onOpenLevels,
+    onSelectLevel,
     onRequestReset,
     onConfirmReset,
     onLogout,
@@ -66,8 +75,19 @@ export class UIController {
 
     this.startGameButton.addEventListener("click", onStartGame);
     this.continueGameButton.addEventListener("click", onContinueGame);
+    this.levelsButton.addEventListener("click", onOpenLevels);
     this.restartGameButton.addEventListener("click", onRequestReset);
     this.logoutButton.addEventListener("click", onLogout);
+
+    this.levelSelectBackButton.addEventListener("click", () => this.hideLevelSelect());
+
+    this.levelList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-level]");
+
+      if (!button) return;
+
+      onSelectLevel(Number(button.dataset.level));
+    });
 
     this.confirmResetButton.addEventListener("click", onConfirmReset);
     this.cancelResetButton.addEventListener("click", () => this.hideResetConfirm());
@@ -113,18 +133,53 @@ export class UIController {
   showAuthMenu(message = "") {
     this.authCard.classList.remove("hidden");
     this.gameMenuCard.classList.add("hidden");
+    this.hideLevelSelect();
     this.showMainMenu();
     this.setAuthMessage(message);
     this.usernameInput.focus();
   }
 
-  showGameMenu(username, level) {
+  showGameMenu(username, level, completedCount = 0) {
     this.authCard.classList.add("hidden");
     this.gameMenuCard.classList.remove("hidden");
+
     this.currentUserLabel.innerText = `Oyuncu: ${username}`;
     this.savedLevelLabel.innerText = `Kayıtlı seviye: ${level}`;
+    this.completedLevelLabel.innerText = `Tamamlanan bölüm: ${completedCount}`;
     this.continueGameButton.innerText = `Devam Et: Seviye ${level}`;
+
     this.showMainMenu();
+  }
+
+  showLevelSelect(levels) {
+    if (!levels.length) {
+      this.levelList.innerHTML = `
+        <div class="level-empty">
+          Henüz tamamlanmış bölüm yok. İlk adayı bitirince burada görünecek.
+        </div>
+      `;
+    } else {
+      this.levelList.innerHTML = levels
+        .map((item) => {
+          const stars = "⭐".repeat(item.stars || 1);
+          const bestMoves = item.bestMoves == null ? "-" : item.bestMoves;
+
+          return `
+            <button class="level-item" data-level="${item.level}">
+              <div class="level-number">Ada ${item.level}</div>
+              <div class="level-stars">${stars}</div>
+              <div class="level-moves">En iyi: ${bestMoves}</div>
+            </button>
+          `;
+        })
+        .join("");
+    }
+
+    this.levelSelectOverlay.classList.add("active");
+  }
+
+  hideLevelSelect() {
+    this.levelSelectOverlay.classList.remove("active");
   }
 
   showResetConfirm() {
@@ -142,8 +197,10 @@ export class UIController {
   showCompletion(result) {
     const stars = "⭐".repeat(result.stars);
     this.starResult.innerText = stars;
+
     this.completeText.innerText =
       `Hamle: ${result.moves} / Hedef: ${result.targetMoves} · İpucu: ${result.hintsUsed}`;
+
     this.overlay.classList.add("active");
   }
 }
