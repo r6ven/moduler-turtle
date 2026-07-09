@@ -13,7 +13,7 @@ export class UIController {
     this.hintButton = document.getElementById("hint-btn");
     this.soundToggle = document.getElementById("sound-toggle");
     this.menuButton = document.getElementById("menu-btn");
-
+    this.fullscreenButton = document.getElementById("fullscreen-btn");
     this.mainMenuOverlay = document.getElementById("main-menu-overlay");
     this.authCard = document.getElementById("auth-card");
     this.gameMenuCard = document.getElementById("game-menu-card");
@@ -62,13 +62,14 @@ export class UIController {
     onRequestReset,
     onConfirmReset,
     onLogout,
-    onOpenMenu
+    onOpenMenu,
+    onToggleFullscreen
   }) {
     this.nextButton.addEventListener("click", onNextLevel);
     this.hintButton.addEventListener("click", onHint);
     this.soundToggle.addEventListener("click", onToggleSound);
     this.menuButton.addEventListener("click", onOpenMenu);
-
+    this.fullscreenButton.addEventListener("click", onToggleFullscreen);
     this.loginButton.addEventListener("click", onLogin);
     this.registerButton.addEventListener("click", onRegister);
 
@@ -135,6 +136,14 @@ export class UIController {
     this.soundToggle.innerText = enabled ? "🎵 Ses: Açık" : "🔇 Ses: Kapalı";
   }
 
+updateFullscreen(isFullscreen) {
+  this.fullscreenButton.classList.toggle("active", isFullscreen);
+  this.fullscreenButton.innerText = isFullscreen ? "⇲" : "⛶";
+  this.fullscreenButton.setAttribute(
+    "aria-label",
+    isFullscreen ? "Tam ekrandan çık" : "Tam ekran"
+  );
+  }
   showMainMenu() {
     this.mainMenuOverlay.classList.add("active");
   }
