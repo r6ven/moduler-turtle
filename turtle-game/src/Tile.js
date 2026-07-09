@@ -90,7 +90,7 @@ export class Tile {
     }
 
     if (this.pressPulse > 0) {
-      this.pressPulse = Math.max(0, this.pressPulse - 0.08);
+      this.pressPulse = Math.max(0, this.pressPulse - 0.055);
     }
 
     if (this.flowerBloomed) {
@@ -104,7 +104,8 @@ export class Tile {
     if (Math.abs(rotationDiff) < 0.001) {
       this.visualRotation = this.targetVisualRotation;
     } else {
-      this.visualRotation += rotationDiff * 0.22;
+      // Daha yavaş ve gözle görünür dönüş.
+      this.visualRotation += rotationDiff * 0.145;
     }
   }
 }
