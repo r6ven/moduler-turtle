@@ -686,5 +686,45 @@ canvas {
     font-size: 12px;
   }
 }
+/* Sol alt tam ekran butonu */
+.fullscreen-btn {
+  position: absolute;
+  left: calc(16px + env(safe-area-inset-left));
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  width: 48px;
+  height: 48px;
+  border-radius: 18px;
+  border: 2px solid rgba(255, 183, 77, 0.95);
+  background: rgba(255, 250, 242, 0.92);
+  color: #bf5f00;
+  font-size: 24px;
+  font-weight: 900;
+  box-shadow: 0 8px 22px rgba(230, 126, 34, 0.18);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 6;
+  transition: transform 0.18s, filter 0.18s, background 0.18s;
+}
 
+.fullscreen-btn:active {
+  transform: scale(0.94);
+  filter: brightness(0.98);
+}
+
+.fullscreen-btn.active {
+  background: rgba(255, 224, 178, 0.96);
+  color: #8a4b00;
+}
+
+@media (max-width: 520px) {
+  .fullscreen-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 16px;
+    font-size: 22px;
+    left: calc(12px + env(safe-area-inset-left));
+    bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+}
 }
