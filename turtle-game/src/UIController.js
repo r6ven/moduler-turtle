@@ -3,11 +3,6 @@ export class UIController {
     this.levelValue = document.getElementById("lvl-val");
     this.moveValue = document.getElementById("move-val");
     this.hintValue = document.getElementById("hint-val");
-    this.mainMenuOverlay = document.getElementById("main-menu-overlay");
-    this.startGameButton = document.getElementById("start-game-btn");
-    this.continueGameButton = document.getElementById("continue-game-btn");
-    this.restartGameButton = document.getElementById("restart-game-btn");
-    this.menuButton = document.getElementById("menu-btn");
 
     this.overlay = document.getElementById("completion-overlay");
     this.completeText = document.getElementById("complete-text");
@@ -16,26 +11,32 @@ export class UIController {
     this.nextButton = document.getElementById("next-lvl-btn");
     this.hintButton = document.getElementById("hint-btn");
     this.soundToggle = document.getElementById("sound-toggle");
+
+    this.mainMenuOverlay = document.getElementById("main-menu-overlay");
+    this.startGameButton = document.getElementById("start-game-btn");
+    this.continueGameButton = document.getElementById("continue-game-btn");
+    this.restartGameButton = document.getElementById("restart-game-btn");
+    this.menuButton = document.getElementById("menu-btn");
   }
 
   bind({
-  onNextLevel,
-  onHint,
-  onToggleSound,
-  onStartGame,
-  onContinueGame,
-  onRestartGame,
-  onOpenMenu
-}) {
-  this.nextButton.addEventListener("click", onNextLevel);
-  this.hintButton.addEventListener("click", onHint);
-  this.soundToggle.addEventListener("click", onToggleSound);
+    onNextLevel,
+    onHint,
+    onToggleSound,
+    onStartGame,
+    onContinueGame,
+    onRestartGame,
+    onOpenMenu
+  }) {
+    this.nextButton.addEventListener("click", onNextLevel);
+    this.hintButton.addEventListener("click", onHint);
+    this.soundToggle.addEventListener("click", onToggleSound);
 
-  this.startGameButton.addEventListener("click", onStartGame);
-  this.continueGameButton.addEventListener("click", onContinueGame);
-  this.restartGameButton.addEventListener("click", onRestartGame);
-  this.menuButton.addEventListener("click", onOpenMenu);
-}
+    this.startGameButton.addEventListener("click", onStartGame);
+    this.continueGameButton.addEventListener("click", onContinueGame);
+    this.restartGameButton.addEventListener("click", onRestartGame);
+    this.menuButton.addEventListener("click", onOpenMenu);
+  }
 
   updateLevel(level) {
     this.levelValue.innerText = String(level);
@@ -50,6 +51,14 @@ export class UIController {
     this.soundToggle.innerText = enabled ? "🎵 Ses: Açık" : "🔇 Ses: Kapalı";
   }
 
+  showMainMenu() {
+    this.mainMenuOverlay.classList.add("active");
+  }
+
+  hideMainMenu() {
+    this.mainMenuOverlay.classList.remove("active");
+  }
+
   hideCompletion() {
     this.overlay.classList.remove("active");
   }
@@ -61,13 +70,6 @@ export class UIController {
 
     this.completeText.innerText =
       `Hamle: ${result.moves} / Hedef: ${result.targetMoves} · İpucu: ${result.hintsUsed}`;
-    showMainMenu() {
-  this.mainMenuOverlay.classList.add("active");
-}
-
-hideMainMenu() {
-  this.mainMenuOverlay.classList.remove("active");
-}
 
     this.overlay.classList.add("active");
   }
