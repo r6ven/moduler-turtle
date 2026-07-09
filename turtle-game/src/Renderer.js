@@ -43,7 +43,7 @@ export class Renderer {
       this.drawHexagon(ctx, x, y, hexRadius, tile, grid, connectedKeys);
     });
 
-    this.drawTurtle(ctx, turtle);
+    this.drawTurtle(ctx, turtle, hexRadius);
     particleSystem.draw(ctx);
 
     ctx.restore();
@@ -269,58 +269,67 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawTurtle(ctx, turtle) {
-    const legWiggle = Math.sin(turtle.animFrame) * 3;
-    const bob = Math.sin(turtle.animFrame) * 1.2;
+  drawTurtle(ctx, turtle, hexRadius) {
+  const legWiggle = Math.sin(turtle.animFrame) * 3;
+  const bob = Math.sin(turtle.animFrame) * 1.2;
 
-    ctx.save();
-    ctx.translate(turtle.x, turtle.y + bob);
-    ctx.rotate(turtle.angle + Math.PI / 2);
+  // Kaplumbağa aynı hex üzerinde kalıyor ama merkez su düğümünü kapatmasın diye
+  // görsel olarak azıcık sağ-alt tarafa oturuyor.
+  const visualOffsetX = Math.min(18, hexRadius * 0.42);
+  const visualOffsetY = Math.min(12, hexRadius * 0.30);
+  const turtleScale = 0.82;
 
-    ctx.fillStyle = "#81c784";
+  ctx.save();
+  ctx.translate(turtle.x + visualOffsetX, turtle.y + visualOffsetY + bob);
+  ctx.scale(turtleScale, turtleScale);
+  ctx.rotate(turtle.angle + Math.PI / 2);
 
-    ctx.save();
-    ctx.translate(-14, -10);
-    ctx.rotate(-0.3 + legWiggle * 0.05);
-    ctx.fillRect(-4, -12, 7, 14);
-    ctx.restore();
+  ctx.fillStyle = "#81c784";
 
-    ctx.save();
-    ctx.translate(14, -10);
-    ctx.rotate(0.3 - legWiggle * 0.05);
-    ctx.fillRect(-3, -12, 7, 14);
-    ctx.restore();
+  ctx.save();
+  ctx.translate(-14, -10);
+  ctx.rotate(-0.3 + legWiggle * 0.05);
+  ctx.fillRect(-4, -12, 7, 14);
+  ctx.restore();
 
-    ctx.fillRect(-10, 10, 5, 8);
-    ctx.fillRect(5, 10, 5, 8);
+  ctx.save();
+  ctx.translate(14, -10);
+  ctx.rotate(0.3 - legWiggle * 0.05);
+  ctx.fillRect(-3, -12, 7, 14);
+  ctx.restore();
 
-    ctx.beginPath();
-    ctx.arc(0, 0, 16, 0, Math.PI * 2);
-    ctx.fillStyle = "#4caf50";
-    ctx.fill();
+  ctx.fillRect(-10, 10, 5, 8);
+  ctx.fillRect(5, 10, 5, 8);
 
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#2e7d32";
-    ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, 0, 16, 0, Math.PI * 2);
+  ctx.fillStyle = "#4caf50";
+  ctx.fill();
 
-    ctx.beginPath();
-    ctx.arc(0, 0, 9, 0, Math.PI * 2);
-    ctx.stroke();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#2e7d32";
+  ctx.stroke();
 
-    ctx.beginPath();
-    ctx.arc(0, -20, 6, 0, Math.PI * 2);
-    ctx.fillStyle = "#a5d6a7";
-    ctx.fill();
+  ctx.beginPath();
+  ctx.arc(0, 0, 9, 0, Math.PI * 2);
+  ctx.stroke();
 
-    ctx.fillStyle = "#333";
-    ctx.beginPath();
-    ctx.arc(-2, -22, 1, 0, Math.PI * 2);
-    ctx.fill();
+  ctx.beginPath();
+  ctx.arc(0, -20, 6, 0, Math.PI * 2);
+  ctx.fillStyle = "#a5d6a7";
+  ctx.fill();
 
-    ctx.beginPath();
-    ctx.arc(2, -22, 1, 0, Math.PI * 2);
-    ctx.fill();
+  ctx.fillStyle = "#333";
+  ctx.beginPath();
+  ctx.arc(-2, -22, 1, 0, Math.PI * 2);
+  ctx.fill();
 
-    ctx.restore();
-  }
+  ctx.beginPath();
+  ctx.arc(2, -22, 1, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
 }
+    
+    
+    
