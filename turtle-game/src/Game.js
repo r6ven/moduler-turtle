@@ -466,4 +466,5 @@ export class Game {
   });
 
   requestAnimationFrame((nextTimestamp) => this.loop(nextTimestamp));
+  }
 }
