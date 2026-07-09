@@ -19,6 +19,7 @@ export class Game {
     this.hexRadius = CONFIG.desktopHexRadius;
     this.grid = {};
     this.levelCompleted = false;
+    this.menuOpen = true;
 
     this.audio = new AudioSystem();
     this.particles = new ParticleSystem();
@@ -36,10 +37,14 @@ export class Game {
 
   start() {
     this.ui.bind({
-      onNextLevel: () => this.nextLevel(),
-      onHint: () => this.useHint(),
-      onToggleSound: () => this.toggleSound()
-    });
+  onNextLevel: () => this.nextLevel(),
+  onHint: () => this.useHint(),
+  onToggleSound: () => this.toggleSound(),
+  onStartGame: () => this.startGameFromMenu(),
+  onContinueGame: () => this.closeMenu(),
+  onRestartGame: () => this.restartFromLevelOne(),
+  onOpenMenu: () => this.openMenu()
+});
 
     this.input.bind();
 
@@ -47,6 +52,7 @@ export class Game {
 
     this.resizeCanvas();
     this.generateLevel();
+    this.ui.showMainMenu();
     this.loop();
   }
 
@@ -81,9 +87,32 @@ export class Game {
 
     this.checkConnections({ allowCompletion: false });
   }
+  startGameFromMenu() {
+  this.audio.init();
+  this.closeMenu();
+}
+
+openMenu() {
+  this.menuOpen = true;
+  this.ui.showMainMenu();
+}
+
+closeMenu() {
+  this.menuOpen = false;
+  this.ui.hideMainMenu();
+}
+
+restartFromLevelOne() {
+  this.audio.init();
+  this.progress.resetAll();
+  this.level = 1;
+  this.generateLevel();
+  this.closeMenu();
+}
+  
 
   handleTilePress(hex) {
-    if (this.levelCompleted) return;
+    if (this.menuOpen || this.levelCompleted) return;
 
     this.audio.init();
 
@@ -136,7 +165,7 @@ export class Game {
   }
 
   useHint() {
-    if (this.levelCompleted) return;
+    if (this.menuOpen || this.levelCompleted) return;
 
     this.audio.init();
 
