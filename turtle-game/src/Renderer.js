@@ -1,5 +1,5 @@
 import { CONFIG } from "./config.js";
-import { DIR_ANGLES, hexToPixel } from "./HexMath.js";
+import { hexToPixel } from "./HexMath.js";
 import { PuzzleValidator } from "./PuzzleValidator.js";
 
 export class Renderer {
@@ -11,7 +11,6 @@ export class Renderer {
 
   render({ grid, turtle, particleSystem, hexRadius }) {
     const ctx = this.ctx;
-
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     ctx.save();
@@ -20,14 +19,12 @@ export class Renderer {
     Object.keys(grid).forEach((key) => {
       const tile = grid[key];
       const pos = hexToPixel(tile.q, tile.r, hexRadius);
-
       tile.updateAnimation();
       this.drawHexagon(ctx, pos.x, pos.y, hexRadius, tile, grid);
     });
 
     this.drawTurtle(ctx, turtle);
     particleSystem.draw(ctx);
-
     ctx.restore();
 
     this.waterFlowPhase += 0.035;
@@ -67,7 +64,6 @@ export class Renderer {
 
     this.drawWaterChannels(ctx, radius, tile, grid);
     this.drawFlower(ctx, tile);
-
     ctx.restore();
   }
 
@@ -87,16 +83,17 @@ export class Renderer {
   }
 
   drawWaterChannels(ctx, radius, tile, grid) {
-    const actualExits = tile.getActualExits();
     const channelLength = radius * Math.cos(Math.PI / 6) + 2;
-
     ctx.lineWidth = 12;
     ctx.lineCap = "round";
 
     for (let i = 0; i < 6; i += 1) {
-      if (!actualExits[i]) continue;
+      if (!tile.exits[i]) continue;
 
-      const matched = PuzzleValidator.isExitMatched(tile, i, grid);
+      const finalDir = (i + tile.rotation) % 6;
+      const matched = PuzzleValidator.isExitMatched(tile, finalDir, grid);
+      const visualAngle = ((i + tile.visualRotation) - 1) * Math.PI / 3;
+
       ctx.strokeStyle = tile.flowerBloomed && matched
         ? CONFIG.colors.matchedWater
         : CONFIG.colors.idleWater;
@@ -104,13 +101,13 @@ export class Renderer {
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.lineTo(
-        channelLength * Math.cos(DIR_ANGLES[i]),
-        channelLength * Math.sin(DIR_ANGLES[i])
+        channelLength * Math.cos(visualAngle),
+        channelLength * Math.sin(visualAngle)
       );
       ctx.stroke();
 
       if (tile.flowerBloomed && matched) {
-        this.drawWaterSpark(ctx, channelLength, DIR_ANGLES[i]);
+        this.drawWaterSpark(ctx, channelLength, visualAngle);
       }
     }
   }
@@ -139,7 +136,6 @@ export class Renderer {
 
     ctx.save();
     ctx.scale(tile.flowerScale, tile.flowerScale);
-
     ctx.fillStyle = CONFIG.colors.flowerPetal;
 
     for (let j = 0; j < 5; j += 1) {
@@ -153,7 +149,6 @@ export class Renderer {
     ctx.arc(0, 0, tile.endpoint ? 5 : 4, 0, Math.PI * 2);
     ctx.fillStyle = tile.endpoint ? CONFIG.colors.endpointCenter : CONFIG.colors.flowerCenter;
     ctx.fill();
-
     ctx.restore();
   }
 
