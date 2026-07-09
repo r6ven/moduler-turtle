@@ -100,7 +100,11 @@ export class Game {
     const generated = PuzzleGenerator.generate(this.level);
 
     this.grid = generated.grid;
-    this.progress.startLevel(this.level, generated.activeTileCount);
+    this.progress.startLevel(
+  this.level,
+  generated.activeTileCount,
+  generated.minimumMoves
+);
     this.ui.updateStats(this.progress);
 
     this.turtle.reset(0, 0, this.hexRadius);
