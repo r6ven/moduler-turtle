@@ -1,12 +1,29 @@
 import { CONFIG } from "./config.js";
 
 export class ProgressSystem {
-  constructor() {
+  constructor(authSystem = null) {
+    this.authSystem = authSystem;
     this.level = 1;
     this.moves = 0;
     this.hintsUsed = 0;
     this.targetMoves = 0;
-    this.bestByLevel = this.load();
+    this.bestByLevel = {};
+    this.lastLevel = 1;
+    this.loadForCurrentUser();
+  }
+
+  setAuthSystem(authSystem) {
+    this.authSystem = authSystem;
+    this.loadForCurrentUser();
+  }
+
+  loadForCurrentUser() {
+    const saved = this.authSystem?.hasCurrentUser()
+      ? this.authSystem.loadProgressForCurrentUser()
+      : this.loadLegacy();
+
+    this.bestByLevel = saved.bestByLevel || {};
+    this.lastLevel = Number(saved.lastLevel) || 1;
   }
 
   startLevel(level, activeTileCount) {
@@ -14,6 +31,18 @@ export class ProgressSystem {
     this.moves = 0;
     this.hintsUsed = 0;
     this.targetMoves = CONFIG.difficulty.getTargetMoves(activeTileCount, level);
+    this.lastLevel = level;
+    this.save();
+  }
+
+  getSavedLevel() {
+    const level = Number(this.lastLevel);
+
+    if (!Number.isFinite(level) || level < 1) {
+      return 1;
+    }
+
+    return Math.floor(level);
   }
 
   addMove() {
@@ -55,6 +84,7 @@ export class ProgressSystem {
           : Math.min(existing.bestMoves, this.moves)
     };
 
+    this.lastLevel = this.level + 1;
     this.save();
 
     return {
@@ -67,6 +97,15 @@ export class ProgressSystem {
 
   resetAll() {
     this.bestByLevel = {};
+    this.lastLevel = 1;
+    this.moves = 0;
+    this.hintsUsed = 0;
+    this.targetMoves = 0;
+
+    if (this.authSystem?.hasCurrentUser()) {
+      this.authSystem.clearProgressForCurrentUser();
+      return;
+    }
 
     try {
       localStorage.removeItem(CONFIG.saveKey);
@@ -75,18 +114,58 @@ export class ProgressSystem {
     }
   }
 
-  load() {
+  loadLegacy() {
     try {
       const raw = localStorage.getItem(CONFIG.saveKey);
-      return raw ? JSON.parse(raw) : {};
+
+      if (!raw) {
+        return {
+          lastLevel: 1,
+          bestByLevel: {}
+        };
+      }
+
+      const parsed = JSON.parse(raw);
+
+      if (parsed && typeof parsed === "object" && ("bestByLevel" in parsed || "lastLevel" in parsed)) {
+        return {
+          lastLevel: Number(parsed.lastLevel) || 1,
+          bestByLevel: parsed.bestByLevel || {}
+        };
+      }
+
+      if (parsed && typeof parsed === "object") {
+        return {
+          lastLevel: 1,
+          bestByLevel: parsed
+        };
+      }
+
+      return {
+        lastLevel: 1,
+        bestByLevel: {}
+      };
     } catch {
-      return {};
+      return {
+        lastLevel: 1,
+        bestByLevel: {}
+      };
     }
   }
 
   save() {
+    const progress = {
+      lastLevel: this.lastLevel,
+      bestByLevel: this.bestByLevel
+    };
+
+    if (this.authSystem?.hasCurrentUser()) {
+      this.authSystem.saveProgressForCurrentUser(progress);
+      return;
+    }
+
     try {
-      localStorage.setItem(CONFIG.saveKey, JSON.stringify(this.bestByLevel));
+      localStorage.setItem(CONFIG.saveKey, JSON.stringify(progress));
     } catch {
       // Kayıt başarısız olursa oyunu bozmuyoruz.
     }
