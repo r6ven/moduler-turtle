@@ -3,6 +3,11 @@ export class UIController {
     this.levelValue = document.getElementById("lvl-val");
     this.moveValue = document.getElementById("move-val");
     this.hintValue = document.getElementById("hint-val");
+    this.mainMenuOverlay = document.getElementById("main-menu-overlay");
+    this.startGameButton = document.getElementById("start-game-btn");
+    this.continueGameButton = document.getElementById("continue-game-btn");
+    this.restartGameButton = document.getElementById("restart-game-btn");
+    this.menuButton = document.getElementById("menu-btn");
 
     this.overlay = document.getElementById("completion-overlay");
     this.completeText = document.getElementById("complete-text");
