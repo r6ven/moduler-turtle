@@ -18,11 +18,24 @@ export class UIController {
     this.soundToggle = document.getElementById("sound-toggle");
   }
 
-  bind({ onNextLevel, onHint, onToggleSound }) {
-    this.nextButton.addEventListener("click", onNextLevel);
-    this.hintButton.addEventListener("click", onHint);
-    this.soundToggle.addEventListener("click", onToggleSound);
-  }
+  bind({
+  onNextLevel,
+  onHint,
+  onToggleSound,
+  onStartGame,
+  onContinueGame,
+  onRestartGame,
+  onOpenMenu
+}) {
+  this.nextButton.addEventListener("click", onNextLevel);
+  this.hintButton.addEventListener("click", onHint);
+  this.soundToggle.addEventListener("click", onToggleSound);
+
+  this.startGameButton.addEventListener("click", onStartGame);
+  this.continueGameButton.addEventListener("click", onContinueGame);
+  this.restartGameButton.addEventListener("click", onRestartGame);
+  this.menuButton.addEventListener("click", onOpenMenu);
+}
 
   updateLevel(level) {
     this.levelValue.innerText = String(level);
@@ -48,6 +61,13 @@ export class UIController {
 
     this.completeText.innerText =
       `Hamle: ${result.moves} / Hedef: ${result.targetMoves} · İpucu: ${result.hintsUsed}`;
+    showMainMenu() {
+  this.mainMenuOverlay.classList.add("active");
+}
+
+hideMainMenu() {
+  this.mainMenuOverlay.classList.remove("active");
+}
 
     this.overlay.classList.add("active");
   }
