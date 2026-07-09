@@ -14,6 +14,8 @@ export class Turtle {
     this.angle = 0;
     this.targetAngle = 0;
     this.animFrame = 0;
+
+    this.speed = 0.08;
   }
 
   reset(q, r, hexRadius) {
@@ -21,6 +23,7 @@ export class Turtle {
     this.r = r;
     this.angle = 0;
     this.targetAngle = 0;
+    this.speed = 0.08;
     this.syncToTile(hexRadius, true);
   }
 
@@ -44,19 +47,29 @@ export class Turtle {
 
     this.targetX = targetPos.x;
     this.targetY = targetPos.y;
-    this.targetAngle = Math.atan2(this.targetY - this.y, this.targetX - this.x);
+
+    const dx = this.targetX - this.x;
+    const dy = this.targetY - this.y;
+
+    if (Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001) {
+      this.targetAngle = Math.atan2(dy, dx);
+    }
+  }
+
+  distanceToTarget() {
+    return Math.hypot(this.targetX - this.x, this.targetY - this.y);
   }
 
   update() {
-    this.x += (this.targetX - this.x) * 0.08;
-    this.y += (this.targetY - this.y) * 0.08;
+    this.x += (this.targetX - this.x) * this.speed;
+    this.y += (this.targetY - this.y) * this.speed;
 
     let angleDiff = this.targetAngle - this.angle;
 
     while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
     while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
 
-    this.angle += angleDiff * 0.1;
+    this.angle += angleDiff * 0.12;
     this.animFrame += 0.05;
   }
 }
