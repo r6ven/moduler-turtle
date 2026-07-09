@@ -38,7 +38,7 @@ export class Renderer {
     ctx.translate(x, y);
 
     const pulse = Math.sin(tile.pulsePhase) * 1.0;
-    const pressScale = 1 + tile.pressPulse * 0.045;
+    const pressScale = 1 + tile.pressPulse * 0.055;
     const glowRadius = radius + pulse + tile.hintGlow * 12;
 
     ctx.scale(pressScale, pressScale);
@@ -61,10 +61,16 @@ export class Renderer {
       return;
     }
 
-    ctx.fillStyle = tile.flowerBloomed ? CONFIG.colors.activeSolvedTile : CONFIG.colors.activeTile;
+    ctx.fillStyle = tile.flowerBloomed
+      ? CONFIG.colors.activeSolvedTile
+      : CONFIG.colors.activeTile;
+
     ctx.fill();
 
-    ctx.strokeStyle = tile.flowerBloomed ? CONFIG.colors.solvedStroke : CONFIG.colors.idleStroke;
+    ctx.strokeStyle = tile.flowerBloomed
+      ? CONFIG.colors.solvedStroke
+      : CONFIG.colors.idleStroke;
+
     ctx.lineWidth = 3;
     ctx.stroke();
 
@@ -100,7 +106,10 @@ export class Renderer {
 
       const finalDir = (i + tile.rotation) % 6;
       const matched = PuzzleValidator.isExitMatched(tile, finalDir, grid);
-      const visualAngle = ((i + tile.visualRotation) - 1) * Math.PI / 3;
+
+      // Burada görsel dönüş kullanılıyor.
+      // Bu satır animasyonun asıl kalbi.
+      const visualAngle = (i - 1) * Math.PI / 3 + tile.visualRotation * Math.PI / 3;
 
       ctx.strokeStyle = tile.flowerBloomed && matched
         ? CONFIG.colors.matchedWater
@@ -146,6 +155,9 @@ export class Renderer {
     const flowerPulse = 1 + Math.sin(tile.pulsePhase * 2) * 0.04;
 
     ctx.save();
+
+    // Çiçek de taşla beraber hafif döner.
+    ctx.rotate(tile.visualRotation * Math.PI / 3);
     ctx.scale(tile.flowerScale * flowerPulse, tile.flowerScale * flowerPulse);
 
     ctx.fillStyle = CONFIG.colors.flowerPetal;
@@ -159,7 +171,10 @@ export class Renderer {
 
     ctx.beginPath();
     ctx.arc(0, 0, tile.endpoint ? 5 : 4, 0, Math.PI * 2);
-    ctx.fillStyle = tile.endpoint ? CONFIG.colors.endpointCenter : CONFIG.colors.flowerCenter;
+    ctx.fillStyle = tile.endpoint
+      ? CONFIG.colors.endpointCenter
+      : CONFIG.colors.flowerCenter;
+
     ctx.fill();
 
     ctx.restore();
