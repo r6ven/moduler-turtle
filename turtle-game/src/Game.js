@@ -1,5 +1,5 @@
 import { CONFIG } from "./config.js";
-import { tileKey } from "./HexMath.js";
+import { DIR_NEIGHBORS, tileKey } from "./HexMath.js";
 import { AudioSystem } from "./AudioSystem.js";
 import { InputManager } from "./InputManager.js";
 import { ParticleSystem } from "./ParticleSystem.js";
@@ -25,6 +25,13 @@ export class Game {
     this.levelCompleted = false;
     this.menuOpen = true;
 
+    this.victoryTour = {
+      active: false,
+      path: [],
+      index: 0,
+      nextAt: 0
+    };
+
     this.audio = new AudioSystem();
     this.particles = new ParticleSystem();
     this.renderer = new Renderer(this.canvas, this.ctx);
@@ -47,6 +54,8 @@ export class Game {
       onRegister: () => this.register(),
       onStartGame: () => this.closeMenu(),
       onContinueGame: () => this.closeMenu(),
+      onOpenLevels: () => this.openLevels(),
+      onSelectLevel: (level) => this.selectLevel(level),
       onRequestReset: () => this.requestReset(),
       onConfirmReset: () => this.confirmReset(),
       onLogout: () => this.logout(),
@@ -80,6 +89,10 @@ export class Game {
 
   generateLevel() {
     this.levelCompleted = false;
+    this.victoryTour.active = false;
+    this.victoryTour.path = [];
+    this.victoryTour.index = 0;
+
     this.particles.clear();
     this.ui.hideCompletion();
     this.ui.updateLevel(this.level);
@@ -130,7 +143,11 @@ export class Game {
     this.generateLevel();
 
     this.menuOpen = true;
-    this.ui.showGameMenu(this.auth.getCurrentUsername(), this.level);
+    this.ui.showGameMenu(
+      this.auth.getCurrentUsername(),
+      this.progress.getSavedLevel(),
+      this.progress.getCompletedLevels().length
+    );
   }
 
   logout() {
@@ -148,7 +165,11 @@ export class Game {
     this.menuOpen = true;
 
     if (this.auth.hasCurrentUser()) {
-      this.ui.showGameMenu(this.auth.getCurrentUsername(), this.progress.getSavedLevel());
+      this.ui.showGameMenu(
+        this.auth.getCurrentUsername(),
+        this.progress.getSavedLevel(),
+        this.progress.getCompletedLevels().length
+      );
     } else {
       this.ui.showAuthMenu();
     }
@@ -161,6 +182,31 @@ export class Game {
     }
 
     this.audio.init();
+    this.menuOpen = false;
+    this.ui.hideLevelSelect();
+    this.ui.hideMainMenu();
+  }
+
+  openLevels() {
+    if (!this.auth.hasCurrentUser()) return;
+
+    const completedLevels = this.progress.getCompletedLevels();
+    this.ui.showLevelSelect(completedLevels);
+  }
+
+  selectLevel(level) {
+    if (!this.auth.hasCurrentUser()) return;
+
+    if (!this.progress.hasCompletedLevel(level)) {
+      return;
+    }
+
+    this.audio.init();
+
+    this.level = level;
+    this.generateLevel();
+
+    this.ui.hideLevelSelect();
     this.menuOpen = false;
     this.ui.hideMainMenu();
   }
@@ -179,7 +225,13 @@ export class Game {
     this.generateLevel();
 
     this.ui.hideResetConfirm();
-    this.ui.showGameMenu(this.auth.getCurrentUsername(), this.level);
+
+    this.menuOpen = true;
+    this.ui.showGameMenu(
+      this.auth.getCurrentUsername(),
+      this.progress.getSavedLevel(),
+      this.progress.getCompletedLevels().length
+    );
   }
 
   handleTilePress(hex) {
@@ -214,7 +266,6 @@ export class Game {
 
   checkConnections({ allowCompletion = true } = {}) {
     const status = PuzzleValidator.inspectGrid(this.grid);
-
     PuzzleValidator.applyBloomState(this.grid, status);
 
     if (allowCompletion && status.completed && !this.levelCompleted) {
@@ -232,9 +283,85 @@ export class Game {
 
     const result = this.progress.completeCurrentLevel();
 
+    this.startVictoryTour();
+
+    const victoryDelay = Math.min(
+      2300,
+      Math.max(CONFIG.completionDelayMs, this.victoryTour.path.length * 150)
+    );
+
     window.setTimeout(() => {
       this.ui.showCompletion(result);
-    }, CONFIG.completionDelayMs);
+    }, victoryDelay);
+  }
+
+  startVictoryTour() {
+    const path = this.buildVictoryPath();
+
+    if (path.length === 0) return;
+
+    this.victoryTour.active = true;
+    this.victoryTour.path = path;
+    this.victoryTour.index = 0;
+    this.victoryTour.nextAt = performance.now() + 120;
+  }
+
+  buildVictoryPath() {
+    const activeKeys = Object.keys(this.grid).filter((key) => {
+      const tile = this.grid[key];
+      return tile.active && tile.flowerBloomed;
+    });
+
+    if (activeKeys.length === 0) return [];
+
+    const endpointKey = activeKeys.find((key) => this.grid[key].degree() === 1);
+    const startKey = endpointKey || "0,0";
+    const visited = new Set();
+    const path = [];
+
+    const dfs = (key) => {
+      const tile = this.grid[key];
+
+      if (!tile || visited.has(key)) return;
+
+      visited.add(key);
+      path.push({ q: tile.q, r: tile.r });
+
+      const exits = tile.getActualExits();
+
+      for (let i = 0; i < 6; i += 1) {
+        if (!exits[i]) continue;
+        if (!PuzzleValidator.isExitMatched(tile, i, this.grid)) continue;
+
+        const dir = DIR_NEIGHBORS[i];
+        const neighborKey = tileKey(tile.q + dir.q, tile.r + dir.r);
+
+        if (!visited.has(neighborKey)) {
+          dfs(neighborKey);
+        }
+      }
+    };
+
+    dfs(startKey);
+
+    return path;
+  }
+
+  updateVictoryTour(timestamp) {
+    if (!this.victoryTour.active) return;
+    if (timestamp < this.victoryTour.nextAt) return;
+
+    const point = this.victoryTour.path[this.victoryTour.index];
+
+    if (!point) {
+      this.victoryTour.active = false;
+      return;
+    }
+
+    this.turtle.moveTo(point.q, point.r, this.hexRadius);
+
+    this.victoryTour.index += 1;
+    this.victoryTour.nextAt = timestamp + 160;
   }
 
   useHint() {
@@ -308,9 +435,10 @@ export class Game {
     this.generateLevel();
   }
 
-  loop() {
+  loop(timestamp = performance.now()) {
     this.turtle.update();
     this.particles.update();
+    this.updateVictoryTour(timestamp);
 
     this.renderer.render({
       grid: this.grid,
@@ -319,6 +447,6 @@ export class Game {
       hexRadius: this.hexRadius
     });
 
-    requestAnimationFrame(() => this.loop());
+    requestAnimationFrame((nextTimestamp) => this.loop(nextTimestamp));
   }
 }
