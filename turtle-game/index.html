@@ -10,49 +10,70 @@
     <canvas id="gameCanvas"></canvas>
 
     <div id="ui-layer">
-  <div class="top-cluster">
-    <div class="top-bar">
-      <div id="level-indicator" class="hud-element">
-        🐢 Ada Seviyesi: <span id="lvl-val">1</span>
+      <div class="top-cluster">
+        <div class="top-bar">
+          <div id="level-indicator" class="hud-element">
+            🐢 Ada Seviyesi: <span id="lvl-val">1</span>
+          </div>
+
+          <div class="top-actions">
+            <div id="menu-btn" class="hud-element icon-btn">☰ Menü</div>
+            <div id="sound-toggle" class="hud-element icon-btn">🎵 Ses: Açık</div>
+          </div>
+        </div>
+
+        <div class="stats-bar">
+          <div id="move-counter" class="hud-element compact">👣 Hamle: <span id="move-val">0</span></div>
+          <div id="hint-counter" class="hud-element compact">✨ İpucu: <span id="hint-val">0</span></div>
+        </div>
       </div>
 
-      <div class="top-actions">
-        <div id="menu-btn" class="hud-element icon-btn">☰ Menü</div>
-        <div id="sound-toggle" class="hud-element icon-btn">🎵 Ses: Açık</div>
+      <div class="bottom-bar">
+        <div id="hint-btn" class="hud-element">✨ Akış İpucu</div>
       </div>
     </div>
+  </div>
 
-    <div class="stats-bar">
-      <div id="move-counter" class="hud-element compact">
-        👣 Hamle: <span id="move-val">0</span>
+  <div id="main-menu-overlay" class="active">
+    <div id="auth-card" class="main-menu-card">
+      <div class="menu-turtle">🐢</div>
+      <h1>Zen Kaplumbağa</h1>
+      <p>Kayıt oluştur ya da giriş yap. Bu sürüm kayıtları aynı tarayıcıda saklar.</p>
+
+      <div class="auth-form">
+        <input id="username-input" class="auth-input" type="text" autocomplete="username" placeholder="Kullanıcı adı" maxlength="24" />
+        <input id="password-input" class="auth-input" type="password" autocomplete="current-password" placeholder="Şifre" maxlength="64" />
       </div>
 
-      <div id="hint-counter" class="hud-element compact">
-        ✨ İpucu: <span id="hint-val">0</span>
+      <button class="menu-btn primary" id="login-btn">Giriş Yap</button>
+      <button class="menu-btn" id="register-btn">Yeni Kayıt Oluştur</button>
+      <div id="auth-message" class="auth-message"></div>
+    </div>
+
+    <div id="game-menu-card" class="main-menu-card hidden">
+      <div class="menu-turtle">🐢</div>
+      <h1>Zen Kaplumbağa</h1>
+      <p id="current-user-label">Oyuncu</p>
+      <p id="saved-level-label">Kayıtlı seviye: 1</p>
+
+      <button class="menu-btn primary" id="continue-game-btn">Devam Et</button>
+      <button class="menu-btn" id="start-game-btn">Oyuna Dön</button>
+      <button class="menu-btn ghost danger-text" id="restart-game-btn">Kayıtları Sıfırla</button>
+      <button class="menu-btn ghost" id="logout-btn">Çıkış Yap</button>
+    </div>
+  </div>
+
+  <div id="reset-confirm-overlay">
+    <div class="confirm-card">
+      <h2>Kayıtlar Silinsin mi?</h2>
+      <p>Tüm ilerleme, yıldızlar ve kayıtlı bölüm bilgisi silinecek. Bu işlem geri alınamaz.</p>
+      <div class="confirm-actions">
+        <button class="confirm-btn danger" id="confirm-reset-btn">Evet, Tümünü Sil</button>
+        <button class="confirm-btn safe" id="cancel-reset-btn">Vazgeç</button>
       </div>
     </div>
   </div>
 
-  <div class="bottom-bar">
-    <div id="hint-btn" class="hud-element">✨ Akış İpucu</div>
-  </div>
-</div>
-
-
-<div id="main-menu-overlay" class="active">
-  <div class="main-menu-card">
-    <div class="menu-turtle">🐢</div>
-
-    <h1>Zen Kaplumbağa</h1>
-
-    <p>Sakin adalarda su yollarını birleştir, çiçekleri uyandır.</p>
-
-    <button class="menu-btn primary" id="start-game-btn">Oyuna Başla</button>
-    <button class="menu-btn" id="continue-game-btn">Devam Et</button>
-    <button class="menu-btn ghost" id="restart-game-btn">1. Seviyeden Başla</button>
-  </div>
-</div>
-    
   <div id="completion-overlay">
     <div class="modal-content">
       <h2>Harika Bir Uyum! 🌸</h2>
