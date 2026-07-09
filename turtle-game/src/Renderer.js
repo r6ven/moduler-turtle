@@ -11,6 +11,7 @@ export class Renderer {
 
   render({ grid, turtle, particleSystem, hexRadius }) {
     const ctx = this.ctx;
+
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     ctx.save();
@@ -19,12 +20,14 @@ export class Renderer {
     Object.keys(grid).forEach((key) => {
       const tile = grid[key];
       const pos = hexToPixel(tile.q, tile.r, hexRadius);
+
       tile.updateAnimation();
       this.drawHexagon(ctx, pos.x, pos.y, hexRadius, tile, grid);
     });
 
     this.drawTurtle(ctx, turtle);
     particleSystem.draw(ctx);
+
     ctx.restore();
 
     this.waterFlowPhase += 0.035;
@@ -35,7 +38,10 @@ export class Renderer {
     ctx.translate(x, y);
 
     const pulse = Math.sin(tile.pulsePhase) * 1.0;
+    const pressScale = 1 + tile.pressPulse * 0.045;
     const glowRadius = radius + pulse + tile.hintGlow * 12;
+
+    ctx.scale(pressScale, pressScale);
 
     if (tile.hintGlow > 0) {
       this.drawHexShape(ctx, glowRadius);
@@ -64,6 +70,7 @@ export class Renderer {
 
     this.drawWaterChannels(ctx, radius, tile, grid);
     this.drawFlower(ctx, tile);
+
     ctx.restore();
   }
 
@@ -84,6 +91,7 @@ export class Renderer {
 
   drawWaterChannels(ctx, radius, tile, grid) {
     const channelLength = radius * Math.cos(Math.PI / 6) + 2;
+
     ctx.lineWidth = 12;
     ctx.lineCap = "round";
 
@@ -107,23 +115,24 @@ export class Renderer {
       ctx.stroke();
 
       if (tile.flowerBloomed && matched) {
-        this.drawWaterSpark(ctx, channelLength, visualAngle);
+        this.drawWaterSpark(ctx, channelLength, visualAngle, 0);
+        this.drawWaterSpark(ctx, channelLength, visualAngle, Math.PI);
       }
     }
   }
 
-  drawWaterSpark(ctx, channelLength, angle) {
-    const t = (Math.sin(this.waterFlowPhase) + 1) / 2;
-    const distance = channelLength * (0.25 + t * 0.55);
+  drawWaterSpark(ctx, channelLength, angle, offset) {
+    const t = (Math.sin(this.waterFlowPhase * 2.2 + offset) + 1) / 2;
+    const distance = channelLength * (0.18 + t * 0.62);
 
     ctx.save();
-    ctx.globalAlpha = 0.35;
+    ctx.globalAlpha = 0.32;
     ctx.fillStyle = "white";
     ctx.beginPath();
     ctx.arc(
       distance * Math.cos(angle),
       distance * Math.sin(angle),
-      2.2,
+      2.1,
       0,
       Math.PI * 2
     );
@@ -134,8 +143,11 @@ export class Renderer {
   drawFlower(ctx, tile) {
     if (tile.flowerScale <= 0.01) return;
 
+    const flowerPulse = 1 + Math.sin(tile.pulsePhase * 2) * 0.04;
+
     ctx.save();
-    ctx.scale(tile.flowerScale, tile.flowerScale);
+    ctx.scale(tile.flowerScale * flowerPulse, tile.flowerScale * flowerPulse);
+
     ctx.fillStyle = CONFIG.colors.flowerPetal;
 
     for (let j = 0; j < 5; j += 1) {
@@ -149,14 +161,16 @@ export class Renderer {
     ctx.arc(0, 0, tile.endpoint ? 5 : 4, 0, Math.PI * 2);
     ctx.fillStyle = tile.endpoint ? CONFIG.colors.endpointCenter : CONFIG.colors.flowerCenter;
     ctx.fill();
+
     ctx.restore();
   }
 
   drawTurtle(ctx, turtle) {
     const legWiggle = Math.sin(turtle.animFrame) * 3;
+    const bob = Math.sin(turtle.animFrame) * 1.2;
 
     ctx.save();
-    ctx.translate(turtle.x, turtle.y + Math.sin(turtle.animFrame) * 1.2);
+    ctx.translate(turtle.x, turtle.y + bob);
     ctx.rotate(turtle.angle + Math.PI / 2);
 
     ctx.fillStyle = "#81c784";
