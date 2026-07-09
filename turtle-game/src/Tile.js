@@ -11,6 +11,7 @@ export class Tile {
     this.rotation = 0;
     this.visualRotation = 0;
     this.targetVisualRotation = 0;
+    this.pressPulse = 0;
 
     this.flowerBloomed = false;
     this.flowerScale = 0;
@@ -39,6 +40,7 @@ export class Tile {
 
     this.rotation = (this.rotation + 1) % 6;
     this.targetVisualRotation += 1;
+    this.pressPulse = 1;
 
     return true;
   }
@@ -50,11 +52,13 @@ export class Tile {
     if (!animate) {
       this.visualRotation = normalizedRotation;
       this.targetVisualRotation = normalizedRotation;
+      this.pressPulse = 0;
       return;
     }
 
     const current = this.visualRotation;
     const baseCycle = Math.round(current / 6) * 6;
+
     const candidates = [
       baseCycle + normalizedRotation - 6,
       baseCycle + normalizedRotation,
@@ -66,6 +70,8 @@ export class Tile {
         ? candidate
         : best;
     }, candidates[0]);
+
+    this.pressPulse = 1;
   }
 
   isSolvedOrientation() {
@@ -81,6 +87,10 @@ export class Tile {
 
     if (this.hintGlow > 0) {
       this.hintGlow = Math.max(0, this.hintGlow - 0.025);
+    }
+
+    if (this.pressPulse > 0) {
+      this.pressPulse = Math.max(0, this.pressPulse - 0.08);
     }
 
     if (this.flowerBloomed) {
