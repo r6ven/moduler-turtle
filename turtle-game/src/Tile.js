@@ -9,6 +9,8 @@ export class Tile {
     this.locked = false;
 
     this.rotation = 0;
+    this.visualRotation = 0;
+    this.targetVisualRotation = 0;
 
     this.flowerBloomed = false;
     this.flowerScale = 0;
@@ -36,7 +38,34 @@ export class Tile {
     }
 
     this.rotation = (this.rotation + 1) % 6;
+    this.targetVisualRotation += 1;
+
     return true;
+  }
+
+  setRotation(rotation, { animate = true } = {}) {
+    const normalizedRotation = ((rotation % 6) + 6) % 6;
+    this.rotation = normalizedRotation;
+
+    if (!animate) {
+      this.visualRotation = normalizedRotation;
+      this.targetVisualRotation = normalizedRotation;
+      return;
+    }
+
+    const current = this.visualRotation;
+    const baseCycle = Math.round(current / 6) * 6;
+    const candidates = [
+      baseCycle + normalizedRotation - 6,
+      baseCycle + normalizedRotation,
+      baseCycle + normalizedRotation + 6
+    ];
+
+    this.targetVisualRotation = candidates.reduce((best, candidate) => {
+      return Math.abs(candidate - current) < Math.abs(best - current)
+        ? candidate
+        : best;
+    }, candidates[0]);
   }
 
   isSolvedOrientation() {
@@ -58,6 +87,14 @@ export class Tile {
       this.flowerScale = Math.min(1, this.flowerScale + 0.05);
     } else {
       this.flowerScale = Math.max(0, this.flowerScale - 0.05);
+    }
+
+    const rotationDiff = this.targetVisualRotation - this.visualRotation;
+
+    if (Math.abs(rotationDiff) < 0.001) {
+      this.visualRotation = this.targetVisualRotation;
+    } else {
+      this.visualRotation += rotationDiff * 0.22;
     }
   }
 }
