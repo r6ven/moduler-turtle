@@ -17,12 +17,26 @@ export class Renderer {
     ctx.save();
     ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
 
-    Object.keys(grid).forEach((key) => {
+    const tiles = Object.keys(grid).map((key) => {
       const tile = grid[key];
       const pos = hexToPixel(tile.q, tile.r, hexRadius);
 
       tile.updateAnimation();
-      this.drawHexagon(ctx, pos.x, pos.y, hexRadius, tile, grid);
+
+      return {
+        key,
+        tile,
+        x: pos.x,
+        y: pos.y,
+        liftWave: tile.getLiftWave()
+      };
+    });
+
+    // Yükselen taşlar en son çizilsin, üstteymiş gibi görünsün.
+    tiles.sort((a, b) => a.liftWave - b.liftWave);
+
+    tiles.forEach(({ tile, x, y }) => {
+      this.drawHexagon(ctx, x, y, hexRadius, tile, grid);
     });
 
     this.drawTurtle(ctx, turtle);
@@ -30,17 +44,29 @@ export class Renderer {
 
     ctx.restore();
 
-    this.waterFlowPhase += 0.035;
+    this.waterFlowPhase += 0.055;
   }
 
   drawHexagon(ctx, x, y, radius, tile, grid) {
-    ctx.save();
-    ctx.translate(x, y);
-
+    const liftWave = tile.getLiftWave();
+    const lift = tile.active ? liftWave * 11 : 0;
+    const pressScale = tile.active ? 1 + liftWave * 0.035 : 1;
     const pulse = Math.sin(tile.pulsePhase) * 1.0;
-    const pressScale = 1 + tile.pressPulse * 0.055;
     const glowRadius = radius + pulse + tile.hintGlow * 12;
 
+    // Yükselen taşın gölgesi. Dönme hissini asıl bu satıyor.
+    if (tile.active && lift > 0.2) {
+      ctx.save();
+      ctx.translate(x + lift * 0.18, y + lift * 0.62);
+      ctx.scale(1 + liftWave * 0.05, 1 + liftWave * 0.03);
+      this.drawHexShape(ctx, radius - 3);
+      ctx.fillStyle = `rgba(60, 80, 50, ${0.08 + liftWave * 0.12})`;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.translate(x, y - lift);
     ctx.scale(pressScale, pressScale);
 
     if (tile.hintGlow > 0) {
@@ -74,6 +100,11 @@ export class Renderer {
     ctx.lineWidth = 3;
     ctx.stroke();
 
+    // Taş üstünde hafif parlama, yükselme hissini artırır.
+    if (liftWave > 0.01) {
+      this.drawTopShine(ctx, radius, liftWave);
+    }
+
     this.drawWaterChannels(ctx, radius, tile, grid);
     this.drawFlower(ctx, tile);
 
@@ -95,6 +126,16 @@ export class Renderer {
     ctx.closePath();
   }
 
+  drawTopShine(ctx, radius, liftWave) {
+    ctx.save();
+    ctx.globalAlpha = 0.18 * liftWave;
+    ctx.beginPath();
+    ctx.ellipse(-radius * 0.16, -radius * 0.24, radius * 0.34, radius * 0.12, -0.35, 0, Math.PI * 2);
+    ctx.fillStyle = "white";
+    ctx.fill();
+    ctx.restore();
+  }
+
   drawWaterChannels(ctx, radius, tile, grid) {
     const channelLength = radius * Math.cos(Math.PI / 6) + 2;
 
@@ -107,14 +148,17 @@ export class Renderer {
       const finalDir = (i + tile.rotation) % 6;
       const matched = PuzzleValidator.isExitMatched(tile, finalDir, grid);
 
-      // Burada görsel dönüş kullanılıyor.
-      // Bu satır animasyonun asıl kalbi.
-      const visualAngle = (i - 1) * Math.PI / 3 + tile.visualRotation * Math.PI / 3;
+      // Su kanalının görsel rotasyonu. Taşın döndüğü artık buradan okunur.
+      const visualAngle =
+        (i - 1) * Math.PI / 3 + tile.visualRotation * Math.PI / 3;
 
-      ctx.strokeStyle = tile.flowerBloomed && matched
+      const isActiveFlow = tile.flowerBloomed && matched;
+
+      ctx.strokeStyle = isActiveFlow
         ? CONFIG.colors.matchedWater
         : CONFIG.colors.idleWater;
 
+      // Ana su kanalı
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.lineTo(
@@ -123,29 +167,62 @@ export class Renderer {
       );
       ctx.stroke();
 
-      if (tile.flowerBloomed && matched) {
-        this.drawWaterSpark(ctx, channelLength, visualAngle, 0);
-        this.drawWaterSpark(ctx, channelLength, visualAngle, Math.PI);
+      // Bağlı sularda akış çizgisi
+      if (isActiveFlow) {
+        this.drawFlowDash(ctx, channelLength, visualAngle);
+        this.drawWaterBubbles(ctx, channelLength, visualAngle);
       }
     }
   }
 
-  drawWaterSpark(ctx, channelLength, angle, offset) {
-    const t = (Math.sin(this.waterFlowPhase * 2.2 + offset) + 1) / 2;
-    const distance = channelLength * (0.18 + t * 0.62);
-
+  drawFlowDash(ctx, channelLength, angle) {
     ctx.save();
-    ctx.globalAlpha = 0.32;
-    ctx.fillStyle = "white";
+
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+    ctx.setLineDash([8, 13]);
+
+    // Negatif offset akıyormuş hissi verir.
+    ctx.lineDashOffset = -this.waterFlowPhase * 42;
+
     ctx.beginPath();
-    ctx.arc(
-      distance * Math.cos(angle),
-      distance * Math.sin(angle),
-      2.1,
-      0,
-      Math.PI * 2
+    ctx.moveTo(3 * Math.cos(angle), 3 * Math.sin(angle));
+    ctx.lineTo(
+      channelLength * Math.cos(angle),
+      channelLength * Math.sin(angle)
     );
-    ctx.fill();
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  drawWaterBubbles(ctx, channelLength, angle) {
+    ctx.save();
+
+    for (let i = 0; i < 3; i += 1) {
+      const phase = (this.waterFlowPhase * 0.55 + i * 0.33) % 1;
+      const distance = channelLength * (0.18 + phase * 0.72);
+      const wobble = Math.sin(this.waterFlowPhase * 4 + i * 1.7) * 1.4;
+
+      const normalAngle = angle + Math.PI / 2;
+
+      const x =
+        distance * Math.cos(angle) +
+        wobble * Math.cos(normalAngle);
+
+      const y =
+        distance * Math.sin(angle) +
+        wobble * Math.sin(normalAngle);
+
+      ctx.globalAlpha = 0.42 * (1 - phase * 0.25);
+      ctx.fillStyle = "white";
+      ctx.beginPath();
+      ctx.arc(x, y, 1.7 + i * 0.15, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     ctx.restore();
   }
 
@@ -156,7 +233,7 @@ export class Renderer {
 
     ctx.save();
 
-    // Çiçek de taşla beraber hafif döner.
+    // Çiçek de taşla birlikte döner. Böylece rotasyon daha belirgin olur.
     ctx.rotate(tile.visualRotation * Math.PI / 3);
     ctx.scale(tile.flowerScale * flowerPulse, tile.flowerScale * flowerPulse);
 
