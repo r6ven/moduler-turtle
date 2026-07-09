@@ -49,6 +49,17 @@ export class ProgressSystem {
       bestMoves: existing.bestMoves == null ? this.moves : Math.min(existing.bestMoves, this.moves)
     };
 
+    resetAll() {
+  this.bestByLevel = {};
+
+  try {
+    localStorage.removeItem(CONFIG.saveKey);
+  } catch {
+    // Kayıt silinemezse oyunu bozmuyoruz.
+  }
+}
+    
+
     this.save();
 
     return {
