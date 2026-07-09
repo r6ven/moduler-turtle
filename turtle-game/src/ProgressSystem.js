@@ -45,6 +45,49 @@ export class ProgressSystem {
   void this.save();
 }
 
+calculateStars() {
+  if (this.moves <= 0) return 1;
+
+  const threeStarTarget = this.targetMoves;
+  const twoStarTarget = this.calculateTwoStarTarget();
+
+  if (this.moves <= threeStarTarget && this.hintsUsed === 0) {
+    return 3;
+  }
+
+  if (this.moves <= twoStarTarget) {
+    return 2;
+  }
+
+  return 1;
+}
+
+return {
+  stars,
+  moves: this.moves,
+  hintsUsed: this.hintsUsed,
+  targetMoves: this.targetMoves,
+  minimumMoves: this.minimumMoves,
+  twoStarTarget: this.calculateTwoStarTarget()
+};
+
+calculateThreeStarTarget(minimumMoves, level) {
+  const tolerance = Math.max(
+    3,
+    Math.ceil(minimumMoves * 0.12),
+    Math.floor(level / 4)
+  );
+
+  return minimumMoves + tolerance;
+}
+
+calculateTwoStarTarget() {
+  return this.targetMoves + Math.max(
+    6,
+    Math.ceil(this.minimumMoves * 0.25)
+  );
+}
+
   getSavedLevel() {
     const level = Number(this.lastLevel);
 
