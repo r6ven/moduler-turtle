@@ -3,12 +3,15 @@ import { CONFIG } from "./config.js";
 export class ProgressSystem {
   constructor(authSystem = null) {
     this.authSystem = authSystem;
+
     this.level = 1;
     this.moves = 0;
     this.hintsUsed = 0;
     this.targetMoves = 0;
+
     this.bestByLevel = {};
     this.lastLevel = 1;
+
     this.loadForCurrentUser();
   }
 
@@ -31,8 +34,10 @@ export class ProgressSystem {
     this.moves = 0;
     this.hintsUsed = 0;
     this.targetMoves = CONFIG.difficulty.getTargetMoves(activeTileCount, level);
+
     this.lastLevel = level;
-    this.save();
+
+    void this.save();
   }
 
   getSavedLevel() {
@@ -71,6 +76,7 @@ export class ProgressSystem {
 
   completeCurrentLevel() {
     const stars = this.calculateStars();
+
     const existing = this.bestByLevel[this.level] || {
       stars: 0,
       bestMoves: null
@@ -85,7 +91,8 @@ export class ProgressSystem {
     };
 
     this.lastLevel = this.level + 1;
-    this.save();
+
+    void this.save();
 
     return {
       stars,
@@ -95,7 +102,7 @@ export class ProgressSystem {
     };
   }
 
-  resetAll() {
+  async resetAll() {
     this.bestByLevel = {};
     this.lastLevel = 1;
     this.moves = 0;
@@ -103,7 +110,7 @@ export class ProgressSystem {
     this.targetMoves = 0;
 
     if (this.authSystem?.hasCurrentUser()) {
-      this.authSystem.clearProgressForCurrentUser();
+      await this.authSystem.clearProgressForCurrentUser();
       return;
     }
 
@@ -127,7 +134,11 @@ export class ProgressSystem {
 
       const parsed = JSON.parse(raw);
 
-      if (parsed && typeof parsed === "object" && ("bestByLevel" in parsed || "lastLevel" in parsed)) {
+      if (
+        parsed &&
+        typeof parsed === "object" &&
+        ("bestByLevel" in parsed || "lastLevel" in parsed)
+      ) {
         return {
           lastLevel: Number(parsed.lastLevel) || 1,
           bestByLevel: parsed.bestByLevel || {}
@@ -153,14 +164,14 @@ export class ProgressSystem {
     }
   }
 
-  save() {
+  async save() {
     const progress = {
       lastLevel: this.lastLevel,
       bestByLevel: this.bestByLevel
     };
 
     if (this.authSystem?.hasCurrentUser()) {
-      this.authSystem.saveProgressForCurrentUser(progress);
+      await this.authSystem.saveProgressForCurrentUser(progress);
       return;
     }
 
