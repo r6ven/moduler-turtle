@@ -104,6 +104,7 @@ export class Game {
     this.ui.updateStats(this.progress);
 
     this.turtle.reset(0, 0, this.hexRadius);
+    this.turtle.speed = 0.08;
     this.checkConnections({ allowCompletion: false });
   }
 
@@ -296,73 +297,89 @@ export class Game {
   }
 
   startVictoryTour() {
-    const path = this.buildVictoryPath();
+  const path = this.buildVictoryPath();
 
-    if (path.length === 0) return;
+  if (path.length === 0) return;
 
-    this.victoryTour.active = true;
-    this.victoryTour.path = path;
-    this.victoryTour.index = 0;
-    this.victoryTour.nextAt = performance.now() + 120;
-  }
+  this.victoryTour.active = true;
+  this.victoryTour.path = path;
+  this.victoryTour.index = 0;
+  this.victoryTour.nextAt = performance.now() + 120;
+
+  // Zafer turunda biraz daha hızlı yüzsün.
+  this.turtle.speed = 0.18;
+}
 
   buildVictoryPath() {
-    const activeKeys = Object.keys(this.grid).filter((key) => {
-      const tile = this.grid[key];
-      return tile.active && tile.flowerBloomed;
-    });
+  const activeKeys = Object.keys(this.grid).filter((key) => {
+    const tile = this.grid[key];
+    return tile.active && tile.flowerBloomed;
+  });
 
-    if (activeKeys.length === 0) return [];
+  if (activeKeys.length === 0) return [];
 
-    const endpointKey = activeKeys.find((key) => this.grid[key].degree() === 1);
-    const startKey = endpointKey || "0,0";
-    const visited = new Set();
-    const path = [];
+  const endpointKey = activeKeys.find((key) => this.grid[key].degree() === 1);
+  const startKey = endpointKey || "0,0";
 
-    const dfs = (key) => {
-      const tile = this.grid[key];
+  const visited = new Set();
+  const route = [];
 
-      if (!tile || visited.has(key)) return;
+  const dfs = (key) => {
+    const tile = this.grid[key];
 
-      visited.add(key);
-      path.push({ q: tile.q, r: tile.r });
+    if (!tile || visited.has(key)) return;
 
-      const exits = tile.getActualExits();
+    visited.add(key);
+    route.push({ q: tile.q, r: tile.r });
 
-      for (let i = 0; i < 6; i += 1) {
-        if (!exits[i]) continue;
-        if (!PuzzleValidator.isExitMatched(tile, i, this.grid)) continue;
+    const exits = tile.getActualExits();
 
-        const dir = DIR_NEIGHBORS[i];
-        const neighborKey = tileKey(tile.q + dir.q, tile.r + dir.r);
+    for (let i = 0; i < 6; i += 1) {
+      if (!exits[i]) continue;
+      if (!PuzzleValidator.isExitMatched(tile, i, this.grid)) continue;
 
-        if (!visited.has(neighborKey)) {
-          dfs(neighborKey);
-        }
+      const dir = DIR_NEIGHBORS[i];
+      const neighborKey = tileKey(tile.q + dir.q, tile.r + dir.r);
+
+      if (!visited.has(neighborKey)) {
+        dfs(neighborKey);
+
+        // Önemli kısım:
+        // Daldan geri dönerken mevcut taşı tekrar rotaya ekliyoruz.
+        // Böylece kaplumbağa bir daldan başka dala düz kesmiyor.
+        route.push({ q: tile.q, r: tile.r });
       }
-    };
+    }
+  };
 
-    dfs(startKey);
+  dfs(startKey);
 
-    return path;
-  }
+  return route;
+}
 
   updateVictoryTour(timestamp) {
-    if (!this.victoryTour.active) return;
-    if (timestamp < this.victoryTour.nextAt) return;
+  if (!this.victoryTour.active) return;
+  if (timestamp < this.victoryTour.nextAt) return;
 
-    const point = this.victoryTour.path[this.victoryTour.index];
+  const reachedTarget = this.turtle.distanceToTarget() < 5;
 
-    if (!point) {
-      this.victoryTour.active = false;
-      return;
-    }
-
-    this.turtle.moveTo(point.q, point.r, this.hexRadius);
-
-    this.victoryTour.index += 1;
-    this.victoryTour.nextAt = timestamp + 160;
+  if (!reachedTarget && this.victoryTour.index > 0) {
+    return;
   }
+
+  const point = this.victoryTour.path[this.victoryTour.index];
+
+  if (!point) {
+    this.victoryTour.active = false;
+    this.turtle.speed = 0.08;
+    return;
+  }
+
+  this.turtle.moveTo(point.q, point.r, this.hexRadius);
+
+  this.victoryTour.index += 1;
+  this.victoryTour.nextAt = timestamp + 80;
+}
 
   useHint() {
     if (this.menuOpen || this.levelCompleted || !this.auth.hasCurrentUser()) return;
@@ -436,17 +453,17 @@ export class Game {
   }
 
   loop(timestamp = performance.now()) {
-    this.turtle.update();
-    this.particles.update();
-    this.updateVictoryTour(timestamp);
+  this.updateVictoryTour(timestamp);
 
-    this.renderer.render({
-      grid: this.grid,
-      turtle: this.turtle,
-      particleSystem: this.particles,
-      hexRadius: this.hexRadius
-    });
+  this.turtle.update();
+  this.particles.update();
 
-    requestAnimationFrame((nextTimestamp) => this.loop(nextTimestamp));
-  }
+  this.renderer.render({
+    grid: this.grid,
+    turtle: this.turtle,
+    particleSystem: this.particles,
+    hexRadius: this.hexRadius
+  });
+
+  requestAnimationFrame((nextTimestamp) => this.loop(nextTimestamp));
 }
