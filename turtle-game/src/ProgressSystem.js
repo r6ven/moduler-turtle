@@ -8,6 +8,7 @@ export class ProgressSystem {
     this.moves = 0;
     this.hintsUsed = 0;
     this.targetMoves = 0;
+    this.minimumMoves = 1;
 
     this.bestByLevel = {};
     this.lastLevel = 1;
@@ -30,63 +31,37 @@ export class ProgressSystem {
   }
 
   startLevel(level, activeTileCount, minimumMoves = null) {
-  this.level = level;
-  this.moves = 0;
-  this.hintsUsed = 0;
+    this.level = level;
+    this.moves = 0;
+    this.hintsUsed = 0;
 
-  this.minimumMoves = Number.isFinite(minimumMoves)
-    ? Math.max(1, Math.floor(minimumMoves))
-    : CONFIG.difficulty.getTargetMoves(activeTileCount, level);
+    this.minimumMoves = Number.isFinite(minimumMoves)
+      ? Math.max(1, Math.floor(minimumMoves))
+      : CONFIG.difficulty.getTargetMoves(activeTileCount, level);
 
-  this.targetMoves = this.calculateThreeStarTarget(this.minimumMoves, level);
+    this.targetMoves = this.calculateThreeStarTarget(this.minimumMoves, level);
 
-  this.lastLevel = Math.max(Number(this.lastLevel) || 1, level);
+    this.lastLevel = Math.max(Number(this.lastLevel) || 1, level);
 
-  void this.save();
-}
-
-calculateStars() {
-  if (this.moves <= 0) return 1;
-
-  const threeStarTarget = this.targetMoves;
-  const twoStarTarget = this.calculateTwoStarTarget();
-
-  if (this.moves <= threeStarTarget && this.hintsUsed === 0) {
-    return 3;
+    void this.save();
   }
 
-  if (this.moves <= twoStarTarget) {
-    return 2;
+  calculateThreeStarTarget(minimumMoves, level) {
+    const tolerance = Math.max(
+      3,
+      Math.ceil(minimumMoves * 0.12),
+      Math.floor(level / 4)
+    );
+
+    return minimumMoves + tolerance;
   }
 
-  return 1;
-}
-
-return {
-  stars,
-  moves: this.moves,
-  hintsUsed: this.hintsUsed,
-  targetMoves: this.targetMoves,
-  minimumMoves: this.minimumMoves,
-  twoStarTarget: this.calculateTwoStarTarget()
-};
-
-calculateThreeStarTarget(minimumMoves, level) {
-  const tolerance = Math.max(
-    3,
-    Math.ceil(minimumMoves * 0.12),
-    Math.floor(level / 4)
-  );
-
-  return minimumMoves + tolerance;
-}
-
-calculateTwoStarTarget() {
-  return this.targetMoves + Math.max(
-    6,
-    Math.ceil(this.minimumMoves * 0.25)
-  );
-}
+  calculateTwoStarTarget() {
+    return this.targetMoves + Math.max(
+      6,
+      Math.ceil(this.minimumMoves * 0.25)
+    );
+  }
 
   getSavedLevel() {
     const level = Number(this.lastLevel);
@@ -103,11 +78,15 @@ calculateTwoStarTarget() {
       .map((level) => Number(level))
       .filter((level) => Number.isFinite(level) && level >= 1)
       .sort((a, b) => a - b)
-      .map((level) => ({
-        level,
-        stars: this.bestByLevel[level]?.stars || this.bestByLevel[String(level)]?.stars || 0,
-        bestMoves: this.bestByLevel[level]?.bestMoves ?? this.bestByLevel[String(level)]?.bestMoves ?? null
-      }));
+      .map((level) => {
+        const record = this.bestByLevel[level] || this.bestByLevel[String(level)] || {};
+
+        return {
+          level,
+          stars: record.stars || 0,
+          bestMoves: record.bestMoves ?? null
+        };
+      });
   }
 
   hasCompletedLevel(level) {
@@ -125,17 +104,18 @@ calculateTwoStarTarget() {
   calculateStars() {
     if (this.moves <= 0) return 1;
 
-    let stars = 1;
+    const threeStarTarget = this.targetMoves;
+    const twoStarTarget = this.calculateTwoStarTarget();
 
-    if (this.moves <= this.targetMoves) {
-      stars = 2;
+    if (this.moves <= threeStarTarget && this.hintsUsed === 0) {
+      return 3;
     }
 
-    if (this.moves <= this.targetMoves && this.hintsUsed === 0) {
-      stars = 3;
+    if (this.moves <= twoStarTarget) {
+      return 2;
     }
 
-    return stars;
+    return 1;
   }
 
   completeCurrentLevel() {
@@ -162,7 +142,9 @@ calculateTwoStarTarget() {
       stars,
       moves: this.moves,
       hintsUsed: this.hintsUsed,
-      targetMoves: this.targetMoves
+      targetMoves: this.targetMoves,
+      minimumMoves: this.minimumMoves,
+      twoStarTarget: this.calculateTwoStarTarget()
     };
   }
 
@@ -172,6 +154,7 @@ calculateTwoStarTarget() {
     this.moves = 0;
     this.hintsUsed = 0;
     this.targetMoves = 0;
+    this.minimumMoves = 1;
 
     if (this.authSystem?.hasCurrentUser()) {
       await this.authSystem.clearProgressForCurrentUser();
