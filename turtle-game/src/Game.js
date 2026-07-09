@@ -9,13 +9,17 @@ import { PuzzleValidator } from "./PuzzleValidator.js";
 import { Renderer } from "./Renderer.js";
 import { Turtle } from "./Turtle.js";
 import { UIController } from "./UIController.js";
+import { UserAuthSystem } from "./UserAuthSystem.js";
 
 export class Game {
   constructor() {
     this.canvas = document.getElementById("gameCanvas");
     this.ctx = this.canvas.getContext("2d");
 
-    this.level = 1;
+    this.auth = new UserAuthSystem();
+    this.progress = new ProgressSystem(this.auth);
+
+    this.level = this.auth.hasCurrentUser() ? this.progress.getSavedLevel() : 1;
     this.hexRadius = CONFIG.desktopHexRadius;
     this.grid = {};
     this.levelCompleted = false;
@@ -23,7 +27,6 @@ export class Game {
 
     this.audio = new AudioSystem();
     this.particles = new ParticleSystem();
-    this.progress = new ProgressSystem();
     this.renderer = new Renderer(this.canvas, this.ctx);
     this.turtle = new Turtle();
     this.ui = new UIController();
@@ -37,22 +40,31 @@ export class Game {
 
   start() {
     this.ui.bind({
-  onNextLevel: () => this.nextLevel(),
-  onHint: () => this.useHint(),
-  onToggleSound: () => this.toggleSound(),
-  onStartGame: () => this.startGameFromMenu(),
-  onContinueGame: () => this.closeMenu(),
-  onRestartGame: () => this.restartFromLevelOne(),
-  onOpenMenu: () => this.openMenu()
-});
+      onNextLevel: () => this.nextLevel(),
+      onHint: () => this.useHint(),
+      onToggleSound: () => this.toggleSound(),
+      onLogin: () => this.login(),
+      onRegister: () => this.register(),
+      onStartGame: () => this.closeMenu(),
+      onContinueGame: () => this.closeMenu(),
+      onRequestReset: () => this.requestReset(),
+      onConfirmReset: () => this.confirmReset(),
+      onLogout: () => this.logout(),
+      onOpenMenu: () => this.openMenu()
+    });
 
     this.input.bind();
-
     window.addEventListener("resize", () => this.resizeCanvas());
 
     this.resizeCanvas();
     this.generateLevel();
-    this.ui.showMainMenu();
+
+    if (this.auth.hasCurrentUser()) {
+      this.ui.showGameMenu(this.auth.getCurrentUsername(), this.level);
+    } else {
+      this.ui.showAuthMenu();
+    }
+
     this.loop();
   }
 
@@ -84,35 +96,89 @@ export class Game {
     this.ui.updateStats(this.progress);
 
     this.turtle.reset(0, 0, this.hexRadius);
-
     this.checkConnections({ allowCompletion: false });
   }
-  startGameFromMenu() {
-  this.audio.init();
-  this.closeMenu();
-}
 
-openMenu() {
-  this.menuOpen = true;
-  this.ui.showMainMenu();
-}
+  async login() {
+    const { username, password } = this.ui.getAuthCredentials();
+    const result = await this.auth.login(username, password);
 
-closeMenu() {
-  this.menuOpen = false;
-  this.ui.hideMainMenu();
-}
+    if (!result.ok) {
+      this.ui.setAuthMessage(result.error, "error");
+      return;
+    }
 
-restartFromLevelOne() {
-  this.audio.init();
-  this.progress.resetAll();
-  this.level = 1;
-  this.generateLevel();
-  this.closeMenu();
-}
-  
+    this.afterAuthSuccess("Giriş başarılı.");
+  }
+
+  async register() {
+    const { username, password } = this.ui.getAuthCredentials();
+    const result = await this.auth.register(username, password);
+
+    if (!result.ok) {
+      this.ui.setAuthMessage(result.error, "error");
+      return;
+    }
+
+    this.afterAuthSuccess("Kayıt oluşturuldu.");
+  }
+
+  afterAuthSuccess(message) {
+    this.audio.init();
+    this.ui.clearPassword();
+    this.ui.setAuthMessage(message);
+    this.progress.loadForCurrentUser();
+    this.level = this.progress.getSavedLevel();
+    this.generateLevel();
+    this.ui.showGameMenu(this.auth.getCurrentUsername(), this.level);
+  }
+
+  logout() {
+    this.auth.logout();
+    this.progress.loadForCurrentUser();
+    this.level = 1;
+    this.generateLevel();
+    this.menuOpen = true;
+    this.ui.showAuthMenu("Çıkış yapıldı.");
+  }
+
+  openMenu() {
+    this.menuOpen = true;
+
+    if (this.auth.hasCurrentUser()) {
+      this.ui.showGameMenu(this.auth.getCurrentUsername(), this.level);
+    } else {
+      this.ui.showAuthMenu();
+    }
+  }
+
+  closeMenu() {
+    if (!this.auth.hasCurrentUser()) {
+      this.ui.showAuthMenu("Önce giriş yap ya da kayıt oluştur.");
+      return;
+    }
+
+    this.audio.init();
+    this.menuOpen = false;
+    this.ui.hideMainMenu();
+  }
+
+  requestReset() {
+    if (!this.auth.hasCurrentUser()) return;
+    this.ui.showResetConfirm();
+  }
+
+  confirmReset() {
+    this.audio.init();
+    this.progress.resetAll();
+    this.level = 1;
+    this.generateLevel();
+    this.ui.hideResetConfirm();
+    this.ui.showGameMenu(this.auth.getCurrentUsername(), this.level);
+  }
 
   handleTilePress(hex) {
-    if (this.menuOpen || this.levelCompleted) return;
+    if (this.menuOpen || this.levelCompleted || !this.auth.hasCurrentUser()) return;
 
     this.audio.init();
 
@@ -153,7 +219,6 @@ restartFromLevelOne() {
 
   completeLevel() {
     this.levelCompleted = true;
-
     this.audio.play("success");
     this.particles.createCelebration(this.canvas.width, this.canvas.height);
 
@@ -165,7 +230,7 @@ restartFromLevelOne() {
   }
 
   useHint() {
-    if (this.menuOpen || this.levelCompleted) return;
+    if (this.menuOpen || this.levelCompleted || !this.auth.hasCurrentUser()) return;
 
     this.audio.init();
 
@@ -187,6 +252,8 @@ restartFromLevelOne() {
 
     candidates.forEach((tile) => {
       const oldRotation = tile.rotation;
+      const oldVisualRotation = tile.visualRotation;
+      const oldTargetVisualRotation = tile.targetVisualRotation;
 
       tile.rotation = 0;
 
@@ -194,6 +261,8 @@ restartFromLevelOne() {
       const score = status.connectedCount * 10 - status.danglingExitCount;
 
       tile.rotation = oldRotation;
+      tile.visualRotation = oldVisualRotation;
+      tile.targetVisualRotation = oldTargetVisualRotation;
 
       if (score > bestScore) {
         bestScore = score;
@@ -201,7 +270,7 @@ restartFromLevelOne() {
       }
     });
 
-    bestTile.rotation = 0;
+    bestTile.setRotation(0, { animate: true });
     bestTile.hintGlow = 1;
 
     this.progress.addHint();
