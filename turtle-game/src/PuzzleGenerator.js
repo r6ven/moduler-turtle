@@ -15,7 +15,6 @@ export class PuzzleGenerator {
     const mapRadius = CONFIG.difficulty.getMapRadius(level);
     const coords = buildHexCoordinateList(mapRadius);
     const cleanMap = PuzzleGenerator.createCleanSolvedMap(coords, level, mapRadius);
-
     const grid = {};
 
     coords.forEach(({ q, r }) => {
@@ -41,7 +40,6 @@ export class PuzzleGenerator {
     const exitMap = {};
     const activeKeys = new Set();
     const endpoints = new Set();
-
     const desiredLength = CONFIG.difficulty.getActiveTileCount(level, mapRadius, coords.length);
     const path = PuzzleGenerator.buildSparsePath(coords, desiredLength);
 
@@ -87,7 +85,6 @@ export class PuzzleGenerator {
         }
 
         const current = path[path.length - 1];
-
         const options = shuffled(
           DIR_NEIGHBORS.map((dir) => ({
             q: current.q + dir.q,
@@ -100,7 +97,6 @@ export class PuzzleGenerator {
 
         for (const next of options) {
           const key = tileKey(next.q, next.r);
-
           used.add(key);
           path.push(next);
 
@@ -126,7 +122,6 @@ export class PuzzleGenerator {
       }
     }
 
-    // Güvenli geri dönüş: merkezden başlayıp komşulara yayılan kısa yol.
     const safePath = [start];
     const used = new Set(["0,0"]);
 
@@ -184,7 +179,7 @@ export class PuzzleGenerator {
     const tiles = Object.values(grid).filter((tile) => tile.active);
 
     tiles.forEach((tile) => {
-      tile.rotation = Math.floor(Math.random() * 6);
+      tile.setRotation(Math.floor(Math.random() * 6), { animate: false });
     });
 
     for (let attempt = 0; attempt < 40; attempt += 1) {
@@ -197,7 +192,7 @@ export class PuzzleGenerator {
       }
 
       tiles.forEach((tile) => {
-        tile.rotation = Math.floor(Math.random() * 6);
+        tile.setRotation(Math.floor(Math.random() * 6), { animate: false });
       });
     }
 
@@ -205,7 +200,10 @@ export class PuzzleGenerator {
       .filter((tile) => tile.q !== 0 || tile.r !== 0)
       .slice(0, 4)
       .forEach((tile) => {
-        tile.rotation = (tile.rotation + 1 + Math.floor(Math.random() * 5)) % 6;
+        tile.setRotation(
+          (tile.rotation + 1 + Math.floor(Math.random() * 5)) % 6,
+          { animate: false }
+        );
       });
   }
 }
