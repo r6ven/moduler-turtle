@@ -68,12 +68,14 @@ export class Game {
 
     window.addEventListener("resize", () => this.resizeCanvas());
 
-document.addEventListener("fullscreenchange", () => {
-  this.ui.updateFullscreen(Boolean(document.fullscreenElement));
-  this.resizeCanvas();
-});
+    document.addEventListener("fullscreenchange", () => {
+      this.ui.updateFullscreen(Boolean(document.fullscreenElement));
+      this.resizeCanvas();
+    });
+
     this.resizeCanvas();
     this.generateLevel();
+    this.ui.updateFullscreen(Boolean(document.fullscreenElement));
     this.ui.showAuthMenu();
     this.loop();
   }
@@ -98,6 +100,7 @@ document.addEventListener("fullscreenchange", () => {
     this.victoryTour.active = false;
     this.victoryTour.path = [];
     this.victoryTour.index = 0;
+    this.victoryTour.nextAt = 0;
 
     this.particles.clear();
     this.ui.hideCompletion();
@@ -482,22 +485,27 @@ document.addEventListener("fullscreenchange", () => {
       this.completeLevel();
     }
   }
-async toggleFullscreen() {
-  const root = document.documentElement;
 
-  try {
-    if (!document.fullscreenElement) {
-      await root.requestFullscreen();
-      this.ui.updateFullscreen(true);
-    } else {
-      await document.exitFullscreen();
-      this.ui.updateFullscreen(false);
+  async toggleFullscreen() {
+    const root = document.documentElement;
+
+    try {
+      if (!document.fullscreenElement) {
+        if (root.requestFullscreen) {
+          await root.requestFullscreen();
+        }
+        this.ui.updateFullscreen(true);
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+        this.ui.updateFullscreen(false);
+      }
+    } catch {
+      this.ui.updateFullscreen(Boolean(document.fullscreenElement));
     }
-  } catch {
-    // Bazı mobil tarayıcılar fullscreen API'yi kısıtlayabilir.
-    this.ui.updateFullscreen(Boolean(document.fullscreenElement));
   }
-}
+
   toggleSound() {
     const enabled = this.audio.toggle();
     this.ui.updateSound(enabled);
