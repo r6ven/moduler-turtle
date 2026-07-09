@@ -19,7 +19,7 @@ export class Game {
     this.auth = new UserAuthSystem();
     this.progress = new ProgressSystem(this.auth);
 
-    this.level = this.auth.hasCurrentUser() ? this.progress.getSavedLevel() : 1;
+    this.level = 1;
     this.hexRadius = CONFIG.desktopHexRadius;
     this.grid = {};
     this.levelCompleted = false;
@@ -54,17 +54,12 @@ export class Game {
     });
 
     this.input.bind();
+
     window.addEventListener("resize", () => this.resizeCanvas());
 
     this.resizeCanvas();
     this.generateLevel();
-
-    if (this.auth.hasCurrentUser()) {
-      this.ui.showGameMenu(this.auth.getCurrentUsername(), this.level);
-    } else {
-      this.ui.showAuthMenu();
-    }
-
+    this.ui.showAuthMenu();
     this.loop();
   }
 
@@ -125,19 +120,26 @@ export class Game {
 
   afterAuthSuccess(message) {
     this.audio.init();
+
     this.ui.clearPassword();
     this.ui.setAuthMessage(message);
+
     this.progress.loadForCurrentUser();
     this.level = this.progress.getSavedLevel();
+
     this.generateLevel();
+
+    this.menuOpen = true;
     this.ui.showGameMenu(this.auth.getCurrentUsername(), this.level);
   }
 
   logout() {
     this.auth.logout();
     this.progress.loadForCurrentUser();
+
     this.level = 1;
     this.generateLevel();
+
     this.menuOpen = true;
     this.ui.showAuthMenu("Çıkış yapıldı.");
   }
@@ -146,7 +148,7 @@ export class Game {
     this.menuOpen = true;
 
     if (this.auth.hasCurrentUser()) {
-      this.ui.showGameMenu(this.auth.getCurrentUsername(), this.level);
+      this.ui.showGameMenu(this.auth.getCurrentUsername(), this.progress.getSavedLevel());
     } else {
       this.ui.showAuthMenu();
     }
@@ -168,11 +170,14 @@ export class Game {
     this.ui.showResetConfirm();
   }
 
-  confirmReset() {
+  async confirmReset() {
     this.audio.init();
-    this.progress.resetAll();
+
+    await this.progress.resetAll();
+
     this.level = 1;
     this.generateLevel();
+
     this.ui.hideResetConfirm();
     this.ui.showGameMenu(this.auth.getCurrentUsername(), this.level);
   }
@@ -192,6 +197,7 @@ export class Game {
     if (!rotated) return;
 
     this.audio.play("click");
+
     this.progress.addMove();
     this.ui.updateStats(this.progress);
 
@@ -208,6 +214,7 @@ export class Game {
 
   checkConnections({ allowCompletion = true } = {}) {
     const status = PuzzleValidator.inspectGrid(this.grid);
+
     PuzzleValidator.applyBloomState(this.grid, status);
 
     if (allowCompletion && status.completed && !this.levelCompleted) {
@@ -219,6 +226,7 @@ export class Game {
 
   completeLevel() {
     this.levelCompleted = true;
+
     this.audio.play("success");
     this.particles.createCelebration(this.canvas.width, this.canvas.height);
 
