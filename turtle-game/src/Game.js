@@ -55,6 +55,7 @@ export class Game {
       onStartGame: () => this.closeMenu(),
       onContinueGame: () => this.closeMenu(),
       onOpenLevels: () => this.openLevels(),
+      onOpenRecords: () => this.openRecords(),
       onSelectLevel: (level) => this.selectLevel(level),
       onRequestReset: () => this.requestReset(),
       onConfirmReset: () => this.confirmReset(),
@@ -100,15 +101,19 @@ export class Game {
     const generated = PuzzleGenerator.generate(this.level);
 
     this.grid = generated.grid;
+
     this.progress.startLevel(
-  this.level,
-  generated.activeTileCount,
-  generated.minimumMoves
-);
+      this.level,
+      generated.activeTileCount,
+      generated.minimumMoves
+    );
+
     this.ui.updateStats(this.progress);
+    this.ui.updateTimer(0);
 
     this.turtle.reset(0, 0, this.hexRadius);
     this.turtle.speed = 0.08;
+
     this.checkConnections({ allowCompletion: false });
   }
 
@@ -156,6 +161,7 @@ export class Game {
   }
 
   logout() {
+    this.progress.pauseTimer();
     this.auth.logout();
     this.progress.loadForCurrentUser();
 
@@ -168,6 +174,7 @@ export class Game {
 
   openMenu() {
     this.menuOpen = true;
+    this.progress.pauseTimer();
 
     if (this.auth.hasCurrentUser()) {
       this.ui.showGameMenu(
@@ -189,7 +196,9 @@ export class Game {
     this.audio.init();
     this.menuOpen = false;
     this.ui.hideLevelSelect();
+    this.ui.hideRecords();
     this.ui.hideMainMenu();
+    this.progress.startTimer();
   }
 
   openLevels() {
@@ -197,6 +206,31 @@ export class Game {
 
     const completedLevels = this.progress.getCompletedLevels();
     this.ui.showLevelSelect(completedLevels);
+  }
+
+  async openRecords() {
+    if (!this.auth.hasCurrentUser()) return;
+
+    this.ui.showRecords([
+      {
+        username: "Yükleniyor...",
+        best_by_level: {}
+      }
+    ]);
+
+    const result = await this.auth.getLeaderboard();
+
+    if (!result.ok) {
+      this.ui.showRecords([
+        {
+          username: `Rekorlar alınamadı: ${result.error}`,
+          best_by_level: {}
+        }
+      ]);
+      return;
+    }
+
+    this.ui.showRecords(result.records);
   }
 
   selectLevel(level) {
@@ -214,6 +248,7 @@ export class Game {
     this.ui.hideLevelSelect();
     this.menuOpen = false;
     this.ui.hideMainMenu();
+    this.progress.startTimer();
   }
 
   requestReset() {
@@ -288,6 +323,8 @@ export class Game {
 
     const result = this.progress.completeCurrentLevel();
 
+    this.ui.updateTimer(result.timeSeconds);
+
     this.startVictoryTour();
 
     const victoryDelay = Math.min(
@@ -301,89 +338,84 @@ export class Game {
   }
 
   startVictoryTour() {
-  const path = this.buildVictoryPath();
+    const path = this.buildVictoryPath();
 
-  if (path.length === 0) return;
+    if (path.length === 0) return;
 
-  this.victoryTour.active = true;
-  this.victoryTour.path = path;
-  this.victoryTour.index = 0;
-  this.victoryTour.nextAt = performance.now() + 120;
+    this.victoryTour.active = true;
+    this.victoryTour.path = path;
+    this.victoryTour.index = 0;
+    this.victoryTour.nextAt = performance.now() + 120;
 
-  // Zafer turunda biraz daha hızlı yüzsün.
-  this.turtle.speed = 0.18;
-}
+    this.turtle.speed = 0.18;
+  }
 
   buildVictoryPath() {
-  const activeKeys = Object.keys(this.grid).filter((key) => {
-    const tile = this.grid[key];
-    return tile.active && tile.flowerBloomed;
-  });
+    const activeKeys = Object.keys(this.grid).filter((key) => {
+      const tile = this.grid[key];
+      return tile.active && tile.flowerBloomed;
+    });
 
-  if (activeKeys.length === 0) return [];
+    if (activeKeys.length === 0) return [];
 
-  const endpointKey = activeKeys.find((key) => this.grid[key].degree() === 1);
-  const startKey = endpointKey || "0,0";
+    const endpointKey = activeKeys.find((key) => this.grid[key].degree() === 1);
+    const startKey = endpointKey || "0,0";
 
-  const visited = new Set();
-  const route = [];
+    const visited = new Set();
+    const route = [];
 
-  const dfs = (key) => {
-    const tile = this.grid[key];
+    const dfs = (key) => {
+      const tile = this.grid[key];
 
-    if (!tile || visited.has(key)) return;
+      if (!tile || visited.has(key)) return;
 
-    visited.add(key);
-    route.push({ q: tile.q, r: tile.r });
+      visited.add(key);
+      route.push({ q: tile.q, r: tile.r });
 
-    const exits = tile.getActualExits();
+      const exits = tile.getActualExits();
 
-    for (let i = 0; i < 6; i += 1) {
-      if (!exits[i]) continue;
-      if (!PuzzleValidator.isExitMatched(tile, i, this.grid)) continue;
+      for (let i = 0; i < 6; i += 1) {
+        if (!exits[i]) continue;
+        if (!PuzzleValidator.isExitMatched(tile, i, this.grid)) continue;
 
-      const dir = DIR_NEIGHBORS[i];
-      const neighborKey = tileKey(tile.q + dir.q, tile.r + dir.r);
+        const dir = DIR_NEIGHBORS[i];
+        const neighborKey = tileKey(tile.q + dir.q, tile.r + dir.r);
 
-      if (!visited.has(neighborKey)) {
-        dfs(neighborKey);
-
-        // Önemli kısım:
-        // Daldan geri dönerken mevcut taşı tekrar rotaya ekliyoruz.
-        // Böylece kaplumbağa bir daldan başka dala düz kesmiyor.
-        route.push({ q: tile.q, r: tile.r });
+        if (!visited.has(neighborKey)) {
+          dfs(neighborKey);
+          route.push({ q: tile.q, r: tile.r });
+        }
       }
-    }
-  };
+    };
 
-  dfs(startKey);
+    dfs(startKey);
 
-  return route;
-}
+    return route;
+  }
 
   updateVictoryTour(timestamp) {
-  if (!this.victoryTour.active) return;
-  if (timestamp < this.victoryTour.nextAt) return;
+    if (!this.victoryTour.active) return;
+    if (timestamp < this.victoryTour.nextAt) return;
 
-  const reachedTarget = this.turtle.distanceToTarget() < 5;
+    const reachedTarget = this.turtle.distanceToTarget() < 5;
 
-  if (!reachedTarget && this.victoryTour.index > 0) {
-    return;
+    if (!reachedTarget && this.victoryTour.index > 0) {
+      return;
+    }
+
+    const point = this.victoryTour.path[this.victoryTour.index];
+
+    if (!point) {
+      this.victoryTour.active = false;
+      this.turtle.speed = 0.08;
+      return;
+    }
+
+    this.turtle.moveTo(point.q, point.r, this.hexRadius);
+
+    this.victoryTour.index += 1;
+    this.victoryTour.nextAt = timestamp + 80;
   }
-
-  const point = this.victoryTour.path[this.victoryTour.index];
-
-  if (!point) {
-    this.victoryTour.active = false;
-    this.turtle.speed = 0.08;
-    return;
-  }
-
-  this.turtle.moveTo(point.q, point.r, this.hexRadius);
-
-  this.victoryTour.index += 1;
-  this.victoryTour.nextAt = timestamp + 80;
-}
 
   useHint() {
     if (this.menuOpen || this.levelCompleted || !this.auth.hasCurrentUser()) return;
@@ -454,21 +486,26 @@ export class Game {
   nextLevel() {
     this.level += 1;
     this.generateLevel();
+    this.progress.startTimer();
   }
 
   loop(timestamp = performance.now()) {
-  this.updateVictoryTour(timestamp);
+    this.updateVictoryTour(timestamp);
 
-  this.turtle.update();
-  this.particles.update();
+    if (!this.menuOpen && !this.levelCompleted && this.auth.hasCurrentUser()) {
+      this.ui.updateTimer(this.progress.getElapsedSeconds());
+    }
 
-  this.renderer.render({
-    grid: this.grid,
-    turtle: this.turtle,
-    particleSystem: this.particles,
-    hexRadius: this.hexRadius
-  });
+    this.turtle.update();
+    this.particles.update();
 
-  requestAnimationFrame((nextTimestamp) => this.loop(nextTimestamp));
+    this.renderer.render({
+      grid: this.grid,
+      turtle: this.turtle,
+      particleSystem: this.particles,
+      hexRadius: this.hexRadius
+    });
+
+    requestAnimationFrame((nextTimestamp) => this.loop(nextTimestamp));
   }
 }
