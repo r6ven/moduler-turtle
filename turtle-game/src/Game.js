@@ -60,13 +60,18 @@ export class Game {
       onRequestReset: () => this.requestReset(),
       onConfirmReset: () => this.confirmReset(),
       onLogout: () => this.logout(),
-      onOpenMenu: () => this.openMenu()
+      onOpenMenu: () => this.openMenu(),
+      onToggleFullscreen: () => this.toggleFullscreen()
     });
 
     this.input.bind();
 
     window.addEventListener("resize", () => this.resizeCanvas());
 
+document.addEventListener("fullscreenchange", () => {
+  this.ui.updateFullscreen(Boolean(document.fullscreenElement));
+  this.resizeCanvas();
+});
     this.resizeCanvas();
     this.generateLevel();
     this.ui.showAuthMenu();
@@ -477,7 +482,22 @@ export class Game {
       this.completeLevel();
     }
   }
+async toggleFullscreen() {
+  const root = document.documentElement;
 
+  try {
+    if (!document.fullscreenElement) {
+      await root.requestFullscreen();
+      this.ui.updateFullscreen(true);
+    } else {
+      await document.exitFullscreen();
+      this.ui.updateFullscreen(false);
+    }
+  } catch {
+    // Bazı mobil tarayıcılar fullscreen API'yi kısıtlayabilir.
+    this.ui.updateFullscreen(Boolean(document.fullscreenElement));
+  }
+}
   toggleSound() {
     const enabled = this.audio.toggle();
     this.ui.updateSound(enabled);
