@@ -105,6 +105,32 @@ export class UserAuthSystem {
     };
   }
 
+  async getLeaderboard() {
+    const { data, error } = await this.supabase.rpc("get_leaderboard");
+
+    if (error) {
+      return {
+        ok: false,
+        error: error.message,
+        records: []
+      };
+    }
+
+    const result = this.normalizeRpcResponse(data);
+
+    if (!Array.isArray(result)) {
+      return {
+        ok: true,
+        records: []
+      };
+    }
+
+    return {
+      ok: true,
+      records: result
+    };
+  }
+
   logout() {
     this.currentUsername = null;
     this.currentPassword = null;
