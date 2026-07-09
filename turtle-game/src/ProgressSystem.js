@@ -29,16 +29,21 @@ export class ProgressSystem {
     this.lastLevel = Number(saved.lastLevel) || 1;
   }
 
-  startLevel(level, activeTileCount) {
-    this.level = level;
-    this.moves = 0;
-    this.hintsUsed = 0;
-    this.targetMoves = CONFIG.difficulty.getTargetMoves(activeTileCount, level);
+  startLevel(level, activeTileCount, minimumMoves = null) {
+  this.level = level;
+  this.moves = 0;
+  this.hintsUsed = 0;
 
-    this.lastLevel = Math.max(Number(this.lastLevel) || 1, level);
+  this.minimumMoves = Number.isFinite(minimumMoves)
+    ? Math.max(1, Math.floor(minimumMoves))
+    : CONFIG.difficulty.getTargetMoves(activeTileCount, level);
 
-    void this.save();
-  }
+  this.targetMoves = this.calculateThreeStarTarget(this.minimumMoves, level);
+
+  this.lastLevel = Math.max(Number(this.lastLevel) || 1, level);
+
+  void this.save();
+}
 
   getSavedLevel() {
     const level = Number(this.lastLevel);
