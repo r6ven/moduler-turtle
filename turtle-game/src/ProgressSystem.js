@@ -35,7 +35,7 @@ export class ProgressSystem {
     this.hintsUsed = 0;
     this.targetMoves = CONFIG.difficulty.getTargetMoves(activeTileCount, level);
 
-    this.lastLevel = level;
+    this.lastLevel = Math.max(Number(this.lastLevel) || 1, level);
 
     void this.save();
   }
@@ -48,6 +48,22 @@ export class ProgressSystem {
     }
 
     return Math.floor(level);
+  }
+
+  getCompletedLevels() {
+    return Object.keys(this.bestByLevel)
+      .map((level) => Number(level))
+      .filter((level) => Number.isFinite(level) && level >= 1)
+      .sort((a, b) => a - b)
+      .map((level) => ({
+        level,
+        stars: this.bestByLevel[level]?.stars || this.bestByLevel[String(level)]?.stars || 0,
+        bestMoves: this.bestByLevel[level]?.bestMoves ?? this.bestByLevel[String(level)]?.bestMoves ?? null
+      }));
+  }
+
+  hasCompletedLevel(level) {
+    return this.getCompletedLevels().some((item) => item.level === Number(level));
   }
 
   addMove() {
@@ -90,7 +106,7 @@ export class ProgressSystem {
           : Math.min(existing.bestMoves, this.moves)
     };
 
-    this.lastLevel = this.level + 1;
+    this.lastLevel = Math.max(Number(this.lastLevel) || 1, this.level + 1);
 
     void this.save();
 
