@@ -10,6 +10,10 @@ export class ProgressSystem {
     this.targetMoves = 0;
     this.minimumMoves = 1;
 
+    this.elapsedMs = 0;
+    this.timerStartMs = 0;
+    this.timerRunning = false;
+
     this.bestByLevel = {};
     this.lastLevel = 1;
 
@@ -35,6 +39,10 @@ export class ProgressSystem {
     this.moves = 0;
     this.hintsUsed = 0;
 
+    this.elapsedMs = 0;
+    this.timerStartMs = 0;
+    this.timerRunning = false;
+
     this.minimumMoves = Number.isFinite(minimumMoves)
       ? Math.max(1, Math.floor(minimumMoves))
       : CONFIG.difficulty.getTargetMoves(activeTileCount, level);
@@ -44,6 +52,29 @@ export class ProgressSystem {
     this.lastLevel = Math.max(Number(this.lastLevel) || 1, level);
 
     void this.save();
+  }
+
+  startTimer() {
+    if (this.timerRunning) return;
+
+    this.timerStartMs = performance.now();
+    this.timerRunning = true;
+  }
+
+  pauseTimer() {
+    if (!this.timerRunning) return;
+
+    this.elapsedMs += performance.now() - this.timerStartMs;
+    this.timerRunning = false;
+    this.timerStartMs = 0;
+  }
+
+  getElapsedSeconds() {
+    const activeMs = this.timerRunning
+      ? performance.now() - this.timerStartMs
+      : 0;
+
+    return Math.floor((this.elapsedMs + activeMs) / 1000);
   }
 
   calculateThreeStarTarget(minimumMoves, level) {
@@ -84,7 +115,8 @@ export class ProgressSystem {
         return {
           level,
           stars: record.stars || 0,
-          bestMoves: record.bestMoves ?? null
+          bestMoves: record.bestMoves ?? null,
+          bestTimeSeconds: record.bestTimeSeconds ?? null
         };
       });
   }
@@ -119,11 +151,15 @@ export class ProgressSystem {
   }
 
   completeCurrentLevel() {
+    this.pauseTimer();
+
     const stars = this.calculateStars();
+    const timeSeconds = this.getElapsedSeconds();
 
     const existing = this.bestByLevel[this.level] || {
       stars: 0,
-      bestMoves: null
+      bestMoves: null,
+      bestTimeSeconds: null
     };
 
     this.bestByLevel[this.level] = {
@@ -131,7 +167,11 @@ export class ProgressSystem {
       bestMoves:
         existing.bestMoves == null
           ? this.moves
-          : Math.min(existing.bestMoves, this.moves)
+          : Math.min(existing.bestMoves, this.moves),
+      bestTimeSeconds:
+        existing.bestTimeSeconds == null
+          ? timeSeconds
+          : Math.min(existing.bestTimeSeconds, timeSeconds)
     };
 
     this.lastLevel = Math.max(Number(this.lastLevel) || 1, this.level + 1);
@@ -144,7 +184,8 @@ export class ProgressSystem {
       hintsUsed: this.hintsUsed,
       targetMoves: this.targetMoves,
       minimumMoves: this.minimumMoves,
-      twoStarTarget: this.calculateTwoStarTarget()
+      twoStarTarget: this.calculateTwoStarTarget(),
+      timeSeconds
     };
   }
 
@@ -155,6 +196,9 @@ export class ProgressSystem {
     this.hintsUsed = 0;
     this.targetMoves = 0;
     this.minimumMoves = 1;
+    this.elapsedMs = 0;
+    this.timerStartMs = 0;
+    this.timerRunning = false;
 
     if (this.authSystem?.hasCurrentUser()) {
       await this.authSystem.clearProgressForCurrentUser();
