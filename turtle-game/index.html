@@ -25,6 +25,7 @@
         <div class="stats-bar">
           <div id="move-counter" class="hud-element compact">👣 Hamle: <span id="move-val">0</span></div>
           <div id="hint-counter" class="hud-element compact">✨ İpucu: <span id="hint-val">0</span></div>
+          <div id="time-counter" class="hud-element compact">⏱ Süre: <span id="time-val">00:00</span></div>
         </div>
       </div>
 
@@ -60,6 +61,7 @@
       <button class="menu-btn primary" id="continue-game-btn">Devam Et</button>
       <button class="menu-btn" id="start-game-btn">Oyuna Dön</button>
       <button class="menu-btn" id="levels-btn">Bölümler</button>
+      <button class="menu-btn" id="records-btn">Rekorlar</button>
       <button class="menu-btn ghost danger-text" id="restart-game-btn">Kayıtları Sıfırla</button>
       <button class="menu-btn ghost" id="logout-btn">Çıkış Yap</button>
     </div>
@@ -73,6 +75,17 @@
       <div id="level-list" class="level-list"></div>
 
       <button class="menu-btn ghost" id="level-select-back-btn">Geri Dön</button>
+    </div>
+  </div>
+
+  <div id="records-overlay">
+    <div class="records-card">
+      <h2>Rekorlar</h2>
+      <p>Oyuncuların tamamladığı bölümler, yıldızları, hamleleri ve süreleri.</p>
+
+      <div id="records-list" class="records-list"></div>
+
+      <button class="menu-btn ghost" id="records-back-btn">Geri Dön</button>
     </div>
   </div>
 
