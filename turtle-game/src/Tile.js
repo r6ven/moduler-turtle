@@ -11,7 +11,9 @@ export class Tile {
     this.rotation = 0;
     this.visualRotation = 0;
     this.targetVisualRotation = 0;
-    this.pressPulse = 0;
+
+    // 0 → animasyon başladı, 1 → yerine oturdu
+    this.actionProgress = 1;
 
     this.flowerBloomed = false;
     this.flowerScale = 0;
@@ -40,7 +42,9 @@ export class Tile {
 
     this.rotation = (this.rotation + 1) % 6;
     this.targetVisualRotation += 1;
-    this.pressPulse = 1;
+
+    // Taş basılınca yükselme-dönme-oturma animasyonu başlar.
+    this.actionProgress = 0;
 
     return true;
   }
@@ -52,7 +56,7 @@ export class Tile {
     if (!animate) {
       this.visualRotation = normalizedRotation;
       this.targetVisualRotation = normalizedRotation;
-      this.pressPulse = 0;
+      this.actionProgress = 1;
       return;
     }
 
@@ -71,7 +75,7 @@ export class Tile {
         : best;
     }, candidates[0]);
 
-    this.pressPulse = 1;
+    this.actionProgress = 0;
   }
 
   isSolvedOrientation() {
@@ -89,8 +93,9 @@ export class Tile {
       this.hintGlow = Math.max(0, this.hintGlow - 0.025);
     }
 
-    if (this.pressPulse > 0) {
-      this.pressPulse = Math.max(0, this.pressPulse - 0.055);
+    if (this.actionProgress < 1) {
+      // Yaklaşık 14-18 frame içinde biter. Akışı bozmaz ama görünür.
+      this.actionProgress = Math.min(1, this.actionProgress + 0.075);
     }
 
     if (this.flowerBloomed) {
@@ -104,8 +109,17 @@ export class Tile {
     if (Math.abs(rotationDiff) < 0.001) {
       this.visualRotation = this.targetVisualRotation;
     } else {
-      // Daha yavaş ve gözle görünür dönüş.
-      this.visualRotation += rotationDiff * 0.145;
+      // Dönüş artık daha okunaklı. Çok yavaş değil, ama göz yakalıyor.
+      this.visualRotation += rotationDiff * 0.18;
     }
+  }
+
+  getLiftWave() {
+    if (this.actionProgress >= 1) {
+      return 0;
+    }
+
+    // 0 → yükselir, 0.5 → en yukarıda, 1 → yerine oturur
+    return Math.sin(this.actionProgress * Math.PI);
   }
 }
