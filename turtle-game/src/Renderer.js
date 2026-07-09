@@ -1,5 +1,5 @@
 import { CONFIG } from "./config.js";
-import { hexToPixel } from "./HexMath.js";
+import { DIR_NEIGHBORS, hexToPixel, tileKey } from "./HexMath.js";
 import { PuzzleValidator } from "./PuzzleValidator.js";
 
 export class Renderer {
@@ -17,6 +17,10 @@ export class Renderer {
     ctx.save();
     ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
 
+    // Merkezden gerçekten su ulaşan taşlar.
+    // Böylece puzzle bitmeden de bağlı kollar akabilir.
+    const connectedKeys = PuzzleValidator.calculateConnectedKeys(grid);
+
     const tiles = Object.keys(grid).map((key) => {
       const tile = grid[key];
       const pos = hexToPixel(tile.q, tile.r, hexRadius);
@@ -32,11 +36,11 @@ export class Renderer {
       };
     });
 
-    // Yükselen taşlar en son çizilsin, üstteymiş gibi görünsün.
+    // Yükselen taşlar üstte çizilsin.
     tiles.sort((a, b) => a.liftWave - b.liftWave);
 
     tiles.forEach(({ tile, x, y }) => {
-      this.drawHexagon(ctx, x, y, hexRadius, tile, grid);
+      this.drawHexagon(ctx, x, y, hexRadius, tile, grid, connectedKeys);
     });
 
     this.drawTurtle(ctx, turtle);
@@ -47,14 +51,13 @@ export class Renderer {
     this.waterFlowPhase += 0.055;
   }
 
-  drawHexagon(ctx, x, y, radius, tile, grid) {
+  drawHexagon(ctx, x, y, radius, tile, grid, connectedKeys) {
     const liftWave = tile.getLiftWave();
     const lift = tile.active ? liftWave * 11 : 0;
     const pressScale = tile.active ? 1 + liftWave * 0.035 : 1;
     const pulse = Math.sin(tile.pulsePhase) * 1.0;
     const glowRadius = radius + pulse + tile.hintGlow * 12;
 
-    // Yükselen taşın gölgesi. Dönme hissini asıl bu satıyor.
     if (tile.active && lift > 0.2) {
       ctx.save();
       ctx.translate(x + lift * 0.18, y + lift * 0.62);
@@ -100,12 +103,11 @@ export class Renderer {
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // Taş üstünde hafif parlama, yükselme hissini artırır.
     if (liftWave > 0.01) {
       this.drawTopShine(ctx, radius, liftWave);
     }
 
-    this.drawWaterChannels(ctx, radius, tile, grid);
+    this.drawWaterChannels(ctx, radius, tile, grid, connectedKeys);
     this.drawFlower(ctx, tile);
 
     ctx.restore();
@@ -130,17 +132,28 @@ export class Renderer {
     ctx.save();
     ctx.globalAlpha = 0.18 * liftWave;
     ctx.beginPath();
-    ctx.ellipse(-radius * 0.16, -radius * 0.24, radius * 0.34, radius * 0.12, -0.35, 0, Math.PI * 2);
+    ctx.ellipse(
+      -radius * 0.16,
+      -radius * 0.24,
+      radius * 0.34,
+      radius * 0.12,
+      -0.35,
+      0,
+      Math.PI * 2
+    );
     ctx.fillStyle = "white";
     ctx.fill();
     ctx.restore();
   }
 
-  drawWaterChannels(ctx, radius, tile, grid) {
+  drawWaterChannels(ctx, radius, tile, grid, connectedKeys) {
     const channelLength = radius * Math.cos(Math.PI / 6) + 2;
 
     ctx.lineWidth = 12;
     ctx.lineCap = "round";
+
+    const currentKey = tileKey(tile.q, tile.r);
+    const currentConnected = connectedKeys.has(currentKey);
 
     for (let i = 0; i < 6; i += 1) {
       if (!tile.exits[i]) continue;
@@ -148,17 +161,21 @@ export class Renderer {
       const finalDir = (i + tile.rotation) % 6;
       const matched = PuzzleValidator.isExitMatched(tile, finalDir, grid);
 
-      // Su kanalının görsel rotasyonu. Taşın döndüğü artık buradan okunur.
+      const dir = DIR_NEIGHBORS[finalDir];
+      const neighborKey = tileKey(tile.q + dir.q, tile.r + dir.r);
+      const neighborConnected = connectedKeys.has(neighborKey);
+
+      // Yeni akış mantığı:
+      // Puzzle komple bitmese bile merkezden ulaşılabilen ve eşleşen bağlantı aksın.
+      const isActiveFlow = currentConnected && neighborConnected && matched;
+
       const visualAngle =
         (i - 1) * Math.PI / 3 + tile.visualRotation * Math.PI / 3;
-
-      const isActiveFlow = tile.flowerBloomed && matched;
 
       ctx.strokeStyle = isActiveFlow
         ? CONFIG.colors.matchedWater
         : CONFIG.colors.idleWater;
 
-      // Ana su kanalı
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.lineTo(
@@ -167,7 +184,6 @@ export class Renderer {
       );
       ctx.stroke();
 
-      // Bağlı sularda akış çizgisi
       if (isActiveFlow) {
         this.drawFlowDash(ctx, channelLength, visualAngle);
         this.drawWaterBubbles(ctx, channelLength, visualAngle);
@@ -182,8 +198,6 @@ export class Renderer {
     ctx.lineCap = "round";
     ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
     ctx.setLineDash([8, 13]);
-
-    // Negatif offset akıyormuş hissi verir.
     ctx.lineDashOffset = -this.waterFlowPhase * 42;
 
     ctx.beginPath();
@@ -205,7 +219,6 @@ export class Renderer {
       const phase = (this.waterFlowPhase * 0.55 + i * 0.33) % 1;
       const distance = channelLength * (0.18 + phase * 0.72);
       const wobble = Math.sin(this.waterFlowPhase * 4 + i * 1.7) * 1.4;
-
       const normalAngle = angle + Math.PI / 2;
 
       const x =
@@ -233,7 +246,6 @@ export class Renderer {
 
     ctx.save();
 
-    // Çiçek de taşla birlikte döner. Böylece rotasyon daha belirgin olur.
     ctx.rotate(tile.visualRotation * Math.PI / 3);
     ctx.scale(tile.flowerScale * flowerPulse, tile.flowerScale * flowerPulse);
 
