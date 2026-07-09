@@ -6,6 +6,7 @@ export const CONFIG = {
 
   completionDelayMs: 900,
   saveKey: "zen-kaplumbaga-progress-v1",
+  authKey: "zen-kaplumbaga-users-v1",
 
   difficulty: {
     getMapRadius(level) {
@@ -21,7 +22,6 @@ export const CONFIG = {
     },
 
     getExtraLoopChance(level) {
-      // Düşük tutuyoruz. Fazla döngü görseli kirletir.
       if (level < 6) return 0.00;
       if (level < 12) return 0.05;
       return 0.08;
