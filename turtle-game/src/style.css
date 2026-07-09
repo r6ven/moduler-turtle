@@ -194,6 +194,171 @@ canvas {
     font-size: 14px;
   }
 
+  /* Üst HUD düzeni: hamle ve ipucu artık ekran ortasında değil */
+#ui-layer {
+  justify-content: flex-start;
+}
+
+.top-cluster {
+  width: 100%;
+  pointer-events: none;
+}
+
+.top-bar {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.top-actions {
+  display: flex;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.stats-bar {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+  pointer-events: none;
+}
+
+.bottom-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  margin-bottom: 0;
+}
+
+.icon-btn {
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+#menu-btn {
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+  background: #fff;
+}
+
+#menu-btn:active {
+  transform: scale(0.95);
+}
+
+/* Ana Menü */
+#main-menu-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(179, 229, 252, 0.94),
+    rgba(232, 245, 233, 0.94)
+  );
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.45s ease;
+  z-index: 20;
+}
+
+#main-menu-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.main-menu-card {
+  background: white;
+  border-radius: 30px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(46, 125, 50, 0.15);
+  border: 3px solid #a5d6a7;
+  max-width: min(90vw, 460px);
+  padding: 34px 34px 30px;
+}
+
+.menu-turtle {
+  font-size: 54px;
+  margin-bottom: 6px;
+}
+
+.main-menu-card h1 {
+  color: #1b5e20;
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.main-menu-card p {
+  color: #5f6f61;
+  font-size: 16px;
+  line-height: 1.45;
+  margin-bottom: 24px;
+}
+
+.menu-btn {
+  width: 100%;
+  border: none;
+  padding: 13px 18px;
+  margin-top: 10px;
+  border-radius: 24px;
+  color: #2e7d32;
+  background: #f1f8e9;
+  border: 2px solid #c8e6c9;
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.18s, filter 0.18s;
+}
+
+.menu-btn.primary {
+  color: white;
+  background: linear-gradient(135deg, #81c784 0%, #4caf50 100%);
+  border-color: transparent;
+  box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+}
+
+.menu-btn.ghost {
+  background: white;
+}
+
+.menu-btn:active {
+  transform: scale(0.97);
+  filter: brightness(0.98);
+}
+
+@media (max-width: 520px) {
+  .top-actions {
+    gap: 6px;
+  }
+
+  .icon-btn {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .stats-bar {
+    justify-content: flex-start;
+    margin-top: 7px;
+  }
+
+  .main-menu-card {
+    padding: 28px 22px 24px;
+  }
+
+  .main-menu-card h1 {
+    font-size: 27px;
+  }
+}
   .modal-content {
     padding: 24px 22px;
   }
