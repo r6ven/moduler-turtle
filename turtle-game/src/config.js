@@ -5,8 +5,14 @@ export const CONFIG = {
   mobileBreakpoint: 500,
 
   completionDelayMs: 900,
+
+  // Local fallback için duruyor. Asıl kayıt artık Supabase.
   saveKey: "zen-kaplumbaga-progress-v1",
-  authKey: "zen-kaplumbaga-users-v1",
+
+  supabase: {
+    url:"https://dcpmbjmjlaafrwzxlmsx.supabase.co/rest/v1/players",
+    anonKey:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjcG1iam1qbGFhZnJ3enhsbXN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1NzgwNDksImV4cCI6MjA5OTE1NDA0OX0.fPmyjagZZ-b4g6zmRcHFsRDehjYv9wcLdUIkMgWNLkg"
+  },
 
   difficulty: {
     getMapRadius(level) {
