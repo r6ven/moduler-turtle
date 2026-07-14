@@ -140,6 +140,7 @@ export class Renderer {
     const actionScale = tile.active ? 1 + liftWave * 0.032 : 1;
     const surfaceRadius = radius - 2;
     const glowRadius = radius + tile.hintGlow * 12;
+    const currentConnected = flowState.keys.has(tileKey(tile.q, tile.r));
 
     this.drawTileShadow(ctx, x, y, radius, tile, liftWave);
     this.drawTileSide(ctx, x, y - lift, surfaceRadius, tile, liftWave);
@@ -154,7 +155,7 @@ export class Renderer {
       ctx.fill();
     }
 
-    this.drawTileSurface(ctx, surfaceRadius, tile);
+    this.drawTileSurface(ctx, surfaceRadius, tile, currentConnected);
 
     if (tile.active) {
       ctx.save();
@@ -205,8 +206,8 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawTileSurface(ctx, radius, tile) {
-    const surface = this.getTileSurface(radius, tile);
+  drawTileSurface(ctx, radius, tile, connected) {
+    const surface = this.getTileSurface(radius, tile, connected);
 
     ctx.drawImage(
       surface,
@@ -215,12 +216,14 @@ export class Renderer {
     );
   }
 
-  getTileSurface(radius, tile) {
+  getTileSurface(radius, tile, connected) {
     const state = !tile.active
       ? "inactive"
       : tile.flowerBloomed
         ? "solved"
-        : "active";
+        : connected
+          ? "connected"
+          : "active";
     const cacheKey = [
       Math.round(radius * 10),
       state,
@@ -242,13 +245,13 @@ export class Renderer {
     surface.height = size;
 
     surfaceCtx.translate(size / 2, size / 2);
-    this.paintTileSurface(surfaceCtx, radius, tile);
+    this.paintTileSurface(surfaceCtx, radius, tile, connected);
     this.tileSurfaceCache.set(cacheKey, surface);
 
     return surface;
   }
 
-  paintTileSurface(ctx, radius, tile) {
+  paintTileSurface(ctx, radius, tile, connected) {
     const surfaceGradient = ctx.createLinearGradient(0, -radius, 0, radius);
 
     if (!tile.active) {
@@ -272,7 +275,7 @@ export class Renderer {
     this.drawHexShape(ctx, radius - 1);
     ctx.clip();
     this.drawTileTexture(ctx, radius, tile);
-    this.drawIslandDecorations(ctx, radius, tile);
+    this.drawIslandDecorations(ctx, radius, tile, connected);
     ctx.restore();
 
     this.drawHexShape(ctx, radius);
@@ -316,7 +319,7 @@ export class Renderer {
     }
   }
 
-  drawIslandDecorations(ctx, radius, tile) {
+  drawIslandDecorations(ctx, radius, tile, connected) {
     const seed = this.getTileSeed(tile);
     const random = this.createSeededRandom(seed);
     const stoneRoll = random();
@@ -338,9 +341,23 @@ export class Renderer {
       : sandRoll < 0.82
         ? 1
         : 2;
-    const grassCount = random() < grassChance
+    const baseGrassCount = random() < grassChance
       ? random() < 0.82 ? 1 : 2
       : 0;
+    const connectedGrassBonus = connected
+      ? 1 + (random() < 0.38 ? 1 : 0)
+      : 0;
+    const grassCount = Math.min(4, baseGrassCount + connectedGrassBonus);
+    const flowerRoll = random();
+    const requestedFlowerCount = !connected
+      ? 0
+      : flowerRoll < 0.44
+        ? 1
+        : flowerRoll < 0.58
+          ? 2
+          : 0;
+    const flowerCount = Math.min(grassCount, requestedFlowerCount);
+    const grassPoints = [];
 
     for (let i = 0; i < sandPatchCount; i += 1) {
       const point = this.pickDecorPoint(random, radius, 0.3, 0.58);
@@ -349,12 +366,35 @@ export class Renderer {
 
     for (let i = 0; i < grassCount; i += 1) {
       const point = this.pickDecorPoint(random, radius, 0.34, 0.57);
+      const scale = 0.68 + random() * 0.28;
+      const rotation = random() * 0.8 - 0.4;
+
+      grassPoints.push({
+        ...point,
+        scale,
+        rotation
+      });
+
       this.drawGrassTuft(
         ctx,
         point.x,
         point.y,
+        scale,
+        rotation,
+        Math.floor(random() * 3)
+      );
+    }
+
+    for (let i = 0; i < flowerCount; i += 1) {
+      const point = grassPoints[i];
+
+      this.drawWildFlower(
+        ctx,
+        point.x,
+        point.y,
         0.72 + random() * 0.24,
-        random() * 0.8 - 0.4
+        Math.floor(random() * 3),
+        Math.floor(random() * 4)
       );
     }
 
@@ -365,7 +405,8 @@ export class Renderer {
         point.x,
         point.y,
         0.68 + random() * 0.34,
-        random() * 0.9 - 0.45
+        random() * 0.9 - 0.45,
+        Math.floor(random() * 3)
       );
     }
   }
@@ -416,12 +457,24 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawStone(ctx, x, y, scale, rotation) {
+  drawStone(ctx, x, y, scale, rotation, style = 0) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(rotation);
     ctx.scale(scale, scale);
 
+    if (style === 1) {
+      this.drawRoundStone(ctx);
+    } else if (style === 2) {
+      this.drawAngularStone(ctx);
+    } else {
+      this.drawFlatStone(ctx);
+    }
+
+    ctx.restore();
+  }
+
+  drawFlatStone(ctx) {
     ctx.fillStyle = CONFIG.colors.stoneShade;
     ctx.beginPath();
     ctx.ellipse(0.9, 1.8, 5.3, 3.1, -0.12, 0, Math.PI * 2);
@@ -436,15 +489,75 @@ export class Renderer {
     ctx.beginPath();
     ctx.ellipse(-1.4, -0.9, 1.8, 0.7, -0.16, 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
   }
 
-  drawGrassTuft(ctx, x, y, scale, rotation) {
+  drawRoundStone(ctx) {
+    ctx.fillStyle = CONFIG.colors.stoneShade;
+    ctx.beginPath();
+    ctx.arc(0.8, 1.4, 4.7, 0, Math.PI * 2);
+    ctx.fill();
+
+    const gradient = ctx.createRadialGradient(-1.5, -1.8, 0.5, 0, 0, 4.3);
+    gradient.addColorStop(0, "#d4ddd7");
+    gradient.addColorStop(1, CONFIG.colors.stoneTop);
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, 4.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  drawAngularStone(ctx) {
+    ctx.fillStyle = CONFIG.colors.stoneShade;
+    this.drawAngularStonePath(ctx);
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(-0.5, -1);
+    ctx.scale(0.84, 0.76);
+    ctx.fillStyle = CONFIG.colors.stoneTop;
+    this.drawAngularStonePath(ctx);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.28)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-2.2, -2.1);
+    ctx.lineTo(1.8, -2.8);
+    ctx.stroke();
+  }
+
+  drawAngularStonePath(ctx) {
+    ctx.beginPath();
+    ctx.moveTo(-4.4, 2.3);
+    ctx.lineTo(-2.7, -3.4);
+    ctx.lineTo(2.3, -4.1);
+    ctx.lineTo(5.1, -0.2);
+    ctx.lineTo(3.1, 3.6);
+    ctx.lineTo(-1.7, 4.2);
+    ctx.closePath();
+  }
+
+  drawGrassTuft(ctx, x, y, scale, rotation, style = 0) {
     ctx.save();
     ctx.translate(x, y + 2);
     ctx.rotate(rotation);
     ctx.scale(scale, scale);
     ctx.lineCap = "round";
+
+    if (style === 1) {
+      this.drawReedGrass(ctx);
+    } else if (style === 2) {
+      this.drawCloverGrass(ctx);
+    } else {
+      this.drawFanGrass(ctx);
+    }
+
+    ctx.restore();
+  }
+
+  drawFanGrass(ctx) {
     ctx.lineWidth = 1.7;
 
     const blades = [
@@ -456,11 +569,152 @@ export class Renderer {
     blades.forEach((blade) => {
       ctx.beginPath();
       ctx.moveTo(0, 0);
-      ctx.quadraticCurveTo(blade.endX * 0.35, blade.endY * 0.55, blade.endX, blade.endY);
+      ctx.quadraticCurveTo(
+        blade.endX * 0.35,
+        blade.endY * 0.55,
+        blade.endX,
+        blade.endY
+      );
       ctx.strokeStyle = blade.color;
       ctx.stroke();
     });
+  }
 
+  drawReedGrass(ctx) {
+    ctx.lineWidth = 1.35;
+
+    [-4, -1.5, 1.5, 4].forEach((offset, index) => {
+      ctx.beginPath();
+      ctx.moveTo(offset * 0.25, 0);
+      ctx.quadraticCurveTo(offset * 0.45, -5, offset, -8 - (index % 2) * 2);
+      ctx.strokeStyle = index % 2
+        ? CONFIG.colors.grassLight
+        : CONFIG.colors.grassDark;
+      ctx.stroke();
+    });
+  }
+
+  drawCloverGrass(ctx) {
+    ctx.strokeStyle = CONFIG.colors.grassDark;
+    ctx.lineWidth = 1.35;
+    ctx.beginPath();
+    ctx.moveTo(0, 1);
+    ctx.lineTo(0, -5);
+    ctx.stroke();
+
+    ctx.fillStyle = CONFIG.colors.grassLight;
+
+    [-1, 1].forEach((direction) => {
+      ctx.beginPath();
+      ctx.ellipse(direction * 2.2, -5.1, 2.5, 1.5, direction * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    ctx.beginPath();
+    ctx.ellipse(0, -7.1, 2.3, 1.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  drawWildFlower(ctx, x, y, scale, style, colorIndex) {
+    const colors = [
+      CONFIG.colors.wildflowerPink,
+      CONFIG.colors.wildflowerYellow,
+      CONFIG.colors.wildflowerLavender,
+      CONFIG.colors.wildflowerWhite
+    ];
+    const blossomColor = colors[colorIndex % colors.length];
+
+    ctx.save();
+    ctx.translate(x, y + 1);
+    ctx.scale(scale, scale);
+    ctx.lineCap = "round";
+    ctx.strokeStyle = CONFIG.colors.wildflowerStem;
+    ctx.lineWidth = 1.35;
+
+    ctx.beginPath();
+    ctx.moveTo(0, 1);
+    ctx.quadraticCurveTo(-0.8, -4, 0, -9);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-0.3, -3.8);
+    ctx.quadraticCurveTo(-3.3, -4.1, -3.8, -1.9);
+    ctx.stroke();
+
+    if (style === 1) {
+      this.drawBellBlossom(ctx, blossomColor);
+    } else if (style === 2) {
+      this.drawStarBlossom(ctx, blossomColor);
+    } else {
+      this.drawDaisyBlossom(ctx, blossomColor);
+    }
+
+    ctx.restore();
+  }
+
+  drawDaisyBlossom(ctx, color) {
+    ctx.save();
+    ctx.translate(0, -9.5);
+    ctx.fillStyle = color;
+
+    for (let i = 0; i < 5; i += 1) {
+      ctx.rotate((Math.PI * 2) / 5);
+      ctx.beginPath();
+      ctx.ellipse(0, -2.3, 1.35, 2.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.beginPath();
+    ctx.arc(0, 0, 1.35, 0, Math.PI * 2);
+    ctx.fillStyle = CONFIG.colors.flowerCenter;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  drawBellBlossom(ctx, color) {
+    ctx.save();
+    ctx.translate(0, -9);
+    ctx.strokeStyle = CONFIG.colors.wildflowerStem;
+    ctx.lineWidth = 1;
+
+    [-2.4, 0, 2.4].forEach((offset, index) => {
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(offset * 0.7, 1, offset, 2.2 + (index % 2));
+      ctx.stroke();
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(offset, 3.2 + (index % 2), 1.5, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    ctx.restore();
+  }
+
+  drawStarBlossom(ctx, color) {
+    ctx.save();
+    ctx.translate(0, -9.5);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+
+    for (let i = 0; i < 10; i += 1) {
+      const radius = i % 2 === 0 ? 3.4 : 1.45;
+      const angle = -Math.PI / 2 + (i * Math.PI) / 5;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(0, 0, 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = CONFIG.colors.flowerCenter;
+    ctx.fill();
     ctx.restore();
   }
 
@@ -719,26 +973,97 @@ export class Renderer {
     if (tile.flowerScale <= 0.01) return;
 
     const flowerPulse = 1 + Math.sin(tile.pulsePhase * 2) * 0.04;
+    const variant = this.getTileSeed(tile) % 3;
 
     ctx.save();
     ctx.rotate(tile.visualRotation * Math.PI / 3);
     ctx.scale(tile.flowerScale * flowerPulse, tile.flowerScale * flowerPulse);
+
+    if (variant === 1) {
+      this.drawCenterLotus(ctx, tile);
+    } else if (variant === 2) {
+      this.drawCenterStarFlower(ctx, tile);
+    } else {
+      this.drawCenterDaisy(ctx, tile);
+    }
+
+    ctx.restore();
+  }
+
+  drawCenterDaisy(ctx, tile) {
     ctx.fillStyle = CONFIG.colors.flowerPetal;
 
-    for (let j = 0; j < 5; j += 1) {
-      ctx.rotate((Math.PI * 2) / 5);
+    for (let i = 0; i < 5; i += 1) {
+      ctx.save();
+      ctx.rotate((i * Math.PI * 2) / 5);
       ctx.beginPath();
       ctx.ellipse(0, -6, 4, 7, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
     }
 
+    this.drawFlowerCenter(ctx, tile, tile.endpoint ? 5 : 4);
+  }
+
+  drawCenterLotus(ctx, tile) {
+    ctx.fillStyle = CONFIG.colors.wildflowerLavender;
+
+    for (let i = 0; i < 6; i += 1) {
+      ctx.save();
+      ctx.rotate((i * Math.PI * 2) / 6);
+      ctx.beginPath();
+      ctx.ellipse(0, -5.4, 3.2, 7.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.42)";
+
+    for (let i = 0; i < 3; i += 1) {
+      ctx.save();
+      ctx.rotate((i * Math.PI * 2) / 3 + Math.PI / 6);
+      ctx.beginPath();
+      ctx.ellipse(0, -3.7, 2.2, 4.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    this.drawFlowerCenter(ctx, tile, tile.endpoint ? 4.7 : 3.7);
+  }
+
+  drawCenterStarFlower(ctx, tile) {
+    const pointCount = 8;
+
+    ctx.fillStyle = CONFIG.colors.wildflowerPink;
     ctx.beginPath();
-    ctx.arc(0, 0, tile.endpoint ? 5 : 4, 0, Math.PI * 2);
+
+    for (let i = 0; i < pointCount * 2; i += 1) {
+      const radius = i % 2 === 0 ? 8.2 : 3.6;
+      const angle = -Math.PI / 2 + (i * Math.PI) / pointCount;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.48)";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    this.drawFlowerCenter(ctx, tile, tile.endpoint ? 4.6 : 3.6);
+  }
+
+  drawFlowerCenter(ctx, tile, radius) {
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
     ctx.fillStyle = tile.endpoint
       ? CONFIG.colors.endpointCenter
       : CONFIG.colors.flowerCenter;
     ctx.fill();
-    ctx.restore();
   }
 
   drawTurtle(ctx, turtle, hexRadius) {
