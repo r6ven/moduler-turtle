@@ -16,23 +16,6 @@ export class Renderer {
       depths: new Map(),
       orders: new Map()
     };
-    this.turtleSprite = null;
-    this.turtleSpriteReady = false;
-    this.loadTurtleSprite();
-  }
-
-  loadTurtleSprite() {
-    if (typeof Image === "undefined") return;
-
-    this.turtleSprite = new Image();
-    this.turtleSprite.decoding = "async";
-    this.turtleSprite.onload = () => {
-      this.turtleSpriteReady = true;
-    };
-    this.turtleSprite.onerror = () => {
-      this.turtleSpriteReady = false;
-    };
-    this.turtleSprite.src = CONFIG.turtle.spriteUrl;
   }
 
   render({ grid, turtle, particleSystem, hexRadius }) {
@@ -1084,84 +1067,206 @@ export class Renderer {
   }
 
   drawTurtle(ctx, turtle, hexRadius) {
-    const bob = Math.sin(turtle.animFrame) * 1.2;
+    const moving = turtle.distanceToTarget() > 1.5;
+    const bobAmount = moving ? 0.75 : 0.45;
+    const bob = Math.sin(turtle.animFrame) * bobAmount;
     const visualOffsetX = Math.min(16, hexRadius * CONFIG.turtle.offsetXRatio);
     const visualOffsetY = Math.min(10, hexRadius * CONFIG.turtle.offsetYRatio);
+    const turtleScale = Math.min(
+      CONFIG.turtle.maxScale,
+      hexRadius / CONFIG.turtle.scaleReference
+    );
 
     ctx.save();
     ctx.translate(turtle.x + visualOffsetX, turtle.y + visualOffsetY + bob);
     ctx.rotate(turtle.angle + Math.PI / 2);
-
-    if (this.turtleSpriteReady && this.turtleSprite) {
-      const spriteSize = Math.min(
-        CONFIG.turtle.maxSize,
-        hexRadius * CONFIG.turtle.sizeRatio
-      );
-
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(
-        this.turtleSprite,
-        -spriteSize / 2,
-        -spriteSize / 2,
-        spriteSize,
-        spriteSize
-      );
-      ctx.restore();
-      return;
-    }
-
-    this.drawFallbackTurtle(ctx, turtle);
+    ctx.scale(turtleScale, turtleScale);
+    this.drawGeometricTurtle(ctx, turtle, moving);
     ctx.restore();
   }
 
-  drawFallbackTurtle(ctx, turtle) {
-    const legWiggle = Math.sin(turtle.animFrame) * 3;
-    const turtleScale = 0.82;
+  drawGeometricTurtle(ctx, turtle, moving) {
+    const swimWave = Math.sin(turtle.animFrame * 1.65);
+    const frontWave = moving ? swimWave * 0.18 : swimWave * 0.035;
+    const rearWave = moving ? -swimWave * 0.1 : 0;
 
+    this.drawTurtleTail(ctx);
+    this.drawTurtleFlipper(ctx, -10.7, 10.8, -0.58 + rearWave, 0.78, true);
+    this.drawTurtleFlipper(ctx, 10.7, 10.8, 0.58 - rearWave, 0.78, false);
+    this.drawTurtleFlipper(ctx, -11.8, -5.2, -0.88 - frontWave, 1, true);
+    this.drawTurtleFlipper(ctx, 11.8, -5.2, 0.88 + frontWave, 1, false);
+    this.drawTurtleShell(ctx);
+    this.drawTurtleHead(ctx);
+  }
+
+  drawTurtleTail(ctx) {
     ctx.save();
-    ctx.scale(turtleScale, turtleScale);
-    ctx.fillStyle = "#81c784";
-
-    ctx.save();
-    ctx.translate(-14, -10);
-    ctx.rotate(-0.3 + legWiggle * 0.05);
-    ctx.fillRect(-4, -12, 7, 14);
-    ctx.restore();
-
-    ctx.save();
-    ctx.translate(14, -10);
-    ctx.rotate(0.3 - legWiggle * 0.05);
-    ctx.fillRect(-3, -12, 7, 14);
-    ctx.restore();
-
-    ctx.fillRect(-10, 10, 5, 8);
-    ctx.fillRect(5, 10, 5, 8);
-
+    ctx.translate(0, 17.7);
+    ctx.fillStyle = CONFIG.colors.turtleSkin;
+    ctx.strokeStyle = CONFIG.colors.turtleOutline;
+    ctx.lineWidth = 1.25;
     ctx.beginPath();
-    ctx.arc(0, 0, 16, 0, Math.PI * 2);
-    ctx.fillStyle = "#4caf50";
+    ctx.moveTo(-2.3, -0.7);
+    ctx.quadraticCurveTo(0, 5.4, 2.3, -0.7);
+    ctx.closePath();
     ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#2e7d32";
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawTurtleFlipper(ctx, x, y, rotation, scale, mirror) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation);
+    ctx.scale(mirror ? -scale : scale, scale);
+
+    const gradient = ctx.createLinearGradient(0, -4, 11, 5);
+    gradient.addColorStop(0, CONFIG.colors.turtleSkinLight);
+    gradient.addColorStop(1, CONFIG.colors.turtleSkin);
+
+    ctx.fillStyle = gradient;
+    ctx.strokeStyle = CONFIG.colors.turtleOutline;
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(-1.2, -3.2);
+    ctx.quadraticCurveTo(7.7, -5.8, 11.7, 0.2);
+    ctx.quadraticCurveTo(8.2, 6.2, -1.7, 3.4);
+    ctx.quadraticCurveTo(1.1, 0, -1.2, -3.2);
+    ctx.closePath();
+    ctx.fill();
     ctx.stroke();
 
+    ctx.fillStyle = CONFIG.colors.turtleSkinSpot;
     ctx.beginPath();
-    ctx.arc(0, 0, 9, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(0, -20, 6, 0, Math.PI * 2);
-    ctx.fillStyle = "#a5d6a7";
-    ctx.fill();
-
-    ctx.fillStyle = "#333";
-    ctx.beginPath();
-    ctx.arc(-2, -22, 1, 0, Math.PI * 2);
+    ctx.arc(6.5, -0.8, 1.15, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(2, -22, 1, 0, Math.PI * 2);
+    ctx.arc(8.5, 1.6, 0.8, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+  }
+
+  drawTurtleShell(ctx) {
+    const shellGradient = ctx.createLinearGradient(-11, -13, 11, 17);
+    shellGradient.addColorStop(0, CONFIG.colors.turtleShellLight);
+    shellGradient.addColorStop(0.52, CONFIG.colors.turtleShell);
+    shellGradient.addColorStop(1, CONFIG.colors.turtleShellDark);
+
+    ctx.fillStyle = shellGradient;
+    ctx.strokeStyle = CONFIG.colors.turtleOutline;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.ellipse(0, 2, 14.2, 16.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = CONFIG.colors.turtleShellSeam;
+    ctx.lineWidth = 2.1;
+    ctx.beginPath();
+    ctx.ellipse(0, 2, 11.9, 14.2, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    this.drawTurtleShellPanels(ctx);
+
+    ctx.save();
+    ctx.globalAlpha = 0.34;
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 1.15;
+    ctx.beginPath();
+    ctx.ellipse(-2.1, -0.2, 8.8, 10.7, -0.18, Math.PI * 1.02, Math.PI * 1.68);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawTurtleShellPanels(ctx) {
+    const centerY = 2;
+    const innerRadius = 5.7;
+
+    ctx.fillStyle = "rgba(92, 142, 72, 0.68)";
+    ctx.strokeStyle = CONFIG.colors.turtleShellSeam;
+    ctx.lineWidth = 1.55;
+    ctx.beginPath();
+
+    for (let i = 0; i < 6; i += 1) {
+      const angle = -Math.PI / 2 + (i * Math.PI) / 3;
+      const x = Math.cos(angle) * innerRadius;
+      const y = centerY + Math.sin(angle) * innerRadius * 1.08;
+
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = CONFIG.colors.turtleShellSeam;
+    ctx.lineWidth = 1.35;
+
+    for (let i = 0; i < 6; i += 1) {
+      const angle = -Math.PI / 2 + (i * Math.PI) / 3;
+      const startX = Math.cos(angle) * innerRadius;
+      const startY = centerY + Math.sin(angle) * innerRadius * 1.08;
+      const endX = Math.cos(angle) * 11.8;
+      const endY = centerY + Math.sin(angle) * 14.1;
+
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+    }
+  }
+
+  drawTurtleHead(ctx) {
+    const headGradient = ctx.createLinearGradient(-5, -24, 6, -10);
+    headGradient.addColorStop(0, CONFIG.colors.turtleSkinLight);
+    headGradient.addColorStop(1, CONFIG.colors.turtleSkin);
+
+    ctx.fillStyle = headGradient;
+    ctx.strokeStyle = CONFIG.colors.turtleOutline;
+    ctx.lineWidth = 1.45;
+    ctx.beginPath();
+    ctx.ellipse(0, -15.2, 7.8, 7.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    this.drawTurtleEye(ctx, -2.8, -17.3);
+    this.drawTurtleEye(ctx, 2.8, -17.3);
+
+    ctx.fillStyle = CONFIG.colors.turtleSkinSpot;
+    ctx.beginPath();
+    ctx.arc(-1.2, -14.4, 0.42, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(1.2, -14.4, 0.42, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = CONFIG.colors.turtleOutline;
+    ctx.lineWidth = 0.9;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-2.3, -12.7);
+    ctx.quadraticCurveTo(0, -11.1, 2.6, -12.8);
+    ctx.stroke();
+  }
+
+  drawTurtleEye(ctx, x, y) {
+    ctx.fillStyle = "#fffdf0";
+    ctx.strokeStyle = CONFIG.colors.turtleOutline;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 1.85, 2.35, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = CONFIG.colors.turtleEye;
+    ctx.beginPath();
+    ctx.arc(x, y + 0.28, 1.12, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "white";
+    ctx.beginPath();
+    ctx.arc(x - 0.38, y - 0.42, 0.42, 0, Math.PI * 2);
+    ctx.fill();
   }
 }

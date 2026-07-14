@@ -10,11 +10,10 @@ export const CONFIG = {
   saveKey: "zen-kaplumbaga-progress-v1",
 
   turtle: {
-    spriteUrl: "/images/turtle-gameplay.png",
-    sizeRatio: 1.12,
-    maxSize: 52,
-    offsetXRatio: 0.35,
-    offsetYRatio: 0.22
+    scaleReference: 43,
+    maxScale: 1.06,
+    offsetXRatio: 0.32,
+    offsetYRatio: 0.20
   },
 
   supabase: {
@@ -80,6 +79,15 @@ export const CONFIG = {
     idleWater: "#b8e1e7",
     waterHighlight: "rgba(255, 255, 255, 0.68)",
     connectionGlow: "rgba(113, 214, 144, 0.78)",
+    turtleOutline: "#245d3a",
+    turtleSkin: "#aabd4e",
+    turtleSkinLight: "#d7df78",
+    turtleSkinSpot: "rgba(78, 121, 48, 0.48)",
+    turtleShell: "#32683e",
+    turtleShellLight: "#4f8246",
+    turtleShellDark: "#204f35",
+    turtleShellSeam: "#dfb447",
+    turtleEye: "#5b351f",
     flowerPetal: "#ff80ab",
     flowerCenter: "#ffd54f",
     endpointCenter: "#ffca28"
