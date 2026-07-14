@@ -1,3 +1,5 @@
+let decorSequence = 0;
+
 export class Tile {
   constructor(q, r, exits, active = false) {
     this.q = q;
@@ -7,6 +9,14 @@ export class Tile {
 
     this.endpoint = false;
     this.locked = false;
+
+    decorSequence = (decorSequence + 0x9e3779b9) >>> 0;
+    this.decorSeed = (
+      (Date.now() >>> 0) ^
+      Math.imul(q + 127, 73856093) ^
+      Math.imul(r + 127, 19349663) ^
+      decorSequence
+    ) >>> 0;
 
     this.rotation = 0;
     this.visualRotation = 0;

@@ -12,7 +12,9 @@ export class Renderer {
     this.connectionCache = {
       grid: null,
       signature: "",
-      keys: new Set()
+      keys: new Set(),
+      depths: new Map(),
+      orders: new Map()
     };
   }
 
@@ -28,7 +30,7 @@ export class Renderer {
     ctx.save();
     ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
 
-    const connectedKeys = this.getConnectedKeys(grid);
+    const flowState = this.getFlowState(grid);
     const tiles = Object.keys(grid).map((key) => {
       const tile = grid[key];
       const pos = hexToPixel(tile.q, tile.r, hexRadius);
@@ -47,7 +49,7 @@ export class Renderer {
     tiles.sort((a, b) => a.liftWave - b.liftWave);
 
     tiles.forEach(({ tile, x, y }) => {
-      this.drawHexagon(ctx, x, y, hexRadius, tile, grid, connectedKeys);
+      this.drawHexagon(ctx, x, y, hexRadius, tile, grid, flowState);
     });
 
     this.drawTurtle(ctx, turtle, hexRadius);
@@ -58,7 +60,7 @@ export class Renderer {
     this.waterFlowPhase += deltaMs * 0.0033;
   }
 
-  getConnectedKeys(grid) {
+  getFlowState(grid) {
     const signature = Object.keys(grid)
       .filter((key) => grid[key].active)
       .map((key) => `${key}:${grid[key].rotation}`)
@@ -68,21 +70,71 @@ export class Renderer {
       this.connectionCache.grid === grid &&
       this.connectionCache.signature === signature
     ) {
-      return this.connectionCache.keys;
+      return this.connectionCache;
+    }
+
+    if (this.connectionCache.grid !== grid) {
+      this.tileSurfaceCache.clear();
     }
 
     const keys = PuzzleValidator.calculateConnectedKeys(grid);
+    const depths = this.calculateFlowDepths(grid, keys);
+    const orders = new Map(
+      Array.from(depths.keys()).map((key, index) => [key, index])
+    );
 
     this.connectionCache = {
       grid,
       signature,
-      keys
+      keys,
+      depths,
+      orders
     };
 
-    return keys;
+    return this.connectionCache;
   }
 
-  drawHexagon(ctx, x, y, radius, tile, grid, connectedKeys) {
+  calculateFlowDepths(grid, connectedKeys) {
+    const sourceKey = tileKey(0, 0);
+    const depths = new Map();
+
+    if (!connectedKeys.has(sourceKey) || !grid[sourceKey]?.active) {
+      return depths;
+    }
+
+    const queue = [sourceKey];
+    let queueIndex = 0;
+
+    depths.set(sourceKey, 0);
+
+    while (queueIndex < queue.length) {
+      const currentKey = queue[queueIndex];
+      const tile = grid[currentKey];
+      const currentDepth = depths.get(currentKey);
+      const exits = tile.getActualExits();
+
+      queueIndex += 1;
+
+      for (let dirIndex = 0; dirIndex < 6; dirIndex += 1) {
+        if (!exits[dirIndex]) continue;
+        if (!PuzzleValidator.isExitMatched(tile, dirIndex, grid)) continue;
+
+        const dir = DIR_NEIGHBORS[dirIndex];
+        const neighborKey = tileKey(tile.q + dir.q, tile.r + dir.r);
+
+        if (!connectedKeys.has(neighborKey) || depths.has(neighborKey)) {
+          continue;
+        }
+
+        depths.set(neighborKey, currentDepth + 1);
+        queue.push(neighborKey);
+      }
+    }
+
+    return depths;
+  }
+
+  drawHexagon(ctx, x, y, radius, tile, grid, flowState) {
     const liftWave = tile.getLiftWave();
     const lift = tile.active ? liftWave * 10 : 0;
     const actionScale = tile.active ? 1 + liftWave * 0.032 : 1;
@@ -108,7 +160,7 @@ export class Renderer {
       ctx.save();
       this.drawHexShape(ctx, surfaceRadius - 0.5);
       ctx.clip();
-      this.drawWaterChannels(ctx, radius, tile, grid, connectedKeys);
+      this.drawWaterChannels(ctx, radius, tile, grid, flowState);
       ctx.restore();
 
       this.drawFlower(ctx, tile);
@@ -169,8 +221,13 @@ export class Renderer {
       : tile.flowerBloomed
         ? "solved"
         : "active";
-    const variant = this.getTileSeed(tile) % 8;
-    const cacheKey = `${Math.round(radius * 10)}:${state}:${variant}`;
+    const cacheKey = [
+      Math.round(radius * 10),
+      state,
+      tile.decorSeed,
+      tile.q,
+      tile.r
+    ].join(":");
 
     if (this.tileSurfaceCache.has(cacheKey)) {
       return this.tileSurfaceCache.get(cacheKey);
@@ -238,7 +295,7 @@ export class Renderer {
   }
 
   getTileSeed(tile) {
-    return Math.abs(tile.q * 37 + tile.r * 61 + 17);
+    return tile.decorSeed ?? Math.abs(tile.q * 37 + tile.r * 61 + 17);
   }
 
   drawTileTexture(ctx, radius, tile) {
@@ -261,76 +318,131 @@ export class Renderer {
 
   drawIslandDecorations(ctx, radius, tile) {
     const seed = this.getTileSeed(tile);
-    const variant = seed % 4;
-    const angle = ((seed % 6) * Math.PI) / 3 + Math.PI / 6;
-    const distance = radius * (tile.active ? 0.52 : 0.42);
-    const x = Math.cos(angle) * distance;
-    const y = Math.sin(angle) * distance;
+    const random = this.createSeededRandom(seed);
+    const stoneRoll = random();
+    const sandRoll = random();
+    const grassChance = tile.flowerBloomed
+      ? 0.72
+      : tile.active
+        ? 0.26
+        : 0.46;
+    const stoneCount = stoneRoll < 0.42
+      ? 0
+      : stoneRoll < 0.8
+        ? 1
+        : stoneRoll < 0.96
+          ? 2
+          : 3;
+    const sandPatchCount = sandRoll < 0.22
+      ? 0
+      : sandRoll < 0.82
+        ? 1
+        : 2;
+    const grassCount = random() < grassChance
+      ? random() < 0.82 ? 1 : 2
+      : 0;
 
-    this.drawSandPatch(ctx, radius, seed, x, y);
-
-    if (variant === 0 || variant === 3) {
-      this.drawStoneCluster(ctx, x, y, 0.82 + (seed % 3) * 0.08);
+    for (let i = 0; i < sandPatchCount; i += 1) {
+      const point = this.pickDecorPoint(random, radius, 0.3, 0.58);
+      this.drawSandPatch(ctx, random, point.x, point.y, radius);
     }
 
-    if (variant === 1 || tile.flowerBloomed) {
-      this.drawGrassTuft(ctx, x, y, 0.8 + (seed % 4) * 0.06);
+    for (let i = 0; i < grassCount; i += 1) {
+      const point = this.pickDecorPoint(random, radius, 0.34, 0.57);
+      this.drawGrassTuft(
+        ctx,
+        point.x,
+        point.y,
+        0.72 + random() * 0.24,
+        random() * 0.8 - 0.4
+      );
+    }
+
+    for (let i = 0; i < stoneCount; i += 1) {
+      const point = this.pickDecorPoint(random, radius, 0.34, 0.59);
+      this.drawStone(
+        ctx,
+        point.x,
+        point.y,
+        0.68 + random() * 0.34,
+        random() * 0.9 - 0.45
+      );
     }
   }
 
-  drawSandPatch(ctx, radius, seed, centerX, centerY) {
+  createSeededRandom(seed) {
+    let state = seed >>> 0;
+
+    return () => {
+      state = (state + 0x6d2b79f5) >>> 0;
+
+      let value = state;
+      value = Math.imul(value ^ (value >>> 15), value | 1);
+      value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+
+      return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  pickDecorPoint(random, radius, minDistance, maxDistance) {
+    const angle = random() * Math.PI * 2;
+    const distance = radius * (
+      minDistance + random() * (maxDistance - minDistance)
+    );
+
+    return {
+      x: Math.cos(angle) * distance,
+      y: Math.sin(angle) * distance
+    };
+  }
+
+  drawSandPatch(ctx, random, centerX, centerY, radius) {
+    const grainCount = 5 + Math.floor(random() * 5);
+
     ctx.save();
     ctx.fillStyle = CONFIG.colors.sandSpeck;
 
-    for (let i = 0; i < 6; i += 1) {
-      const angle = seed * 0.11 + i * 1.7;
-      const spread = radius * (0.07 + ((seed + i * 5) % 8) / 100);
+    for (let i = 0; i < grainCount; i += 1) {
+      const angle = random() * Math.PI * 2;
+      const spread = radius * (0.045 + random() * 0.085);
       const x = centerX + Math.cos(angle) * spread;
       const y = centerY + Math.sin(angle) * spread * 0.65;
 
       ctx.beginPath();
-      ctx.arc(x, y, 0.65 + (i % 2) * 0.25, 0, Math.PI * 2);
+      ctx.arc(x, y, 0.55 + random() * 0.42, 0, Math.PI * 2);
       ctx.fill();
     }
 
     ctx.restore();
   }
 
-  drawStoneCluster(ctx, x, y, scale) {
+  drawStone(ctx, x, y, scale, rotation) {
     ctx.save();
     ctx.translate(x, y);
+    ctx.rotate(rotation);
     ctx.scale(scale, scale);
 
     ctx.fillStyle = CONFIG.colors.stoneShade;
     ctx.beginPath();
-    ctx.ellipse(1.5, 2.4, 6.2, 3.4, -0.18, 0, Math.PI * 2);
+    ctx.ellipse(0.9, 1.8, 5.3, 3.1, -0.12, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = CONFIG.colors.stoneTop;
     ctx.beginPath();
-    ctx.ellipse(0, 0, 5.5, 3.5, -0.22, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, 4.8, 3, -0.16, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = "rgba(255, 255, 255, 0.34)";
     ctx.beginPath();
-    ctx.ellipse(-1.6, -1, 2.1, 0.8, -0.2, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = CONFIG.colors.stoneShade;
-    ctx.beginPath();
-    ctx.ellipse(6, 2.1, 3.2, 2.1, 0.28, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = CONFIG.colors.stoneTop;
-    ctx.beginPath();
-    ctx.ellipse(5.5, 0.8, 2.9, 2, 0.28, 0, Math.PI * 2);
+    ctx.ellipse(-1.4, -0.9, 1.8, 0.7, -0.16, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
 
-  drawGrassTuft(ctx, x, y, scale) {
+  drawGrassTuft(ctx, x, y, scale, rotation) {
     ctx.save();
     ctx.translate(x, y + 2);
+    ctx.rotate(rotation);
     ctx.scale(scale, scale);
     ctx.lineCap = "round";
     ctx.lineWidth = 1.7;
@@ -388,10 +500,12 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawWaterChannels(ctx, radius, tile, grid, connectedKeys) {
+  drawWaterChannels(ctx, radius, tile, grid, flowState) {
     const channelLength = radius * Math.cos(Math.PI / 6) + 2;
     const currentKey = tileKey(tile.q, tile.r);
-    const currentConnected = connectedKeys.has(currentKey);
+    const currentConnected = flowState.keys.has(currentKey);
+    const currentDepth = flowState.depths.get(currentKey);
+    const currentOrder = flowState.orders.get(currentKey);
     const channels = [];
 
     for (let i = 0; i < 6; i += 1) {
@@ -401,11 +515,24 @@ export class Renderer {
       const matched = PuzzleValidator.isExitMatched(tile, finalDir, grid);
       const dir = DIR_NEIGHBORS[finalDir];
       const neighborKey = tileKey(tile.q + dir.q, tile.r + dir.r);
-      const neighborConnected = connectedKeys.has(neighborKey);
+      const neighborConnected = flowState.keys.has(neighborKey);
+      const neighborDepth = flowState.depths.get(neighborKey);
+      const neighborOrder = flowState.orders.get(neighborKey);
+      const active = currentConnected && neighborConnected && matched;
 
       channels.push({
         angle: (i - 1) * Math.PI / 3 + tile.visualRotation * Math.PI / 3,
-        active: currentConnected && neighborConnected && matched
+        active,
+        direction: active
+          ? this.getFlowDirection(
+              currentKey,
+              neighborKey,
+              currentDepth,
+              neighborDepth,
+              currentOrder,
+              neighborOrder
+            )
+          : 0
       });
     }
 
@@ -433,16 +560,50 @@ export class Renderer {
       );
     });
 
+    channels.forEach((channel) => {
+      this.drawWaterSurfaceSheen(
+        ctx,
+        channelLength,
+        channel.angle,
+        channel.active
+      );
+    });
+
     this.drawCenterPool(ctx, currentConnected, channels.length > 0);
 
     channels.forEach((channel) => {
       if (channel.active) {
-        this.drawFlowDash(ctx, channelLength, channel.angle);
-        this.drawWaterBubbles(ctx, channelLength, channel.angle);
-      } else {
-        this.drawIdleWaterGlint(ctx, channelLength, channel.angle);
+        this.drawFlowDash(
+          ctx,
+          channelLength,
+          channel.angle,
+          channel.direction
+        );
+        this.drawWaterBubbles(
+          ctx,
+          channelLength,
+          channel.angle,
+          channel.direction
+        );
       }
     });
+  }
+
+  getFlowDirection(
+    currentKey,
+    neighborKey,
+    currentDepth,
+    neighborDepth,
+    currentOrder = 0,
+    neighborOrder = 0
+  ) {
+    if (neighborDepth > currentDepth) return 1;
+    if (neighborDepth < currentDepth) return -1;
+
+    if (neighborOrder > currentOrder) return 1;
+    if (neighborOrder < currentOrder) return -1;
+
+    return currentKey.localeCompare(neighborKey) < 0 ? 1 : -1;
   }
 
   drawChannelLine(ctx, channelLength, angle, width, color) {
@@ -490,29 +651,38 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawIdleWaterGlint(ctx, channelLength, angle) {
+  drawWaterSurfaceSheen(ctx, channelLength, angle, active) {
     ctx.save();
-    ctx.globalAlpha = 0.28;
-    ctx.lineWidth = 2;
+    ctx.globalAlpha = active ? 0.3 : 0.2;
+    ctx.lineWidth = active ? 2.4 : 1.8;
     ctx.lineCap = "round";
     ctx.strokeStyle = CONFIG.colors.waterHighlight;
+
+    const normalAngle = angle - Math.PI / 2;
+    const offset = active ? 1.6 : 1.2;
+    const offsetX = Math.cos(normalAngle) * offset;
+    const offsetY = Math.sin(normalAngle) * offset;
+
     ctx.beginPath();
-    ctx.moveTo(5 * Math.cos(angle), 5 * Math.sin(angle));
+    ctx.moveTo(
+      5 * Math.cos(angle) + offsetX,
+      5 * Math.sin(angle) + offsetY
+    );
     ctx.lineTo(
-      channelLength * 0.82 * Math.cos(angle),
-      channelLength * 0.82 * Math.sin(angle)
+      channelLength * 0.88 * Math.cos(angle) + offsetX,
+      channelLength * 0.88 * Math.sin(angle) + offsetY
     );
     ctx.stroke();
     ctx.restore();
   }
 
-  drawFlowDash(ctx, channelLength, angle) {
+  drawFlowDash(ctx, channelLength, angle, direction) {
     ctx.save();
     ctx.lineWidth = 3.5;
     ctx.lineCap = "round";
     ctx.strokeStyle = CONFIG.colors.waterHighlight;
     ctx.setLineDash([7, 12]);
-    ctx.lineDashOffset = -this.waterFlowPhase * 42;
+    ctx.lineDashOffset = -this.waterFlowPhase * 42 * direction;
     ctx.beginPath();
     ctx.moveTo(4 * Math.cos(angle), 4 * Math.sin(angle));
     ctx.lineTo(
@@ -523,18 +693,19 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawWaterBubbles(ctx, channelLength, angle) {
+  drawWaterBubbles(ctx, channelLength, angle, direction) {
     ctx.save();
 
     for (let i = 0; i < 2; i += 1) {
       const phase = (this.waterFlowPhase * 0.55 + i * 0.48) % 1;
-      const distance = channelLength * (0.2 + phase * 0.68);
+      const travelPhase = direction > 0 ? phase : 1 - phase;
+      const distance = channelLength * (0.2 + travelPhase * 0.68);
       const wobble = Math.sin(this.waterFlowPhase * 4 + i * 1.9) * 1.25;
       const normalAngle = angle + Math.PI / 2;
       const x = distance * Math.cos(angle) + wobble * Math.cos(normalAngle);
       const y = distance * Math.sin(angle) + wobble * Math.sin(normalAngle);
 
-      ctx.globalAlpha = 0.5 * (1 - phase * 0.25);
+      ctx.globalAlpha = 0.5 * (1 - travelPhase * 0.25);
       ctx.fillStyle = "white";
       ctx.beginPath();
       ctx.arc(x, y, 1.6 + i * 0.2, 0, Math.PI * 2);
