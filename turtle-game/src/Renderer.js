@@ -7,22 +7,33 @@ export class Renderer {
     this.canvas = canvas;
     this.ctx = ctx;
     this.waterFlowPhase = 0;
+    this.lastFrameTime = performance.now();
+    this.tileSurfaceCache = new Map();
+    this.connectionCache = {
+      grid: null,
+      signature: "",
+      keys: new Set()
+    };
   }
 
   render({ grid, turtle, particleSystem, hexRadius }) {
     const ctx = this.ctx;
+    const now = performance.now();
+    const deltaMs = Math.min(50, Math.max(4, now - this.lastFrameTime));
+
+    this.lastFrameTime = now;
 
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     ctx.save();
     ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
 
-    const connectedKeys = PuzzleValidator.calculateConnectedKeys(grid);
+    const connectedKeys = this.getConnectedKeys(grid);
     const tiles = Object.keys(grid).map((key) => {
       const tile = grid[key];
       const pos = hexToPixel(tile.q, tile.r, hexRadius);
 
-      tile.updateAnimation();
+      tile.updateAnimation(deltaMs);
 
       return {
         tile,
@@ -44,16 +55,39 @@ export class Renderer {
 
     ctx.restore();
 
-    this.waterFlowPhase += 0.055;
+    this.waterFlowPhase += deltaMs * 0.0033;
+  }
+
+  getConnectedKeys(grid) {
+    const signature = Object.keys(grid)
+      .filter((key) => grid[key].active)
+      .map((key) => `${key}:${grid[key].rotation}`)
+      .join("|");
+
+    if (
+      this.connectionCache.grid === grid &&
+      this.connectionCache.signature === signature
+    ) {
+      return this.connectionCache.keys;
+    }
+
+    const keys = PuzzleValidator.calculateConnectedKeys(grid);
+
+    this.connectionCache = {
+      grid,
+      signature,
+      keys
+    };
+
+    return keys;
   }
 
   drawHexagon(ctx, x, y, radius, tile, grid, connectedKeys) {
     const liftWave = tile.getLiftWave();
     const lift = tile.active ? liftWave * 10 : 0;
     const actionScale = tile.active ? 1 + liftWave * 0.032 : 1;
-    const pulse = Math.sin(tile.pulsePhase) * 0.7;
-    const surfaceRadius = radius + pulse - 2;
-    const glowRadius = radius + pulse + tile.hintGlow * 12;
+    const surfaceRadius = radius - 2;
+    const glowRadius = radius + tile.hintGlow * 12;
 
     this.drawTileShadow(ctx, x, y, radius, tile, liftWave);
     this.drawTileSide(ctx, x, y - lift, surfaceRadius, tile, liftWave);
@@ -71,7 +105,12 @@ export class Renderer {
     this.drawTileSurface(ctx, surfaceRadius, tile);
 
     if (tile.active) {
+      ctx.save();
+      this.drawHexShape(ctx, surfaceRadius - 0.5);
+      ctx.clip();
       this.drawWaterChannels(ctx, radius, tile, grid, connectedKeys);
+      ctx.restore();
+
       this.drawFlower(ctx, tile);
       this.drawSettleGlow(ctx, radius, tile);
     }
@@ -115,6 +154,44 @@ export class Renderer {
   }
 
   drawTileSurface(ctx, radius, tile) {
+    const surface = this.getTileSurface(radius, tile);
+
+    ctx.drawImage(
+      surface,
+      -surface.width / 2,
+      -surface.height / 2
+    );
+  }
+
+  getTileSurface(radius, tile) {
+    const state = !tile.active
+      ? "inactive"
+      : tile.flowerBloomed
+        ? "solved"
+        : "active";
+    const variant = this.getTileSeed(tile) % 8;
+    const cacheKey = `${Math.round(radius * 10)}:${state}:${variant}`;
+
+    if (this.tileSurfaceCache.has(cacheKey)) {
+      return this.tileSurfaceCache.get(cacheKey);
+    }
+
+    const padding = 5;
+    const size = Math.ceil((radius + padding) * 2);
+    const surface = document.createElement("canvas");
+    const surfaceCtx = surface.getContext("2d");
+
+    surface.width = size;
+    surface.height = size;
+
+    surfaceCtx.translate(size / 2, size / 2);
+    this.paintTileSurface(surfaceCtx, radius, tile);
+    this.tileSurfaceCache.set(cacheKey, surface);
+
+    return surface;
+  }
+
+  paintTileSurface(ctx, radius, tile) {
     const surfaceGradient = ctx.createLinearGradient(0, -radius, 0, radius);
 
     if (!tile.active) {
@@ -138,6 +215,7 @@ export class Renderer {
     this.drawHexShape(ctx, radius - 1);
     ctx.clip();
     this.drawTileTexture(ctx, radius, tile);
+    this.drawIslandDecorations(ctx, radius, tile);
     ctx.restore();
 
     this.drawHexShape(ctx, radius);
@@ -159,8 +237,12 @@ export class Renderer {
     ctx.stroke();
   }
 
+  getTileSeed(tile) {
+    return Math.abs(tile.q * 37 + tile.r * 61 + 17);
+  }
+
   drawTileTexture(ctx, radius, tile) {
-    const seed = Math.abs(tile.q * 37 + tile.r * 61 + 17);
+    const seed = this.getTileSeed(tile);
 
     ctx.fillStyle = CONFIG.colors.tileTexture;
 
@@ -175,6 +257,99 @@ export class Renderer {
       ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+
+  drawIslandDecorations(ctx, radius, tile) {
+    const seed = this.getTileSeed(tile);
+    const variant = seed % 4;
+    const angle = ((seed % 6) * Math.PI) / 3 + Math.PI / 6;
+    const distance = radius * (tile.active ? 0.52 : 0.42);
+    const x = Math.cos(angle) * distance;
+    const y = Math.sin(angle) * distance;
+
+    this.drawSandPatch(ctx, radius, seed, x, y);
+
+    if (variant === 0 || variant === 3) {
+      this.drawStoneCluster(ctx, x, y, 0.82 + (seed % 3) * 0.08);
+    }
+
+    if (variant === 1 || tile.flowerBloomed) {
+      this.drawGrassTuft(ctx, x, y, 0.8 + (seed % 4) * 0.06);
+    }
+  }
+
+  drawSandPatch(ctx, radius, seed, centerX, centerY) {
+    ctx.save();
+    ctx.fillStyle = CONFIG.colors.sandSpeck;
+
+    for (let i = 0; i < 6; i += 1) {
+      const angle = seed * 0.11 + i * 1.7;
+      const spread = radius * (0.07 + ((seed + i * 5) % 8) / 100);
+      const x = centerX + Math.cos(angle) * spread;
+      const y = centerY + Math.sin(angle) * spread * 0.65;
+
+      ctx.beginPath();
+      ctx.arc(x, y, 0.65 + (i % 2) * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  drawStoneCluster(ctx, x, y, scale) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+
+    ctx.fillStyle = CONFIG.colors.stoneShade;
+    ctx.beginPath();
+    ctx.ellipse(1.5, 2.4, 6.2, 3.4, -0.18, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = CONFIG.colors.stoneTop;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 5.5, 3.5, -0.22, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.34)";
+    ctx.beginPath();
+    ctx.ellipse(-1.6, -1, 2.1, 0.8, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = CONFIG.colors.stoneShade;
+    ctx.beginPath();
+    ctx.ellipse(6, 2.1, 3.2, 2.1, 0.28, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = CONFIG.colors.stoneTop;
+    ctx.beginPath();
+    ctx.ellipse(5.5, 0.8, 2.9, 2, 0.28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  drawGrassTuft(ctx, x, y, scale) {
+    ctx.save();
+    ctx.translate(x, y + 2);
+    ctx.scale(scale, scale);
+    ctx.lineCap = "round";
+    ctx.lineWidth = 1.7;
+
+    const blades = [
+      { endX: -4, endY: -7, color: CONFIG.colors.grassDark },
+      { endX: 0, endY: -9, color: CONFIG.colors.grassLight },
+      { endX: 4, endY: -6, color: CONFIG.colors.grassDark }
+    ];
+
+    blades.forEach((blade) => {
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(blade.endX * 0.35, blade.endY * 0.55, blade.endX, blade.endY);
+      ctx.strokeStyle = blade.color;
+      ctx.stroke();
+    });
+
+    ctx.restore();
   }
 
   drawHexShape(ctx, radius) {

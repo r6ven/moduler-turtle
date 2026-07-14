@@ -98,20 +98,25 @@ export class Tile {
     return this.actionProgress < 1 || rotationDiff > 0.015;
   }
 
-  updateAnimation() {
-    this.pulsePhase += 0.02;
+  updateAnimation(deltaMs = 1000 / 60) {
+    const frameScale = Math.min(3, Math.max(0.25, deltaMs / (1000 / 60)));
+
+    this.pulsePhase += 0.02 * frameScale;
 
     if (this.hintGlow > 0) {
-      this.hintGlow = Math.max(0, this.hintGlow - 0.025);
+      this.hintGlow = Math.max(0, this.hintGlow - 0.04 * frameScale);
     }
 
     if (this.settleGlow > 0) {
-      this.settleGlow = Math.max(0, this.settleGlow - 0.065);
+      this.settleGlow = Math.max(0, this.settleGlow - 0.085 * frameScale);
     }
 
     if (this.actionProgress < 1) {
       const previousProgress = this.actionProgress;
-      this.actionProgress = Math.min(1, this.actionProgress + 0.065);
+      this.actionProgress = Math.min(
+        1,
+        this.actionProgress + 0.095 * frameScale
+      );
 
       if (previousProgress < 1 && this.actionProgress === 1) {
         this.settleGlow = 1;
@@ -119,17 +124,18 @@ export class Tile {
     }
 
     if (this.flowerBloomed) {
-      this.flowerScale = Math.min(1, this.flowerScale + 0.05);
+      this.flowerScale = Math.min(1, this.flowerScale + 0.07 * frameScale);
     } else {
-      this.flowerScale = Math.max(0, this.flowerScale - 0.05);
+      this.flowerScale = Math.max(0, this.flowerScale - 0.07 * frameScale);
     }
 
     const rotationDiff = this.targetVisualRotation - this.visualRotation;
 
-    if (Math.abs(rotationDiff) < 0.001) {
+    if (Math.abs(rotationDiff) < 0.004) {
       this.visualRotation = this.targetVisualRotation;
     } else {
-      this.visualRotation += rotationDiff * 0.24;
+      const rotationBlend = 1 - Math.pow(1 - 0.32, frameScale);
+      this.visualRotation += rotationDiff * rotationBlend;
     }
   }
 
