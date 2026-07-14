@@ -14,6 +14,7 @@ export class Tile {
 
     // 0 → animasyon başladı, 1 → yerine oturdu
     this.actionProgress = 1;
+    this.settleGlow = 0;
 
     this.flowerBloomed = false;
     this.flowerScale = 0;
@@ -36,7 +37,7 @@ export class Tile {
   }
 
   rotate() {
-    if (!this.active || this.locked) {
+    if (!this.active || this.locked || this.isAnimating()) {
       return false;
     }
 
@@ -45,6 +46,7 @@ export class Tile {
 
     // Taş basılınca yükselme-dönme-oturma animasyonu başlar.
     this.actionProgress = 0;
+    this.settleGlow = 0;
 
     return true;
   }
@@ -57,6 +59,7 @@ export class Tile {
       this.visualRotation = normalizedRotation;
       this.targetVisualRotation = normalizedRotation;
       this.actionProgress = 1;
+      this.settleGlow = 0;
       return;
     }
 
@@ -76,6 +79,7 @@ export class Tile {
     }, candidates[0]);
 
     this.actionProgress = 0;
+    this.settleGlow = 0;
   }
 
   isSolvedOrientation() {
@@ -86,6 +90,14 @@ export class Tile {
     return this.exits.filter(Boolean).length;
   }
 
+  isAnimating() {
+    const rotationDiff = Math.abs(
+      this.targetVisualRotation - this.visualRotation
+    );
+
+    return this.actionProgress < 1 || rotationDiff > 0.015;
+  }
+
   updateAnimation() {
     this.pulsePhase += 0.02;
 
@@ -93,9 +105,17 @@ export class Tile {
       this.hintGlow = Math.max(0, this.hintGlow - 0.025);
     }
 
+    if (this.settleGlow > 0) {
+      this.settleGlow = Math.max(0, this.settleGlow - 0.065);
+    }
+
     if (this.actionProgress < 1) {
-      // Yaklaşık 14-18 frame içinde biter. Akışı bozmaz ama görünür.
-      this.actionProgress = Math.min(1, this.actionProgress + 0.075);
+      const previousProgress = this.actionProgress;
+      this.actionProgress = Math.min(1, this.actionProgress + 0.065);
+
+      if (previousProgress < 1 && this.actionProgress === 1) {
+        this.settleGlow = 1;
+      }
     }
 
     if (this.flowerBloomed) {
@@ -109,8 +129,7 @@ export class Tile {
     if (Math.abs(rotationDiff) < 0.001) {
       this.visualRotation = this.targetVisualRotation;
     } else {
-      // Dönüş artık daha okunaklı. Çok yavaş değil, ama göz yakalıyor.
-      this.visualRotation += rotationDiff * 0.18;
+      this.visualRotation += rotationDiff * 0.24;
     }
   }
 
