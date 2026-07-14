@@ -136,14 +136,15 @@ export class UIController {
     this.soundToggle.innerText = enabled ? "🎵 Ses: Açık" : "🔇 Ses: Kapalı";
   }
 
-updateFullscreen(isFullscreen) {
-  this.fullscreenButton.classList.toggle("active", isFullscreen);
-  this.fullscreenButton.innerText = isFullscreen ? "⇲" : "⛶";
-  this.fullscreenButton.setAttribute(
-    "aria-label",
-    isFullscreen ? "Tam ekrandan çık" : "Tam ekran"
-  );
+  updateFullscreen(isFullscreen) {
+    this.fullscreenButton.classList.toggle("active", isFullscreen);
+    this.fullscreenButton.innerText = isFullscreen ? "⇲" : "⛶";
+    this.fullscreenButton.setAttribute(
+      "aria-label",
+      isFullscreen ? "Tam ekrandan çık" : "Tam ekran"
+    );
   }
+
   showMainMenu() {
     this.mainMenuOverlay.classList.add("active");
   }
@@ -166,10 +167,10 @@ updateFullscreen(isFullscreen) {
     this.authCard.classList.add("hidden");
     this.gameMenuCard.classList.remove("hidden");
 
-    this.currentUserLabel.innerText = `Oyuncu: ${username}`;
-    this.savedLevelLabel.innerText = `Kayıtlı seviye: ${level}`;
-    this.completedLevelLabel.innerText = `Tamamlanan bölüm: ${completedCount}`;
-    this.continueGameButton.innerText = `Devam Et: Seviye ${level}`;
+    this.currentUserLabel.innerText = `Oyuncu · ${username}`;
+    this.savedLevelLabel.innerText = `Ada ${level}`;
+    this.completedLevelLabel.innerText = `${completedCount} tamamlandı`;
+    this.continueGameButton.innerText = `Devam Et · Ada ${level}`;
 
     this.showMainMenu();
   }

@@ -21,9 +21,9 @@
             <div id="sound-toggle" class="hud-element icon-btn">🎵 Ses: Açık</div>
           </div>
         </div>
-<button id="fullscreen-btn" class="fullscreen-btn" aria-label="Tam ekran">
-  ⛶
-</button>
+        <button id="fullscreen-btn" class="fullscreen-btn" aria-label="Tam ekran">
+          ⛶
+        </button>
 
         <div class="stats-bar">
           <div id="move-counter" class="hud-element compact">👣 Hamle: <span id="move-val">0</span></div>
@@ -38,13 +38,34 @@
     </div>
   </div>
 
-  <div id="main-menu-overlay" class="active warm-menu">
+  <div id="main-menu-overlay" class="active">
+    <div class="menu-current" aria-hidden="true">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+
     <div id="auth-card" class="main-menu-card">
-      <div class="menu-turtle">
-  <img src="/images/turtle-menu.png" alt="Zen Kaplumbağa" />
-</div>
-      <h1>Zen Kaplumbağa</h1>
-      <p>Kayıt oluştur ya da giriş yap. İlerlemen hesabına kaydedilir.</p>
+      <header class="menu-brand">
+        <div class="menu-brand-mark" aria-hidden="true">
+          <span class="brand-hex"></span>
+          <span class="brand-channel"></span>
+          <span class="brand-turtle">
+            <i class="brand-head"></i>
+            <i class="brand-shell"></i>
+          </span>
+        </div>
+        <div class="menu-brand-copy">
+          <span class="menu-eyebrow">Sonsuz Ada Bahçesi</span>
+          <h1>Zen Kaplumbağa</h1>
+        </div>
+      </header>
+
+      <div class="menu-flow-preview" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
 
       <div class="auth-form">
         <input id="username-input" class="auth-input" type="text" autocomplete="username" placeholder="Kullanıcı adı" maxlength="24" />
@@ -57,20 +78,47 @@
     </div>
 
     <div id="game-menu-card" class="main-menu-card hidden">
-     <div class="menu-turtle">
-  <img src="/images/turtle-menu.png" alt="Zen Kaplumbağa" />
-</div>
-      <h1>Zen Kaplumbağa</h1>
-      <p id="current-user-label">Oyuncu</p>
-      <p id="saved-level-label">Kayıtlı seviye: 1</p>
-      <p id="completed-level-label">Tamamlanan bölüm: 0</p>
+      <header class="menu-brand compact-brand">
+        <div class="menu-brand-mark" aria-hidden="true">
+          <span class="brand-hex"></span>
+          <span class="brand-channel"></span>
+          <span class="brand-turtle">
+            <i class="brand-head"></i>
+            <i class="brand-shell"></i>
+          </span>
+        </div>
+        <div class="menu-brand-copy">
+          <span class="menu-eyebrow">Sonsuz Ada Bahçesi</span>
+          <h1>Zen Kaplumbağa</h1>
+        </div>
+      </header>
+
+      <div class="menu-flow-preview" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+
+      <div class="player-summary">
+        <p id="current-user-label" class="player-name">Oyuncu</p>
+        <div class="progress-summary">
+          <p id="saved-level-label">Ada 1</p>
+          <p id="completed-level-label">0 tamamlandı</p>
+        </div>
+      </div>
 
       <button class="menu-btn primary" id="continue-game-btn">Devam Et</button>
-      <button class="menu-btn" id="start-game-btn">Oyuna Dön</button>
-      <button class="menu-btn" id="levels-btn">Bölümler</button>
-      <button class="menu-btn" id="records-btn">Rekorlar</button>
-      <button class="menu-btn ghost danger-text" id="restart-game-btn">Kayıtları Sıfırla</button>
-      <button class="menu-btn ghost" id="logout-btn">Çıkış Yap</button>
+      <button class="menu-btn return-btn" id="start-game-btn">Oyuna Dön</button>
+
+      <div class="menu-action-grid">
+        <button class="menu-btn" id="levels-btn">Bölümler</button>
+        <button class="menu-btn" id="records-btn">Rekorlar</button>
+      </div>
+
+      <div class="menu-footer-actions">
+        <button class="menu-btn ghost danger-text" id="restart-game-btn">Kayıtları Sıfırla</button>
+        <button class="menu-btn ghost" id="logout-btn">Çıkış Yap</button>
+      </div>
     </div>
   </div>
 
