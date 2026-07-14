@@ -16,6 +16,23 @@ export class Renderer {
       depths: new Map(),
       orders: new Map()
     };
+    this.turtleSprite = null;
+    this.turtleSpriteReady = false;
+    this.loadTurtleSprite();
+  }
+
+  loadTurtleSprite() {
+    if (typeof Image === "undefined") return;
+
+    this.turtleSprite = new Image();
+    this.turtleSprite.decoding = "async";
+    this.turtleSprite.onload = () => {
+      this.turtleSpriteReady = true;
+    };
+    this.turtleSprite.onerror = () => {
+      this.turtleSpriteReady = false;
+    };
+    this.turtleSprite.src = CONFIG.turtle.spriteUrl;
   }
 
   render({ grid, turtle, particleSystem, hexRadius }) {
@@ -1067,16 +1084,43 @@ export class Renderer {
   }
 
   drawTurtle(ctx, turtle, hexRadius) {
-    const legWiggle = Math.sin(turtle.animFrame) * 3;
     const bob = Math.sin(turtle.animFrame) * 1.2;
-    const visualOffsetX = Math.min(18, hexRadius * 0.42);
-    const visualOffsetY = Math.min(12, hexRadius * 0.30);
-    const turtleScale = 0.82;
+    const visualOffsetX = Math.min(16, hexRadius * CONFIG.turtle.offsetXRatio);
+    const visualOffsetY = Math.min(10, hexRadius * CONFIG.turtle.offsetYRatio);
 
     ctx.save();
     ctx.translate(turtle.x + visualOffsetX, turtle.y + visualOffsetY + bob);
-    ctx.scale(turtleScale, turtleScale);
     ctx.rotate(turtle.angle + Math.PI / 2);
+
+    if (this.turtleSpriteReady && this.turtleSprite) {
+      const spriteSize = Math.min(
+        CONFIG.turtle.maxSize,
+        hexRadius * CONFIG.turtle.sizeRatio
+      );
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(
+        this.turtleSprite,
+        -spriteSize / 2,
+        -spriteSize / 2,
+        spriteSize,
+        spriteSize
+      );
+      ctx.restore();
+      return;
+    }
+
+    this.drawFallbackTurtle(ctx, turtle);
+    ctx.restore();
+  }
+
+  drawFallbackTurtle(ctx, turtle) {
+    const legWiggle = Math.sin(turtle.animFrame) * 3;
+    const turtleScale = 0.82;
+
+    ctx.save();
+    ctx.scale(turtleScale, turtleScale);
     ctx.fillStyle = "#81c784";
 
     ctx.save();

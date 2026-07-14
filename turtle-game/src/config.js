@@ -9,6 +9,14 @@ export const CONFIG = {
   // Local fallback için duruyor. Asıl kayıt artık Supabase.
   saveKey: "zen-kaplumbaga-progress-v1",
 
+  turtle: {
+    spriteUrl: "/images/turtle-gameplay.png",
+    sizeRatio: 1.12,
+    maxSize: 52,
+    offsetXRatio: 0.35,
+    offsetYRatio: 0.22
+  },
+
   supabase: {
     url:  "https://dcpmbjmjlaafrwzxlmsx.supabase.co",
     anonKey:  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjcG1iam1qbGFhZnJ3enhsbXN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1NzgwNDksImV4cCI6MjA5OTE1NDA0OX0.fPmyjagZZ-b4g6zmRcHFsRDehjYv9wcLdUIkMgWNLkg"
