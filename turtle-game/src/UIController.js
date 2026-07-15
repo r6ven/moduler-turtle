@@ -7,7 +7,12 @@ export class UIController {
 
     this.overlay = document.getElementById("completion-overlay");
     this.completeText = document.getElementById("complete-text");
+    this.completeGoal = document.getElementById("complete-goal");
     this.starResult = document.getElementById("star-result");
+    this.starSlots = Array.from(
+      this.starResult.querySelectorAll("[data-star-slot]")
+    );
+    this.completionReadyTimer = null;
 
     this.nextButton = document.getElementById("next-lvl-btn");
     this.hintButton = document.getElementById("hint-btn");
@@ -185,7 +190,7 @@ export class UIController {
     } else {
       this.levelList.innerHTML = levels
         .map((item) => {
-          const stars = "⭐".repeat(item.stars || 1);
+          const starfish = this.renderStarfishRating(item.stars || 1);
           const bestMoves = item.bestMoves == null ? "-" : item.bestMoves;
           const bestTime = item.bestTimeSeconds == null
             ? "-"
@@ -194,7 +199,7 @@ export class UIController {
           return `
             <button class="level-item" data-level="${item.level}">
               <div class="level-number">Ada ${item.level}</div>
-              <div class="level-stars">${stars}</div>
+              <div class="level-stars">${starfish}</div>
               <div class="level-moves">Hamle: ${bestMoves}</div>
               <div class="level-moves">Süre: ${bestTime}</div>
             </button>
@@ -241,7 +246,7 @@ export class UIController {
         const rows = levels
           .map((level) => {
             const record = bestByLevel[level] || bestByLevel[String(level)] || {};
-            const stars = "⭐".repeat(record.stars || 1);
+            const starfish = this.renderStarfishRating(record.stars || 1);
             const moves = record.bestMoves ?? "-";
             const time = record.bestTimeSeconds == null
               ? "-"
@@ -250,7 +255,7 @@ export class UIController {
             return `
               <div class="record-row">
                 <div>Ada ${level}</div>
-                <div>${stars}</div>
+                <div>${starfish}</div>
                 <div>${moves} hamle</div>
                 <div>${time}</div>
               </div>
@@ -263,7 +268,7 @@ export class UIController {
             <div class="record-player-title">${player.username}</div>
             <div class="record-row header">
               <div>Bölüm</div>
-              <div>Yıldız</div>
+              <div>Deniz yıldızı</div>
               <div>Hamle</div>
               <div>Süre</div>
             </div>
@@ -289,17 +294,70 @@ export class UIController {
   }
 
   hideCompletion() {
+    if (this.completionReadyTimer) {
+      window.clearTimeout(this.completionReadyTimer);
+      this.completionReadyTimer = null;
+    }
+
+    this.overlay.classList.remove("is-ready");
     this.overlay.classList.remove("active");
+    this.nextButton.disabled = false;
+
+    this.starSlots.forEach((slot) => {
+      slot.classList.remove("earned");
+    });
   }
 
   showCompletion(result) {
-    const stars = "⭐".repeat(result.stars);
-    this.starResult.innerText = stars;
+    const earnedStars = Math.max(0, Math.min(3, Number(result.stars) || 0));
+
+    if (this.completionReadyTimer) {
+      window.clearTimeout(this.completionReadyTimer);
+    }
+
+    this.starSlots.forEach((slot, index) => {
+      slot.classList.toggle("earned", index < earnedStars);
+    });
+
+    this.starResult.setAttribute(
+      "aria-label",
+      `${earnedStars} deniz yıldızı kazanıldı`
+    );
 
     this.completeText.innerText =
-      `Hamle: ${result.moves} · Süre: ${this.formatDuration(result.timeSeconds)} · 3⭐ hedef: ${result.targetMoves} · Minimum: ${result.minimumMoves} · İpucu: ${result.hintsUsed}`;
+      `${result.moves} hamle · ${this.formatDuration(result.timeSeconds)} · ${result.hintsUsed} ipucu`;
 
+    this.completeGoal.innerText =
+      `En kısa çözüm ${result.minimumMoves} · 3 deniz yıldızı hedefi ${result.targetMoves} hamle`;
+
+    this.nextButton.disabled = true;
+    this.overlay.classList.remove("active", "is-ready");
+    void this.overlay.offsetWidth;
     this.overlay.classList.add("active");
+
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")
+      .matches;
+    const readyDelay = reducedMotion ? 120 : 3260;
+
+    this.completionReadyTimer = window.setTimeout(() => {
+      this.nextButton.disabled = false;
+      this.overlay.classList.add("is-ready");
+      this.completionReadyTimer = null;
+    }, readyDelay);
+  }
+
+  renderStarfishRating(count) {
+    const safeCount = Math.max(0, Math.min(3, Number(count) || 0));
+    const starfish = Array.from(
+      { length: safeCount },
+      () => '<i class="starfish" aria-hidden="true"></i>'
+    ).join("");
+
+    return `
+      <span class="starfish-rating" aria-label="${safeCount} deniz yıldızı">
+        ${starfish}
+      </span>
+    `;
   }
 
   formatDuration(seconds) {

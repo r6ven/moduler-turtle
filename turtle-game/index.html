@@ -150,12 +150,32 @@
   </div>
 
   <div id="completion-overlay">
-    <div class="modal-content">
-      <h2>Harika Bir Uyum! 🌸</h2>
-      <p id="complete-text">Kaplumbağa adadaki tüm su yollarını birleştirdi, çiçekler açtı!</p>
-      <div id="star-result" class="star-result">⭐</div>
-      <button class="next-btn" id="next-lvl-btn">Sonraki Adaya Yüz 🌊</button>
-    </div>
+    <section class="completion-beach" role="dialog" aria-labelledby="completion-title">
+      <div class="completion-wet-sand" aria-hidden="true"></div>
+      <div class="completion-wave" aria-hidden="true"></div>
+
+      <header class="completion-heading">
+        <h2 id="completion-title">
+          <span class="lotus-mark" aria-hidden="true">
+            <i></i><i></i><i></i><i></i><i></i>
+          </span>
+          <span>Harika Bir Uyum!</span>
+          <span class="lotus-mark" aria-hidden="true">
+            <i></i><i></i><i></i><i></i><i></i>
+          </span>
+        </h2>
+        <p id="complete-text">Kaplumbağa adadaki tüm su yollarını birleştirdi.</p>
+        <p id="complete-goal" class="completion-goal"></p>
+      </header>
+
+      <div id="star-result" class="star-result" aria-live="polite">
+        <span class="star-slot" data-star-slot="1"><i class="starfish" aria-hidden="true"></i></span>
+        <span class="star-slot" data-star-slot="2"><i class="starfish" aria-hidden="true"></i></span>
+        <span class="star-slot" data-star-slot="3"><i class="starfish" aria-hidden="true"></i></span>
+      </div>
+
+      <button class="next-btn" id="next-lvl-btn">Sonraki Adaya Yüz</button>
+    </section>
   </div>
 
   <script type="module" src="/src/main.js"></script>
