@@ -337,7 +337,7 @@ export class UIController {
 
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")
       .matches;
-    const readyDelay = reducedMotion ? 120 : 3260;
+    const readyDelay = reducedMotion ? 120 : 3780;
 
     this.completionReadyTimer = window.setTimeout(() => {
       this.nextButton.disabled = false;
