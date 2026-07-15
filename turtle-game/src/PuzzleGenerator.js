@@ -15,6 +15,9 @@ export class PuzzleGenerator {
     const mapRadius = CONFIG.difficulty.getMapRadius(level);
     const coords = buildHexCoordinateList(mapRadius);
     const cleanMap = PuzzleGenerator.createCleanSolvedMap(coords, level, mapRadius);
+    const victoryOrder = new Map(
+      cleanMap.pathKeys.map((key, index) => [key, index])
+    );
     const grid = {};
 
     coords.forEach(({ q, r }) => {
@@ -22,11 +25,15 @@ export class PuzzleGenerator {
       const active = cleanMap.activeKeys.has(key);
 
       grid[key] = new Tile(q, r, cleanMap.exitMap[key], active);
-      grid[key].endpoint = cleanMap.endpoints.has(key);
+      grid[key].victoryIndex = victoryOrder.get(key) ?? -1;
     });
 
+    PuzzleGenerator.assignTerminals(
+      grid,
+      cleanMap.pathKeys[0],
+      cleanMap.pathKeys[cleanMap.pathKeys.length - 1]
+    );
     PuzzleGenerator.addExtraLoops(grid, level);
-    PuzzleGenerator.markEndpoints(grid);
     PuzzleGenerator.shuffleLevelRotations(grid);
 
     const activeTiles = Object.values(grid).filter((tile) => tile.active);
@@ -43,7 +50,6 @@ return {
   static createCleanSolvedMap(coords, level, mapRadius) {
     const exitMap = {};
     const activeKeys = new Set();
-    const endpoints = new Set();
     const desiredLength = CONFIG.difficulty.getActiveTileCount(level, mapRadius, coords.length);
     const path = PuzzleGenerator.buildSparsePath(coords, desiredLength);
 
@@ -69,10 +75,11 @@ return {
       exitMap[nextKey][oppositeDir(dirIndex)] = true;
     }
 
-    endpoints.add(tileKey(path[0].q, path[0].r));
-    endpoints.add(tileKey(path[path.length - 1].q, path[path.length - 1].r));
-
-    return { exitMap, activeKeys, endpoints };
+    return {
+      exitMap,
+      activeKeys,
+      pathKeys: path.map(({ q, r }) => tileKey(q, r))
+    };
   }
 
   static buildSparsePath(coords, desiredLength) {
@@ -157,7 +164,7 @@ return {
     if (chance <= 0) return;
 
     Object.values(grid).forEach((tile) => {
-      if (!tile.active) return;
+      if (!tile.active || tile.source || tile.sink) return;
 
       DIR_NEIGHBORS.forEach((dir, index) => {
         if (Math.random() > chance) return;
@@ -165,7 +172,14 @@ return {
 
         const neighbor = grid[tileKey(tile.q + dir.q, tile.r + dir.r)];
 
-        if (!neighbor || !neighbor.active) return;
+        if (
+          !neighbor ||
+          !neighbor.active ||
+          neighbor.source ||
+          neighbor.sink
+        ) {
+          return;
+        }
 
         tile.exits[index] = true;
         neighbor.exits[oppositeDir(index)] = true;
@@ -173,9 +187,11 @@ return {
     });
   }
 
-  static markEndpoints(grid) {
+  static assignTerminals(grid, sourceKey, sinkKey) {
     Object.values(grid).forEach((tile) => {
-      tile.endpoint = tile.active && tile.degree() === 1;
+      tile.source = tileKey(tile.q, tile.r) === sourceKey;
+      tile.sink = tileKey(tile.q, tile.r) === sinkKey;
+      tile.endpoint = tile.source || tile.sink;
     });
   }
 

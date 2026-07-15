@@ -76,6 +76,8 @@ export const CONFIG = {
     matchedWater: "#22a9c3",
     idleWater: "#74d4df",
     waterHighlight: "rgba(245, 248, 223, 0.78)",
+    sourceCore: "#d8fbf5",
+    sinkCore: "#0b5966",
     connectionGlow: "rgba(104, 200, 116, 0.82)",
     turtleOutline: "#164a41",
     turtleSkin: "#9db75c",

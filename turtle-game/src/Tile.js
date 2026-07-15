@@ -8,6 +8,9 @@ export class Tile {
     this.active = active;
 
     this.endpoint = false;
+    this.source = false;
+    this.sink = false;
+    this.victoryIndex = -1;
     this.locked = false;
 
     decorSequence = (decorSequence + 0x9e3779b9) >>> 0;

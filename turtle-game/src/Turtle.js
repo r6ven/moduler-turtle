@@ -20,6 +20,7 @@ export class Turtle {
     this.animTime = 0;
     this.motionBlend = 0;
     this.celebrationRemainingMs = 0;
+    this.idleGestureOffset = Math.random() * 5.5;
     this.lastUpdateAt = performance.now();
   }
 
@@ -33,6 +34,7 @@ export class Turtle {
     this.animTime = 0;
     this.motionBlend = 0;
     this.celebrationRemainingMs = 0;
+    this.idleGestureOffset = Math.random() * 5.5;
     this.lastUpdateAt = performance.now();
     this.syncToTile(hexRadius, true);
   }
@@ -83,6 +85,21 @@ export class Turtle {
 
   isCelebrating() {
     return this.celebrationRemainingMs > 0;
+  }
+
+  getIdleFlipperWave() {
+    if (this.motionBlend > 0.08 || this.isCelebrating()) return 0;
+
+    const cycleDuration = 5.6;
+    const gestureDuration = 0.9;
+    const cycle = (this.animTime + this.idleGestureOffset) % cycleDuration;
+
+    if (cycle >= gestureDuration) return 0;
+
+    const progress = cycle / gestureDuration;
+    const envelope = Math.sin(progress * Math.PI);
+
+    return Math.sin(progress * Math.PI * 4) * envelope;
   }
 
   update() {

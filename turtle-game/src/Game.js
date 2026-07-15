@@ -1,5 +1,5 @@
 import { CONFIG } from "./config.js";
-import { DIR_NEIGHBORS, tileKey } from "./HexMath.js";
+import { tileKey } from "./HexMath.js";
 import { AudioSystem } from "./AudioSystem.js";
 import { InputManager } from "./InputManager.js";
 import { ParticleSystem } from "./ParticleSystem.js";
@@ -351,74 +351,24 @@ export class Game {
       return;
     }
 
+    this.turtle.reset(path[0].q, path[0].r, this.hexRadius);
     this.victoryTour.active = true;
     this.victoryTour.path = path;
     this.victoryTour.index = 1;
     this.victoryTour.nextAt = performance.now() + 80;
 
-    this.turtle.speed = 0.22;
+    this.turtle.speed = 0.24;
   }
 
   buildVictoryPath() {
-    const turtleKey = tileKey(this.turtle.q, this.turtle.r);
-    const startKey = this.grid[turtleKey]?.flowerBloomed
-      ? turtleKey
-      : "0,0";
-    const queue = [startKey];
-    const parents = new Map([[startKey, null]]);
-    const distances = new Map([[startKey, 0]]);
-    let queueIndex = 0;
-    let destinationKey = startKey;
-
-    while (queueIndex < queue.length) {
-      const currentKey = queue[queueIndex];
-      const tile = this.grid[currentKey];
-
-      queueIndex += 1;
-
-      if (!tile?.active || !tile.flowerBloomed) continue;
-
-      if (distances.get(currentKey) > distances.get(destinationKey)) {
-        destinationKey = currentKey;
-      }
-
-      const exits = tile.getActualExits();
-
-      for (let i = 0; i < 6; i += 1) {
-        if (!exits[i]) continue;
-        if (!PuzzleValidator.isExitMatched(tile, i, this.grid)) continue;
-
-        const dir = DIR_NEIGHBORS[i];
-        const neighborKey = tileKey(tile.q + dir.q, tile.r + dir.r);
-        const neighbor = this.grid[neighborKey];
-
-        if (
-          parents.has(neighborKey) ||
-          !neighbor?.active ||
-          !neighbor.flowerBloomed
-        ) {
-          continue;
-        }
-
-        parents.set(neighborKey, currentKey);
-        distances.set(neighborKey, distances.get(currentKey) + 1);
-        queue.push(neighborKey);
-      }
-    }
-
-    const route = [];
-    let currentKey = destinationKey;
-
-    while (currentKey) {
-      const tile = this.grid[currentKey];
-
-      if (!tile) break;
-
-      route.push({ q: tile.q, r: tile.r });
-      currentKey = parents.get(currentKey);
-    }
-
-    return route.reverse();
+    return Object.values(this.grid)
+      .filter((tile) => (
+        tile.active &&
+        tile.flowerBloomed &&
+        tile.victoryIndex >= 0
+      ))
+      .sort((a, b) => a.victoryIndex - b.victoryIndex)
+      .map((tile) => ({ q: tile.q, r: tile.r }));
   }
 
   updateVictoryTour(timestamp) {

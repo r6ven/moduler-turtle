@@ -823,7 +823,7 @@ export class Renderer {
       );
     });
 
-    this.drawCenterPool(ctx, currentConnected, channels.length > 0);
+    this.drawWaterPortal(ctx, tile, currentConnected);
 
     channels.forEach((channel) => {
       if (channel.active) {
@@ -875,33 +875,62 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawCenterPool(ctx, connected, hasChannels) {
-    if (!hasChannels) return;
+  drawWaterPortal(ctx, tile, connected) {
+    if (!tile.source && !tile.sink) return;
 
     ctx.save();
     ctx.beginPath();
-    ctx.arc(0, 0, 9.5, 0, Math.PI * 2);
+    ctx.arc(0, 0, 10, 0, Math.PI * 2);
     ctx.fillStyle = connected
       ? CONFIG.colors.channelBedActive
       : CONFIG.colors.channelBedIdle;
     ctx.fill();
 
-    const poolGradient = ctx.createRadialGradient(-2.5, -3, 1, 0, 0, 7);
-    poolGradient.addColorStop(0, connected ? "#8ee8ff" : "#e4f5f5");
-    poolGradient.addColorStop(
-      1,
-      connected ? CONFIG.colors.matchedWater : CONFIG.colors.idleWater
-    );
+    const portalGradient = ctx.createRadialGradient(-2, -2.5, 0.8, 0, 0, 7.2);
+
+    if (tile.source) {
+      portalGradient.addColorStop(0, CONFIG.colors.sourceCore);
+      portalGradient.addColorStop(
+        1,
+        connected ? CONFIG.colors.matchedWater : CONFIG.colors.idleWater
+      );
+    } else {
+      portalGradient.addColorStop(0, CONFIG.colors.sinkCore);
+      portalGradient.addColorStop(
+        0.55,
+        connected ? CONFIG.colors.matchedWater : CONFIG.colors.idleWater
+      );
+      portalGradient.addColorStop(1, CONFIG.colors.channelBedActive);
+    }
 
     ctx.beginPath();
-    ctx.arc(0, 0, 6.7, 0, Math.PI * 2);
-    ctx.fillStyle = poolGradient;
+    ctx.arc(0, 0, 7.2, 0, Math.PI * 2);
+    ctx.fillStyle = portalGradient;
     ctx.fill();
 
+    const pulse = (this.waterFlowPhase * 0.72) % 1;
+
     ctx.beginPath();
-    ctx.arc(-2.3, -2.5, 1.5, 0, Math.PI * 2);
-    ctx.fillStyle = CONFIG.colors.waterHighlight;
-    ctx.fill();
+    ctx.arc(0, 0, tile.source ? 2.2 + pulse * 4.2 : 6.2 - pulse * 3.5, 0, Math.PI * 2);
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = connected ? 0.58 * (1 - pulse) : 0.2;
+    ctx.strokeStyle = CONFIG.colors.waterHighlight;
+    ctx.stroke();
+
+    if (tile.source) {
+      ctx.globalAlpha = connected ? 0.9 : 0.5;
+      ctx.beginPath();
+      ctx.arc(-2.1, -2.4, 1.45, 0, Math.PI * 2);
+      ctx.fillStyle = CONFIG.colors.waterHighlight;
+      ctx.fill();
+    } else {
+      ctx.globalAlpha = connected ? 0.92 : 0.68;
+      ctx.beginPath();
+      ctx.arc(0, 0, 3.1, 0, Math.PI * 2);
+      ctx.fillStyle = CONFIG.colors.sinkCore;
+      ctx.fill();
+    }
+
     ctx.restore();
   }
 
@@ -970,7 +999,7 @@ export class Renderer {
   }
 
   drawFlower(ctx, tile) {
-    if (tile.flowerScale <= 0.01) return;
+    if (tile.source || tile.sink || tile.flowerScale <= 0.01) return;
 
     const flowerPulse = 1 + Math.sin(tile.pulsePhase * 2) * 0.04;
     const variant = this.getTileSeed(tile) % 3;
@@ -1170,13 +1199,16 @@ export class Renderer {
     const swimWave = Math.sin(turtle.animTime * 9.5);
     const idleWave = Math.sin(turtle.animTime * 2.1);
     const celebrationWave = Math.sin(turtle.animTime * 13.5);
+    const idleFlipperWave = turtle.getIdleFlipperWave();
     const frontWave =
-      swimWave * 0.24 * motion +
+      swimWave * 0.29 * motion +
       idleWave * 0.028 * (1 - motion) +
       (celebrating ? celebrationWave * 0.22 : 0);
     const rearWave =
-      -swimWave * 0.13 * motion +
+      -swimWave * 0.16 * motion +
       (celebrating ? -celebrationWave * 0.11 : 0);
+    const leftFrontWave = frontWave + idleFlipperWave * 0.25;
+    const rightFrontWave = frontWave - idleFlipperWave * 0.08;
     const breathScale = 1 + idleWave * 0.012 * (1 - motion);
 
     ctx.save();
@@ -1185,8 +1217,8 @@ export class Renderer {
     this.drawTurtleTail(ctx);
     this.drawTurtleFlipper(ctx, -10.7, 10.8, -0.58 + rearWave, 0.78, true);
     this.drawTurtleFlipper(ctx, 10.7, 10.8, 0.58 - rearWave, 0.78, false);
-    this.drawTurtleFlipper(ctx, -11.8, -5.2, -0.88 - frontWave, 1, true);
-    this.drawTurtleFlipper(ctx, 11.8, -5.2, 0.88 + frontWave, 1, false);
+    this.drawTurtleFlipper(ctx, -11.8, -5.2, -0.88 - leftFrontWave, 1, true);
+    this.drawTurtleFlipper(ctx, 11.8, -5.2, 0.88 + rightFrontWave, 1, false);
     this.drawTurtleShell(ctx);
     this.drawTurtleHead(ctx, turtle);
     ctx.restore();
