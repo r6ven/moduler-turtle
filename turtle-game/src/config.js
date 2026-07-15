@@ -4,8 +4,6 @@ export const CONFIG = {
   mobileHexRadius: 34,
   mobileBreakpoint: 500,
 
-  completionDelayMs: 900,
-
   // Local fallback için duruyor. Asıl kayıt artık Supabase.
   saveKey: "zen-kaplumbaga-progress-v1",
 
@@ -87,7 +85,6 @@ export const CONFIG = {
     turtleShellLight: "#57a05a",
     turtleShellDark: "#174a3b",
     turtleShellSeam: "#e0b94f",
-    turtleEye: "#68422d",
     flowerPetal: "#f07883",
     flowerCenter: "#f0c751",
     endpointCenter: "#edae3f"

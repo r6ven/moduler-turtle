@@ -1067,9 +1067,18 @@ export class Renderer {
   }
 
   drawTurtle(ctx, turtle, hexRadius) {
-    const moving = turtle.distanceToTarget() > 1.5;
-    const bobAmount = moving ? 0.75 : 0.45;
-    const bob = Math.sin(turtle.animFrame) * bobAmount;
+    const motion = turtle.motionBlend;
+    const celebrating = turtle.isCelebrating();
+    const idleWave = Math.sin(turtle.animTime * 2.1);
+    const swimWave = Math.sin(turtle.animTime * 9.5);
+    const celebrationWave = Math.sin(turtle.animTime * 13.5);
+    const bob =
+      idleWave * 0.42 * (1 - motion) +
+      swimWave * 0.82 * motion +
+      (celebrating ? Math.abs(celebrationWave) * 1.55 : 0);
+    const sway =
+      swimWave * 0.035 * motion +
+      (celebrating ? celebrationWave * 0.055 : 0);
     const visualOffsetX = Math.min(16, hexRadius * CONFIG.turtle.offsetXRatio);
     const visualOffsetY = Math.min(10, hexRadius * CONFIG.turtle.offsetYRatio);
     const turtleScale = Math.min(
@@ -1077,18 +1086,101 @@ export class Renderer {
       hexRadius / CONFIG.turtle.scaleReference
     );
 
+    this.drawTurtleWater(
+      ctx,
+      turtle,
+      visualOffsetX,
+      visualOffsetY,
+      turtleScale
+    );
+
     ctx.save();
     ctx.translate(turtle.x + visualOffsetX, turtle.y + visualOffsetY + bob);
-    ctx.rotate(turtle.angle + Math.PI / 2);
-    ctx.scale(turtleScale, turtleScale);
-    this.drawGeometricTurtle(ctx, turtle, moving);
+    ctx.rotate(turtle.angle + Math.PI / 2 + sway);
+
+    const celebrationScale = celebrating
+      ? 1 + Math.max(0, celebrationWave) * 0.035
+      : 1;
+
+    ctx.scale(
+      turtleScale * celebrationScale,
+      turtleScale / celebrationScale
+    );
+    this.drawGeometricTurtle(ctx, turtle);
     ctx.restore();
   }
 
-  drawGeometricTurtle(ctx, turtle, moving) {
-    const swimWave = Math.sin(turtle.animFrame * 1.65);
-    const frontWave = moving ? swimWave * 0.18 : swimWave * 0.035;
-    const rearWave = moving ? -swimWave * 0.1 : 0;
+  drawTurtleWater(ctx, turtle, offsetX, offsetY, turtleScale) {
+    const motion = turtle.motionBlend;
+    const celebrating = turtle.isCelebrating();
+
+    if (motion <= 0.03 && !celebrating) return;
+
+    ctx.save();
+    ctx.translate(turtle.x + offsetX, turtle.y + offsetY + 6);
+    ctx.rotate(turtle.angle + Math.PI / 2);
+    ctx.scale(turtleScale, turtleScale);
+    ctx.lineWidth = 1.4;
+    ctx.strokeStyle = CONFIG.colors.waterHighlight;
+
+    if (motion > 0.03) {
+      const wakePulse = 0.78 + Math.sin(turtle.animTime * 9.5) * 0.12;
+
+      ctx.globalAlpha = 0.16 + motion * 0.32;
+
+      [18, 25].forEach((y, index) => {
+        ctx.beginPath();
+        ctx.ellipse(
+          0,
+          y,
+          (10 + index * 5) * wakePulse,
+          3.3 + index,
+          0,
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
+      });
+    }
+
+    if (celebrating) {
+      const celebrationPhase = (turtle.animTime * 1.7) % 1;
+
+      ctx.globalAlpha = 0.5 * (1 - celebrationPhase);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(
+        0,
+        3,
+        14 + celebrationPhase * 17,
+        6 + celebrationPhase * 7,
+        0,
+        0,
+        Math.PI * 2
+      );
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  drawGeometricTurtle(ctx, turtle) {
+    const motion = turtle.motionBlend;
+    const celebrating = turtle.isCelebrating();
+    const swimWave = Math.sin(turtle.animTime * 9.5);
+    const idleWave = Math.sin(turtle.animTime * 2.1);
+    const celebrationWave = Math.sin(turtle.animTime * 13.5);
+    const frontWave =
+      swimWave * 0.24 * motion +
+      idleWave * 0.028 * (1 - motion) +
+      (celebrating ? celebrationWave * 0.22 : 0);
+    const rearWave =
+      -swimWave * 0.13 * motion +
+      (celebrating ? -celebrationWave * 0.11 : 0);
+    const breathScale = 1 + idleWave * 0.012 * (1 - motion);
+
+    ctx.save();
+    ctx.scale(breathScale, 1 / breathScale);
 
     this.drawTurtleTail(ctx);
     this.drawTurtleFlipper(ctx, -10.7, 10.8, -0.58 + rearWave, 0.78, true);
@@ -1096,7 +1188,8 @@ export class Renderer {
     this.drawTurtleFlipper(ctx, -11.8, -5.2, -0.88 - frontWave, 1, true);
     this.drawTurtleFlipper(ctx, 11.8, -5.2, 0.88 + frontWave, 1, false);
     this.drawTurtleShell(ctx);
-    this.drawTurtleHead(ctx);
+    this.drawTurtleHead(ctx, turtle);
+    ctx.restore();
   }
 
   drawTurtleTail(ctx) {
@@ -1217,11 +1310,21 @@ export class Renderer {
     }
   }
 
-  drawTurtleHead(ctx) {
+  drawTurtleHead(ctx, turtle) {
+    const motion = turtle.motionBlend;
+    const celebrating = turtle.isCelebrating();
+    const swimNod = Math.sin(turtle.animTime * 9.5) * 0.55 * motion;
+    const idleNod = Math.sin(turtle.animTime * 2.1) * 0.2 * (1 - motion);
+    const celebrationNod = celebrating
+      ? -Math.abs(Math.sin(turtle.animTime * 13.5)) * 1.1
+      : 0;
+    const headNod = swimNod + idleNod + celebrationNod;
     const headGradient = ctx.createLinearGradient(-5, -24, 6, -10);
     headGradient.addColorStop(0, CONFIG.colors.turtleSkinLight);
     headGradient.addColorStop(1, CONFIG.colors.turtleSkin);
 
+    ctx.save();
+    ctx.translate(0, headNod);
     ctx.fillStyle = headGradient;
     ctx.strokeStyle = CONFIG.colors.turtleOutline;
     ctx.lineWidth = 1.45;
@@ -1229,44 +1332,6 @@ export class Renderer {
     ctx.ellipse(0, -15.2, 7.8, 7.4, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-
-    this.drawTurtleEye(ctx, -2.8, -17.3);
-    this.drawTurtleEye(ctx, 2.8, -17.3);
-
-    ctx.fillStyle = CONFIG.colors.turtleSkinSpot;
-    ctx.beginPath();
-    ctx.arc(-1.2, -14.4, 0.42, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(1.2, -14.4, 0.42, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = CONFIG.colors.turtleOutline;
-    ctx.lineWidth = 0.9;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(-2.3, -12.7);
-    ctx.quadraticCurveTo(0, -11.1, 2.6, -12.8);
-    ctx.stroke();
-  }
-
-  drawTurtleEye(ctx, x, y) {
-    ctx.fillStyle = "#fffdf0";
-    ctx.strokeStyle = CONFIG.colors.turtleOutline;
-    ctx.lineWidth = 0.8;
-    ctx.beginPath();
-    ctx.ellipse(x, y, 1.85, 2.35, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = CONFIG.colors.turtleEye;
-    ctx.beginPath();
-    ctx.arc(x, y + 0.28, 1.12, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = "white";
-    ctx.beginPath();
-    ctx.arc(x - 0.38, y - 0.42, 0.42, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.restore();
   }
 }

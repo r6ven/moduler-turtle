@@ -1,5 +1,7 @@
 import { hexToPixel } from "./HexMath.js";
 
+const FRAME_MS = 1000 / 60;
+
 export class Turtle {
   constructor() {
     this.q = 0;
@@ -7,15 +9,18 @@ export class Turtle {
 
     this.x = 0;
     this.y = 0;
-
     this.targetX = 0;
     this.targetY = 0;
 
     this.angle = 0;
     this.targetAngle = 0;
-    this.animFrame = 0;
-
     this.speed = 0.08;
+
+    this.animFrame = 0;
+    this.animTime = 0;
+    this.motionBlend = 0;
+    this.celebrationRemainingMs = 0;
+    this.lastUpdateAt = performance.now();
   }
 
   reset(q, r, hexRadius) {
@@ -24,6 +29,11 @@ export class Turtle {
     this.angle = 0;
     this.targetAngle = 0;
     this.speed = 0.08;
+    this.animFrame = 0;
+    this.animTime = 0;
+    this.motionBlend = 0;
+    this.celebrationRemainingMs = 0;
+    this.lastUpdateAt = performance.now();
     this.syncToTile(hexRadius, true);
   }
 
@@ -60,16 +70,56 @@ export class Turtle {
     return Math.hypot(this.targetX - this.x, this.targetY - this.y);
   }
 
+  isMoving() {
+    return this.distanceToTarget() > 0.8 || this.motionBlend > 0.08;
+  }
+
+  celebrate(durationMs = 720) {
+    this.celebrationRemainingMs = Math.max(
+      this.celebrationRemainingMs,
+      durationMs
+    );
+  }
+
+  isCelebrating() {
+    return this.celebrationRemainingMs > 0;
+  }
+
   update() {
-    this.x += (this.targetX - this.x) * this.speed;
-    this.y += (this.targetY - this.y) * this.speed;
+    const now = performance.now();
+    const deltaMs = Math.min(50, Math.max(4, now - this.lastUpdateAt));
+    const frameScale = deltaMs / FRAME_MS;
+    const positionBlend = 1 - Math.pow(1 - this.speed, frameScale);
+    const angleBlend = 1 - Math.pow(0.88, frameScale);
+
+    this.lastUpdateAt = now;
+    this.x += (this.targetX - this.x) * positionBlend;
+    this.y += (this.targetY - this.y) * positionBlend;
+
+    if (this.distanceToTarget() < 0.15) {
+      this.x = this.targetX;
+      this.y = this.targetY;
+    }
 
     let angleDiff = this.targetAngle - this.angle;
 
     while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
     while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
 
-    this.angle += angleDiff * 0.12;
-    this.animFrame += 0.05;
+    this.angle += angleDiff * angleBlend;
+    this.animTime += deltaMs / 1000;
+    this.animFrame += 0.05 * frameScale;
+
+    const targetMotion = this.distanceToTarget() > 0.8 ? 1 : 0;
+    const motionBlendSpeed = targetMotion > this.motionBlend ? 0.18 : 0.11;
+
+    this.motionBlend += (targetMotion - this.motionBlend) * (
+      1 - Math.pow(1 - motionBlendSpeed, frameScale)
+    );
+
+    this.celebrationRemainingMs = Math.max(
+      0,
+      this.celebrationRemainingMs - deltaMs
+    );
   }
 }

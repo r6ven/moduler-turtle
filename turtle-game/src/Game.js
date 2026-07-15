@@ -29,7 +29,9 @@ export class Game {
       active: false,
       path: [],
       index: 0,
-      nextAt: 0
+      nextAt: 0,
+      result: null,
+      revealAt: 0
     };
 
     this.audio = new AudioSystem();
@@ -101,6 +103,8 @@ export class Game {
     this.victoryTour.path = [];
     this.victoryTour.index = 0;
     this.victoryTour.nextAt = 0;
+    this.victoryTour.result = null;
+    this.victoryTour.revealAt = 0;
 
     this.particles.clear();
     this.ui.hideCompletion();
@@ -333,52 +337,50 @@ export class Game {
 
     this.ui.updateTimer(result.timeSeconds);
 
-    this.startVictoryTour();
-
-    const victoryDelay = Math.min(
-      2300,
-      Math.max(CONFIG.completionDelayMs, this.victoryTour.path.length * 150)
-    );
-
-    window.setTimeout(() => {
-      this.ui.showCompletion(result);
-    }, victoryDelay);
+    this.startVictoryTour(result);
   }
 
-  startVictoryTour() {
+  startVictoryTour(result) {
     const path = this.buildVictoryPath();
 
-    if (path.length === 0) return;
+    this.victoryTour.result = result;
+    this.victoryTour.revealAt = 0;
+
+    if (path.length <= 1) {
+      this.finishVictoryTour(performance.now());
+      return;
+    }
 
     this.victoryTour.active = true;
     this.victoryTour.path = path;
-    this.victoryTour.index = 0;
-    this.victoryTour.nextAt = performance.now() + 120;
+    this.victoryTour.index = 1;
+    this.victoryTour.nextAt = performance.now() + 80;
 
-    this.turtle.speed = 0.18;
+    this.turtle.speed = 0.22;
   }
 
   buildVictoryPath() {
-    const activeKeys = Object.keys(this.grid).filter((key) => {
-      const tile = this.grid[key];
-      return tile.active && tile.flowerBloomed;
-    });
+    const turtleKey = tileKey(this.turtle.q, this.turtle.r);
+    const startKey = this.grid[turtleKey]?.flowerBloomed
+      ? turtleKey
+      : "0,0";
+    const queue = [startKey];
+    const parents = new Map([[startKey, null]]);
+    const distances = new Map([[startKey, 0]]);
+    let queueIndex = 0;
+    let destinationKey = startKey;
 
-    if (activeKeys.length === 0) return [];
+    while (queueIndex < queue.length) {
+      const currentKey = queue[queueIndex];
+      const tile = this.grid[currentKey];
 
-    const endpointKey = activeKeys.find((key) => this.grid[key].degree() === 1);
-    const startKey = endpointKey || "0,0";
+      queueIndex += 1;
 
-    const visited = new Set();
-    const route = [];
+      if (!tile?.active || !tile.flowerBloomed) continue;
 
-    const dfs = (key) => {
-      const tile = this.grid[key];
-
-      if (!tile || visited.has(key)) return;
-
-      visited.add(key);
-      route.push({ q: tile.q, r: tile.r });
+      if (distances.get(currentKey) > distances.get(destinationKey)) {
+        destinationKey = currentKey;
+      }
 
       const exits = tile.getActualExits();
 
@@ -388,24 +390,55 @@ export class Game {
 
         const dir = DIR_NEIGHBORS[i];
         const neighborKey = tileKey(tile.q + dir.q, tile.r + dir.r);
+        const neighbor = this.grid[neighborKey];
 
-        if (!visited.has(neighborKey)) {
-          dfs(neighborKey);
-          route.push({ q: tile.q, r: tile.r });
+        if (
+          parents.has(neighborKey) ||
+          !neighbor?.active ||
+          !neighbor.flowerBloomed
+        ) {
+          continue;
         }
+
+        parents.set(neighborKey, currentKey);
+        distances.set(neighborKey, distances.get(currentKey) + 1);
+        queue.push(neighborKey);
       }
-    };
+    }
 
-    dfs(startKey);
+    const route = [];
+    let currentKey = destinationKey;
 
-    return route;
+    while (currentKey) {
+      const tile = this.grid[currentKey];
+
+      if (!tile) break;
+
+      route.push({ q: tile.q, r: tile.r });
+      currentKey = parents.get(currentKey);
+    }
+
+    return route.reverse();
   }
 
   updateVictoryTour(timestamp) {
-    if (!this.victoryTour.active) return;
+    if (!this.victoryTour.active) {
+      if (
+        this.victoryTour.result &&
+        this.victoryTour.revealAt > 0 &&
+        timestamp >= this.victoryTour.revealAt
+      ) {
+        this.ui.showCompletion(this.victoryTour.result);
+        this.victoryTour.result = null;
+        this.victoryTour.revealAt = 0;
+      }
+
+      return;
+    }
+
     if (timestamp < this.victoryTour.nextAt) return;
 
-    const reachedTarget = this.turtle.distanceToTarget() < 5;
+    const reachedTarget = this.turtle.distanceToTarget() < 3.5;
 
     if (!reachedTarget && this.victoryTour.index > 0) {
       return;
@@ -414,15 +447,21 @@ export class Game {
     const point = this.victoryTour.path[this.victoryTour.index];
 
     if (!point) {
-      this.victoryTour.active = false;
-      this.turtle.speed = 0.08;
+      this.finishVictoryTour(timestamp);
       return;
     }
 
     this.turtle.moveTo(point.q, point.r, this.hexRadius);
 
     this.victoryTour.index += 1;
-    this.victoryTour.nextAt = timestamp + 80;
+    this.victoryTour.nextAt = timestamp + 55;
+  }
+
+  finishVictoryTour(timestamp) {
+    this.victoryTour.active = false;
+    this.victoryTour.revealAt = timestamp + 720;
+    this.turtle.speed = 0.08;
+    this.turtle.celebrate(720);
   }
 
   useHint() {
