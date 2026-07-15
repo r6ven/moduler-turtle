@@ -9,6 +9,7 @@ export class Renderer {
     this.waterFlowPhase = 0;
     this.lastFrameTime = performance.now();
     this.tileSurfaceCache = new Map();
+    this.flowStreakCache = new Map();
     this.connectionCache = {
       grid: null,
       signature: "",
@@ -75,6 +76,7 @@ export class Renderer {
 
     if (this.connectionCache.grid !== grid) {
       this.tileSurfaceCache.clear();
+      this.flowStreakCache.clear();
     }
 
     const keys = PuzzleValidator.calculateConnectedKeys(grid);
@@ -777,6 +779,9 @@ export class Renderer {
       channels.push({
         angle: (i - 1) * Math.PI / 3 + tile.visualRotation * Math.PI / 3,
         active,
+        flowSeed: (
+          this.getTileSeed(tile) ^ Math.imul(i + 1, 0x9e3779b1)
+        ) >>> 0,
         direction: active
           ? this.getFlowDirection(
               currentKey,
@@ -831,7 +836,8 @@ export class Renderer {
           ctx,
           channelLength,
           channel.angle,
-          channel.direction
+          channel.direction,
+          channel.flowSeed
         );
         this.drawWaterBubbles(
           ctx,
@@ -959,20 +965,61 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawFlowDash(ctx, channelLength, angle, direction) {
+  getFlowStreaks(seed) {
+    if (this.flowStreakCache.has(seed)) {
+      return this.flowStreakCache.get(seed);
+    }
+
+    const random = this.createSeededRandom(seed);
+    const streaks = Array.from({ length: 3 }, () => ({
+      lateralOffset: -3.2 + random() * 6.4,
+      startRatio: 0.08 + random() * 0.18,
+      endRatio: 0.7 + random() * 0.25,
+      lineWidth: 0.75 + random() * 0.75,
+      dashLength: 2.2 + random() * 3.2,
+      dashGap: 9 + random() * 9,
+      phaseOffset: random() * 28,
+      speed: 27 + random() * 17,
+      alpha: 0.3 + random() * 0.28
+    }));
+
+    this.flowStreakCache.set(seed, streaks);
+    return streaks;
+  }
+
+  drawFlowDash(ctx, channelLength, angle, direction, seed) {
+    const normalAngle = angle + Math.PI / 2;
+    const streaks = this.getFlowStreaks(seed);
+
     ctx.save();
-    ctx.lineWidth = 3.5;
     ctx.lineCap = "round";
     ctx.strokeStyle = CONFIG.colors.waterHighlight;
-    ctx.setLineDash([7, 12]);
-    ctx.lineDashOffset = -this.waterFlowPhase * 42 * direction;
-    ctx.beginPath();
-    ctx.moveTo(4 * Math.cos(angle), 4 * Math.sin(angle));
-    ctx.lineTo(
-      channelLength * Math.cos(angle),
-      channelLength * Math.sin(angle)
-    );
-    ctx.stroke();
+
+    streaks.forEach((streak) => {
+      const offsetX = Math.cos(normalAngle) * streak.lateralOffset;
+      const offsetY = Math.sin(normalAngle) * streak.lateralOffset;
+      const startDistance = channelLength * streak.startRatio;
+      const endDistance = channelLength * streak.endRatio;
+
+      ctx.globalAlpha = streak.alpha;
+      ctx.lineWidth = streak.lineWidth;
+      ctx.setLineDash([streak.dashLength, streak.dashGap]);
+      ctx.lineDashOffset =
+        streak.phaseOffset -
+        this.waterFlowPhase * streak.speed * direction;
+      ctx.beginPath();
+      ctx.moveTo(
+        startDistance * Math.cos(angle) + offsetX,
+        startDistance * Math.sin(angle) + offsetY
+      );
+      ctx.lineTo(
+        endDistance * Math.cos(angle) + offsetX,
+        endDistance * Math.sin(angle) + offsetY
+      );
+      ctx.stroke();
+    });
+
+    ctx.setLineDash([]);
     ctx.restore();
   }
 
@@ -1115,6 +1162,13 @@ export class Renderer {
       hexRadius / CONFIG.turtle.scaleReference
     );
 
+    this.drawTurtleWakeTrail(
+      ctx,
+      turtle,
+      visualOffsetX,
+      visualOffsetY,
+      turtleScale
+    );
     this.drawTurtleWater(
       ctx,
       turtle,
@@ -1139,18 +1193,72 @@ export class Renderer {
     ctx.restore();
   }
 
+  drawTurtleWakeTrail(ctx, turtle, offsetX, offsetY, turtleScale) {
+    if (turtle.wakeTrail.length === 0) return;
+
+    ctx.save();
+    ctx.strokeStyle = CONFIG.colors.turtleWake;
+    ctx.lineWidth = 1.5;
+
+    turtle.wakeTrail.forEach((point) => {
+      const spread = 1 - point.life;
+
+      ctx.save();
+      ctx.translate(point.x + offsetX, point.y + offsetY + 6);
+      ctx.rotate(point.angle + Math.PI / 2);
+      ctx.scale(turtleScale, turtleScale);
+      ctx.globalAlpha = Math.pow(point.life, 1.7) * 0.42;
+      ctx.beginPath();
+      ctx.ellipse(
+        0,
+        0,
+        8 + spread * 9,
+        2.8 + spread * 3.4,
+        0,
+        0,
+        Math.PI * 2
+      );
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    ctx.restore();
+  }
+
   drawTurtleWater(ctx, turtle, offsetX, offsetY, turtleScale) {
     const motion = turtle.motionBlend;
     const celebrating = turtle.isCelebrating();
-
-    if (motion <= 0.03 && !celebrating) return;
 
     ctx.save();
     ctx.translate(turtle.x + offsetX, turtle.y + offsetY + 6);
     ctx.rotate(turtle.angle + Math.PI / 2);
     ctx.scale(turtleScale, turtleScale);
+
+    ctx.globalAlpha = 0.15 + motion * 0.08;
+    ctx.fillStyle = CONFIG.colors.turtleWaterShadow;
+    ctx.beginPath();
+    ctx.ellipse(0, 2.5, 14.5, 5.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
     ctx.lineWidth = 1.4;
     ctx.strokeStyle = CONFIG.colors.waterHighlight;
+
+    if (motion < 0.12 && !celebrating) {
+      const idleRipplePhase = (turtle.animTime * 0.34) % 1;
+
+      ctx.globalAlpha = (1 - motion) * 0.24 * (1 - idleRipplePhase);
+      ctx.beginPath();
+      ctx.ellipse(
+        0,
+        2.5,
+        13 + idleRipplePhase * 10,
+        4.8 + idleRipplePhase * 4,
+        0,
+        0,
+        Math.PI * 2
+      );
+      ctx.stroke();
+    }
 
     if (motion > 0.03) {
       const wakePulse = 0.78 + Math.sin(turtle.animTime * 9.5) * 0.12;
