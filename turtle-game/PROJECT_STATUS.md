@@ -143,6 +143,7 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 
 - Kayit/giris ekrani ve giris sonrasi ana menu vardir.
 - Ana menu oyunun kaynak-kanal-bitis fikrini gosteren animasyonlu marka ve akis seridine sahiptir.
+- Marka amblemi kum/cimen hex adasi, kaynak-bitis kanali ve yuzgecli geometrik kaplumbagayi tek simgede birlestirir.
 - Kullanici adi, kayitli ada ve tamamlanan bolum sayisi gosterilir.
 - Devam et, oyuna don, bolumler, rekorlar, kaydi sifirla ve cikis eylemleri vardir.
 - Kayit sifirlama geri alinamaz uyarili ikinci bir onay ekranindan sonra calisir.
@@ -156,8 +157,9 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Sonuc ekrani tepeden gorunen kum ve deniz sahnesidir.
 - Prosedurel SVG/CSS dalga kutle, cam katmani, kirilan kopuk, kopuk parcalari, sprey, geri cekilen su ve islak kum izi kullanir.
 - Her acilista dalga egimi, ilerleme mesafesi, kopuk suruklenmesi, runoff acisi ve SVG noise seed'i kontrollu rastgele degisir.
-- Dalga ileri vurur, deniz yildizlarini birakir, geri cekilir ve kumu koyulastirir.
+- Dalga ileri vurur, geri cekilir ve kumu koyulastirir; deniz yildizlari geri cekilme boyunca soldan saga aralikli olarak kumdan aciga cikar.
 - Kazanilan 1-3 derece `public/images/starfish.png` ile deniz yildizi olarak gosterilir.
+- Eski hizli deniz yildizi belirme animasyonu CSS'te pasif `legacy-star-reveal` geri donus modu olarak korunur.
 - Bolum listesi ve rekor ekranindaki tum derece ikonlari da ayni deniz yildizi assetini kullanir.
 - Basligin iki yaninda CSS ile cizilen nilufer isaretleri vardir.
 - Sonraki bolum dugmesi ana animasyon tamamlanana kadar kilitlidir.

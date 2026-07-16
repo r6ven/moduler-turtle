@@ -275,72 +275,140 @@ canvas {
 
 .menu-brand-mark {
   position: relative;
-  width: 68px;
-  height: 68px;
-  flex: 0 0 68px;
-  filter: drop-shadow(0 9px 11px rgba(8, 32, 26, 0.25));
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  filter:
+    drop-shadow(0 10px 12px rgba(8, 32, 26, 0.28))
+    drop-shadow(0 2px 0 rgba(237, 220, 153, 0.16));
   animation: brandBreath 3.2s ease-in-out infinite;
 }
 
 .brand-hex {
   position: absolute;
-  inset: 0;
+  inset: 2px;
   clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0 50%);
-  background: linear-gradient(145deg, var(--sand-light), #8fc66c 58%, #45935a 59%);
-  box-shadow: inset 0 -9px 0 rgba(111, 78, 54, 0.2);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 25% 28%, rgba(255, 244, 188, 0.72) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 75% 73%, rgba(46, 117, 70, 0.46) 0 3px, transparent 3.5px),
+    linear-gradient(154deg, #f3dc8b 0 31%, #9dcc72 32% 67%, #4f9660 68% 100%);
+  box-shadow:
+    inset 0 -10px 0 rgba(85, 65, 43, 0.24),
+    inset 0 2px 0 rgba(255, 249, 207, 0.52);
+}
+
+.brand-hex::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(245, 232, 166, 0.3);
+  clip-path: inherit;
+}
+
+.brand-hex::after {
+  content: "";
+  position: absolute;
+  right: 9px;
+  bottom: 10px;
+  width: 17px;
+  height: 8px;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 28% 55%, #87958c 0 26%, transparent 28%),
+    radial-gradient(ellipse at 72% 48%, #5b7065 0 24%, transparent 26%);
+  opacity: 0.8;
 }
 
 .brand-channel {
   position: absolute;
-  top: 30px;
-  right: 4px;
-  left: 5px;
-  height: 10px;
-  border: 2px solid var(--water-deep);
-  border-radius: 5px;
-  background: var(--water);
+  z-index: 2;
+  top: 31px;
+  right: 6px;
+  left: 6px;
+  height: 12px;
+  border: 3px solid #176f7d;
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 2px 50%, #d8fbf5 0 2px, #32b8c1 2.5px 5px, transparent 5.5px),
+    radial-gradient(circle at calc(100% - 2px) 50%, #0b5966 0 3px, #1594a5 3.5px 5px, transparent 5.5px),
+    linear-gradient(180deg, #61d4cf 0%, #22a9c3 52%, #157c91 100%);
   overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(235, 255, 236, 0.5),
+    0 2px 4px rgba(12, 77, 79, 0.25);
+  transform: rotate(-7deg);
 }
 
 .brand-channel::after {
   content: "";
   position: absolute;
-  inset: 1px -20px;
-  background: repeating-linear-gradient(90deg, transparent 0 10px, rgba(255, 255, 255, 0.68) 10px 15px);
-  animation: channelTravel 1.2s linear infinite;
+  inset: 2px -28px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 13px, rgba(245, 255, 235, 0.72) 14px 18px, transparent 19px 33px);
+  animation: channelTravel 1.05s linear infinite;
 }
 
 .brand-turtle {
   position: absolute;
-  top: 17px;
-  left: 22px;
-  width: 29px;
-  height: 34px;
-  transform: rotate(9deg);
+  z-index: 3;
+  top: 13px;
+  left: 24px;
+  width: 31px;
+  height: 38px;
+  transform: rotate(12deg);
+}
+
+.brand-turtle::before,
+.brand-turtle::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 12px;
+  width: 9px;
+  height: 17px;
+  border: 2px solid var(--forest-deep);
+  border-radius: 70% 30% 65% 35%;
+  background: #9fb764;
+}
+
+.brand-turtle::before {
+  left: -3px;
+  transform: rotate(34deg);
+}
+
+.brand-turtle::after {
+  right: -3px;
+  transform: scaleX(-1) rotate(34deg);
 }
 
 .brand-shell {
   position: absolute;
+  z-index: 2;
   top: 8px;
   left: 2px;
-  width: 25px;
-  height: 26px;
+  width: 27px;
+  height: 28px;
   border: 2px solid var(--forest-deep);
   border-radius: 50%;
   background:
-    linear-gradient(45deg, transparent 47%, rgba(217, 200, 140, 0.55) 48% 53%, transparent 54%),
-    var(--leaf);
+    radial-gradient(circle at 50% 48%, rgba(232, 196, 83, 0.7) 0 18%, transparent 19%),
+    conic-gradient(from 30deg, #4d995a 0 16%, #286a4c 17% 33%, #57a05a 34% 50%, #286a4c 51% 67%, #4d995a 68% 84%, #286a4c 85% 100%);
+  box-shadow:
+    inset 0 2px 3px rgba(223, 235, 143, 0.28),
+    0 2px 3px rgba(18, 66, 53, 0.24);
 }
 
 .brand-head {
   position: absolute;
+  z-index: 1;
   top: 0;
   left: 9px;
-  width: 12px;
-  height: 13px;
+  width: 13px;
+  height: 14px;
   border: 2px solid var(--forest-deep);
   border-radius: 50%;
-  background: #9fb764;
+  background: linear-gradient(145deg, #cad478, #89a552);
 }
 
 .menu-brand-copy {
@@ -1512,18 +1580,38 @@ canvas {
 }
 
 #completion-overlay.active .star-slot.earned .starfish {
-  animation: starfishSettle 520ms cubic-bezier(0.2, 1.25, 0.32, 1) both;
+  animation: starfishShoreReveal 760ms cubic-bezier(0.18, 0.78, 0.24, 1) both;
 }
 
 #completion-overlay.active .star-slot:nth-child(1).earned .starfish {
-  animation-delay: 2880ms;
+  animation-delay: 2220ms;
 }
 
 #completion-overlay.active .star-slot:nth-child(2).earned .starfish {
-  animation-delay: 3030ms;
+  animation-delay: 2820ms;
 }
 
 #completion-overlay.active .star-slot:nth-child(3).earned .starfish {
+  animation-delay: 3420ms;
+}
+
+/*
+ * Pasif geri donus modu: completion-overlay elemanina
+ * "legacy-star-reveal" sinifi eklenirse eski ani belirme geri gelir.
+ */
+#completion-overlay.legacy-star-reveal.active .star-slot.earned .starfish {
+  animation: starfishSettleLegacy 520ms cubic-bezier(0.2, 1.25, 0.32, 1) both;
+}
+
+#completion-overlay.legacy-star-reveal.active .star-slot:nth-child(1).earned .starfish {
+  animation-delay: 2880ms;
+}
+
+#completion-overlay.legacy-star-reveal.active .star-slot:nth-child(2).earned .starfish {
+  animation-delay: 3030ms;
+}
+
+#completion-overlay.legacy-star-reveal.active .star-slot:nth-child(3).earned .starfish {
   animation-delay: 3180ms;
 }
 
@@ -1790,7 +1878,43 @@ canvas {
   }
 }
 
-@keyframes starfishSettle {
+@keyframes starfishShoreReveal {
+  0% {
+    opacity: 0;
+    clip-path: inset(100% 0 0 0 round 45%);
+    filter:
+      drop-shadow(0 2px 2px rgba(107, 68, 39, 0.14))
+      saturate(0.72)
+      brightness(1.18)
+      blur(1.2px);
+    transform: translateY(-4px) scale(0.88) rotate(calc(var(--star-turn) - 7deg));
+  }
+  24% {
+    opacity: 0.42;
+    clip-path: inset(68% 0 0 0 round 34%);
+  }
+  62% {
+    opacity: 1;
+    clip-path: inset(8% 0 0 0 round 8%);
+    filter:
+      drop-shadow(0 5px 3px rgba(107, 68, 39, 0.26))
+      saturate(0.94)
+      brightness(1.06)
+      blur(0);
+    transform: translateY(1px) scale(1.035) rotate(calc(var(--star-turn) + 2deg));
+  }
+  100% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    filter:
+      drop-shadow(0 5px 3px rgba(107, 68, 39, 0.3))
+      saturate(1.06)
+      contrast(1.02);
+    transform: translateY(0) scale(1) rotate(var(--star-turn));
+  }
+}
+
+@keyframes starfishSettleLegacy {
   0% {
     opacity: 0;
     transform: translateY(-9px) scale(0.22) rotate(calc(var(--star-turn) - 34deg));
