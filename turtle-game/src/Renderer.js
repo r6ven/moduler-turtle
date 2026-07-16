@@ -10,13 +10,40 @@ export class Renderer {
     this.lastFrameTime = performance.now();
     this.tileSurfaceCache = new Map();
     this.flowStreakCache = new Map();
+    this.quality = CONFIG.performance.profiles.high;
+    this.tileLayoutCache = {
+      grid: null,
+      radius: 0,
+      tiles: []
+    };
     this.connectionCache = {
       grid: null,
-      signature: "",
+      dirty: true,
       keys: new Set(),
       depths: new Map(),
       orders: new Map()
     };
+  }
+
+  setQuality(profile) {
+    this.quality = profile || CONFIG.performance.profiles.high;
+  }
+
+  resetClock(timestamp = performance.now()) {
+    this.lastFrameTime = timestamp;
+  }
+
+  invalidateConnections() {
+    this.connectionCache.dirty = true;
+  }
+
+  invalidateGrid() {
+    this.tileLayoutCache.grid = null;
+    this.tileLayoutCache.tiles = [];
+    this.connectionCache.grid = null;
+    this.connectionCache.dirty = true;
+    this.tileSurfaceCache.clear();
+    this.flowStreakCache.clear();
   }
 
   render({ grid, turtle, particleSystem, hexRadius }) {
@@ -32,25 +59,40 @@ export class Renderer {
     ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
 
     const flowState = this.getFlowState(grid);
-    const tiles = Object.keys(grid).map((key) => {
-      const tile = grid[key];
-      const pos = hexToPixel(tile.q, tile.r, hexRadius);
+    const tiles = this.getTileLayout(grid, hexRadius);
+    const liftedTiles = [];
 
-      tile.updateAnimation(deltaMs);
+    tiles.forEach((entry) => {
+      entry.tile.updateAnimation(deltaMs);
+      entry.liftWave = entry.tile.getLiftWave();
 
-      return {
-        tile,
-        x: pos.x,
-        y: pos.y,
-        liftWave: tile.getLiftWave()
-      };
+      if (entry.liftWave > 0.001) {
+        liftedTiles.push(entry);
+        return;
+      }
+
+      this.drawHexagon(
+        ctx,
+        entry.x,
+        entry.y,
+        hexRadius,
+        entry.tile,
+        grid,
+        flowState
+      );
     });
 
-    // Lifted tiles render last so they visibly rise above their neighbours.
-    tiles.sort((a, b) => a.liftWave - b.liftWave);
-
-    tiles.forEach(({ tile, x, y }) => {
-      this.drawHexagon(ctx, x, y, hexRadius, tile, grid, flowState);
+    liftedTiles.sort((a, b) => a.liftWave - b.liftWave);
+    liftedTiles.forEach((entry) => {
+      this.drawHexagon(
+        ctx,
+        entry.x,
+        entry.y,
+        hexRadius,
+        entry.tile,
+        grid,
+        flowState
+      );
     });
 
     this.drawTurtle(ctx, turtle, hexRadius);
@@ -61,15 +103,38 @@ export class Renderer {
     this.waterFlowPhase += deltaMs * 0.0033;
   }
 
-  getFlowState(grid) {
-    const signature = Object.keys(grid)
-      .filter((key) => grid[key].active)
-      .map((key) => `${key}:${grid[key].rotation}`)
-      .join("|");
+  getTileLayout(grid, hexRadius) {
+    if (
+      this.tileLayoutCache.grid === grid &&
+      this.tileLayoutCache.radius === hexRadius
+    ) {
+      return this.tileLayoutCache.tiles;
+    }
 
+    const tiles = Object.values(grid).map((tile) => {
+      const pos = hexToPixel(tile.q, tile.r, hexRadius);
+
+      return {
+        tile,
+        x: pos.x,
+        y: pos.y,
+        liftWave: 0
+      };
+    });
+
+    this.tileLayoutCache = {
+      grid,
+      radius: hexRadius,
+      tiles
+    };
+
+    return tiles;
+  }
+
+  getFlowState(grid) {
     if (
       this.connectionCache.grid === grid &&
-      this.connectionCache.signature === signature
+      !this.connectionCache.dirty
     ) {
       return this.connectionCache;
     }
@@ -87,7 +152,7 @@ export class Renderer {
 
     this.connectionCache = {
       grid,
-      signature,
+      dirty: false,
       keys,
       depths,
       orders
@@ -990,12 +1055,17 @@ export class Renderer {
   drawFlowDash(ctx, channelLength, angle, direction, seed) {
     const normalAngle = angle + Math.PI / 2;
     const streaks = this.getFlowStreaks(seed);
+    const streakCount = Math.min(
+      streaks.length,
+      this.quality.flowStreakCount
+    );
 
     ctx.save();
     ctx.lineCap = "round";
     ctx.strokeStyle = CONFIG.colors.waterHighlight;
 
-    streaks.forEach((streak) => {
+    for (let i = 0; i < streakCount; i += 1) {
+      const streak = streaks[i];
       const offsetX = Math.cos(normalAngle) * streak.lateralOffset;
       const offsetY = Math.sin(normalAngle) * streak.lateralOffset;
       const startDistance = channelLength * streak.startRatio;
@@ -1017,16 +1087,20 @@ export class Renderer {
         endDistance * Math.sin(angle) + offsetY
       );
       ctx.stroke();
-    });
+    }
 
     ctx.setLineDash([]);
     ctx.restore();
   }
 
   drawWaterBubbles(ctx, channelLength, angle, direction) {
+    const bubbleCount = this.quality.bubbleCount;
+
+    if (bubbleCount <= 0) return;
+
     ctx.save();
 
-    for (let i = 0; i < 2; i += 1) {
+    for (let i = 0; i < bubbleCount; i += 1) {
       const phase = (this.waterFlowPhase * 0.55 + i * 0.48) % 1;
       const travelPhase = direction > 0 ? phase : 1 - phase;
       const distance = channelLength * (0.2 + travelPhase * 0.68);
@@ -1200,7 +1274,11 @@ export class Renderer {
     ctx.strokeStyle = CONFIG.colors.turtleWake;
     ctx.lineWidth = 1.5;
 
-    turtle.wakeTrail.forEach((point) => {
+    const wakeTrailStep = Math.max(1, this.quality.wakeTrailStep);
+
+    turtle.wakeTrail.forEach((point, index) => {
+      if (index % wakeTrailStep !== 0) return;
+
       const spread = 1 - point.life;
 
       ctx.save();

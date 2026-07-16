@@ -14,6 +14,45 @@ export const CONFIG = {
     offsetYRatio: 0.20
   },
 
+  performance: {
+    sampleSize: 120,
+    evaluationIntervalMs: 2500,
+    downgradeWindows: 2,
+    upgradeWindows: 4,
+    thresholds: {
+      highToMedium: 52,
+      mediumToLow: 40,
+      mediumToHigh: 57,
+      lowToMedium: 50
+    },
+    profiles: {
+      high: {
+        renderScale: 1,
+        flowStreakCount: 3,
+        bubbleCount: 2,
+        particleScale: 1,
+        wakeTrailStep: 1,
+        menuFps: 30
+      },
+      medium: {
+        renderScale: 0.9,
+        flowStreakCount: 2,
+        bubbleCount: 1,
+        particleScale: 0.66,
+        wakeTrailStep: 2,
+        menuFps: 24
+      },
+      low: {
+        renderScale: 0.78,
+        flowStreakCount: 1,
+        bubbleCount: 0,
+        particleScale: 0.4,
+        wakeTrailStep: 3,
+        menuFps: 20
+      }
+    }
+  },
+
   supabase: {
     url:  "https://dcpmbjmjlaafrwzxlmsx.supabase.co",
     anonKey:  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjcG1iam1qbGFhZnJ3enhsbXN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1NzgwNDksImV4cCI6MjA5OTE1NDA0OX0.fPmyjagZZ-b4g6zmRcHFsRDehjYv9wcLdUIkMgWNLkg"

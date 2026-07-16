@@ -94,6 +94,24 @@ export class Turtle {
     return this.celebrationRemainingMs > 0;
   }
 
+  resetClock(timestamp = performance.now()) {
+    this.lastUpdateAt = timestamp;
+  }
+
+  scaleCoordinates(scale) {
+    if (!Number.isFinite(scale) || scale <= 0 || scale === 1) return;
+
+    this.x *= scale;
+    this.y *= scale;
+    this.targetX *= scale;
+    this.targetY *= scale;
+
+    this.wakeTrail.forEach((point) => {
+      point.x *= scale;
+      point.y *= scale;
+    });
+  }
+
   getIdleFlipperWave() {
     if (this.motionBlend > 0.08 || this.isCelebrating()) return 0;
 

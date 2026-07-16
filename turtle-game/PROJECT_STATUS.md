@@ -174,6 +174,18 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Ipucu ve basari icin parcacik efektleri vardir.
 - Harici muzik veya surekli ortam sesi yoktur.
 
+### 4.10 Performans ve uyarlanabilir kalite
+
+- Son 120 karelik pencereyle gorunmez FPS ve frame-time olcumu yapilir.
+- Yuksek, orta ve dusuk kalite profilleri otomatik histerezisle secilir; kalite tek bir kotu karede degismez.
+- Kalite profilleri puzzle geometrisini degil, Canvas ic cozunurlugunu, su izi/kabarcik sayisini, parcacik yogunlugunu ve wake izi orneklemesini ayarlar.
+- Degismeyen tile yerlesimi ve akis baglantisi cache'lenir; baglanti cache'i yalnizca tas rotasyonunda veya yeni gridde gecersiz olur.
+- Menu acikken arka plan Canvas'i profile gore 20-30 FPS ile sinirlanir.
+- Sekme gizlendiginde oyun guncellemeleri ve aktif sure durur; geri donuste animasyon saatleri sifirlanir.
+- HUD zaman metni her kare yerine yalnizca saniye degistiginde guncellenir.
+- Parcacik hareketi frame delta ile ilerler; dusuk FPS'te animasyon suresi uzamaz.
+- Gelistirme modunda `debugPerf=1` ve `quality=high|medium|low` sorgulari test icin kullanilabilir; production oyuncu akisini etkilemez.
+
 ## 5. Supabase Yapisi
 
 ### 5.1 Istemci
@@ -231,7 +243,8 @@ Liderlik tablosunda her kayit icin `username`, `last_level` ve `best_by_level` b
 - [x] Asama 5 - Yuzgec, idle, kafa sallama, yuzme ve bolum sonu animasyonlari.
 - [x] Asama 6 - Su golgesi, ripple, wake izi ve hizla uyumlu yonelme.
 - [x] Asama 7 - Kontrollu kum, tas, cimen ve cicek cesitliligi.
-- [~] Asama 8 - Performans/mobil optimizasyonu kismen yapildi; cihaz matrisiyle olcum yapilmadi.
+- [x] Asama 8 - Uyarlanabilir kalite, render/cache optimizasyonu ve tarayici viewport matrisi tamamlandi.
+- [~] Asama 8 gercek cihaz dogrulamasi - Android/iOS dokunma hissi, isinma ve uzun oyun testi kullanici cihazinda bekleniyor.
 
 ### Tamamlanan urun ozellikleri
 
@@ -267,7 +280,7 @@ Liderlik tablosunda her kayit icin `username`, `last_level` ve `best_by_level` b
 - [ ] Oyun ici kaplumbagayi sprite sheet/WebP animasyonuna gecirme; mevcut karar Canvas stilinde kalmaktir.
 - [ ] E-posta kurtarma, sifre yenileme ve kalici guvenli oturum.
 - [ ] Otomatik testler, CI ve tarayici E2E testleri.
-- [ ] Olculmus dusuk donanim modu ve dinamik efekt kalitesi.
+- [x] Olculmus dusuk donanim profili ve dinamik efekt kalitesi.
 
 ## 7. Onemli Siniflar ve Gorevleri
 
@@ -309,6 +322,7 @@ Simdilik yildiz ve skor hesabina etkisi yoktur.
 - Supabase erisilemezse normal giris gerektiren oyun akisi baslatilamaz.
 - Sure saniye hassasiyetindedir ve menude durur; arka plan sekmesi davranisi tarayicinin `performance.now()` zamanlamasina baglidir.
 - Oyun prosedureldir ve seviye ust siniri yoktur; yuksek seviyelerde zorluk esas olarak ayni boyuttaki daha yogun/loop'lu aglara dayanir.
+- In-app tarayici Fullscreen API gecisini etkinlestirmedi; tam ekran davranisinin son kontrolu gercek Chrome/Safari cihazinda yapilmalidir.
 
 ### Teknik riskler
 
@@ -326,7 +340,7 @@ Simdilik yildiz ve skor hesabina etkisi yoktur.
 
 ### Bilinen acik oyun hatasi
 
-Bu belge hazirlanirken tekrar uretilebilen, production build'i engelleyen bilinen bir JavaScript soz dizimi hatasi yoktur. Gorsel/etkilesim davranislarinin farkli mobil tarayicilarda sistematik cihaz testi henuz yapilmamistir.
+Bu belge hazirlanirken tekrar uretilebilen, production build'i engelleyen bilinen bir JavaScript soz dizimi hatasi yoktur. `360x640`, `390x844`, `768x1024` ve `1440x900` tarayici viewport kontrolleri hatasizdir; fiziksel Android/iOS cihaz testi henuz kullanici tarafinda yapilmamistir.
 
 ## 10. Build ve Deploy
 
