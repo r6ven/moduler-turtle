@@ -1588,11 +1588,11 @@ canvas {
 }
 
 #completion-overlay.active .star-slot:nth-child(2).earned .starfish {
-  animation-delay: 2820ms;
+  animation-delay: 2220ms;
 }
 
 #completion-overlay.active .star-slot:nth-child(3).earned .starfish {
-  animation-delay: 3420ms;
+  animation-delay: 2220ms;
 }
 
 /*
