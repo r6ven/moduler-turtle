@@ -1032,6 +1032,13 @@ canvas {
 }
 
 .completion-beach {
+  --wave-surge: 59%;
+  --wave-tilt: -0.35deg;
+  --wave-counter-tilt: 0.16deg;
+  --foam-drift: 0px;
+  --foam-drift-reverse: 0px;
+  --runoff-skew: 0deg;
+  --runoff-counter-skew: 0deg;
   position: relative;
   width: min(92vw, 540px);
   height: min(54dvh, 280px);
@@ -1158,15 +1165,15 @@ canvas {
   opacity: 0;
   background:
     radial-gradient(circle at 24% 52%, rgba(255, 241, 190, 0.18) 0 1px, transparent 2px),
-    linear-gradient(180deg, rgba(154, 116, 68, 0.52), rgba(179, 133, 74, 0.34));
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 15%, #000 78%, transparent 100%);
-  mask-image: linear-gradient(180deg, transparent 0%, #000 15%, #000 78%, transparent 100%);
+    linear-gradient(180deg, rgba(112, 102, 69, 0.62), rgba(139, 112, 70, 0.46) 48%, rgba(179, 133, 74, 0.18) 82%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 13%, #000 55%, rgba(0, 0, 0, 0.56) 74%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 13%, #000 55%, rgba(0, 0, 0, 0.56) 74%, transparent 100%);
   border-radius: 43% 57% 39% 61% / 11% 7% 16% 12%;
   transform: rotate(-0.8deg);
 }
 
 #completion-overlay.active .completion-wet-sand {
-  animation: wetSandAfterWave 3600ms ease-in-out 180ms both;
+  animation: wetSandAfterWave 4200ms ease-out 120ms both;
 }
 
 .completion-sea {
@@ -1215,122 +1222,72 @@ canvas {
 .completion-wave {
   position: absolute;
   z-index: 4;
-  top: -57%;
-  left: -17%;
-  width: 134%;
-  height: 96%;
-  overflow: hidden;
+  top: -64%;
+  left: -14%;
+  width: 128%;
+  height: 108%;
+  overflow: visible;
   pointer-events: none;
-  border-radius: 0 0 34% 66% / 0 0 9% 19%;
-  background:
-    radial-gradient(ellipse at 15% 72%, rgba(225, 255, 242, 0.25) 0 3px, transparent 5px),
-    radial-gradient(ellipse at 61% 79%, rgba(225, 255, 242, 0.2) 0 2px, transparent 4px),
-    radial-gradient(ellipse at 88% 68%, rgba(225, 255, 242, 0.22) 0 2px, transparent 4px),
-    linear-gradient(180deg, rgba(18, 119, 142, 0.99) 0%, rgba(27, 164, 178, 0.98) 63%, rgba(91, 210, 199, 0.9) 87%, rgba(176, 239, 216, 0.62) 100%);
-  background-size: 54px 36px, 69px 42px, 61px 39px, 100% 100%;
-  box-shadow: inset 0 -22px 26px rgba(222, 255, 230, 0.2);
-  transform: translateY(-19%) rotate(-0.5deg);
+  filter: drop-shadow(0 10px 12px rgba(13, 91, 106, 0.15));
+  transform: translateY(-52%) rotate(-0.45deg);
   transform-origin: 50% 0;
 }
 
-.wave-surface {
-  position: absolute;
-  z-index: 1;
-  inset: 10% 3% 8%;
-  opacity: 0.52;
-  background:
-    radial-gradient(ellipse at 12% 28%, rgba(226, 255, 240, 0.34) 0 2px, transparent 7px),
-    radial-gradient(ellipse at 41% 62%, rgba(226, 255, 240, 0.28) 0 1.5px, transparent 6px),
-    radial-gradient(ellipse at 77% 37%, rgba(226, 255, 240, 0.3) 0 2px, transparent 7px),
-    repeating-linear-gradient(174deg, transparent 0 27px, rgba(211, 252, 235, 0.12) 28px 30px, transparent 31px 53px);
-  background-size: 82px 51px, 97px 63px, 113px 57px, 100% 100%;
-  mix-blend-mode: screen;
-  transform: translate3d(0, 0, 0);
+.wave-mass {
+  transform-box: fill-box;
+  transform-origin: 50% 72%;
 }
 
-.completion-wave::before,
-.completion-wave::after {
-  content: "";
-  position: absolute;
-  left: -3%;
-  width: 106%;
-  pointer-events: none;
+.wave-body {
+  fill: url("#shore-water-gradient");
 }
 
-.completion-wave::before {
-  bottom: 2.5%;
-  height: 28px;
-  background:
-    radial-gradient(ellipse at 8% 55%, rgba(249, 255, 235, 0.96) 0 7px, transparent 8px),
-    radial-gradient(ellipse at 23% 42%, rgba(249, 255, 235, 0.9) 0 10px, transparent 11px),
-    radial-gradient(ellipse at 41% 58%, rgba(249, 255, 235, 0.96) 0 8px, transparent 9px),
-    radial-gradient(ellipse at 59% 39%, rgba(249, 255, 235, 0.92) 0 11px, transparent 12px),
-    radial-gradient(ellipse at 77% 57%, rgba(249, 255, 235, 0.96) 0 8px, transparent 9px),
-    radial-gradient(ellipse at 93% 43%, rgba(249, 255, 235, 0.9) 0 10px, transparent 11px),
-    linear-gradient(180deg, rgba(241, 255, 231, 0.08), rgba(247, 255, 232, 0.3) 55%, rgba(247, 255, 232, 0.05));
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
-  filter: blur(0.35px);
+.wave-glass {
+  fill: url("#shore-water-glass");
+  opacity: 0.82;
 }
 
-.completion-wave::after {
-  bottom: 0;
-  height: 9px;
-  border-radius: 50%;
-  background:
-    radial-gradient(ellipse at 13% 50%, rgba(246, 255, 231, 0.74) 0 35px, transparent 38px),
-    radial-gradient(ellipse at 38% 50%, rgba(246, 255, 231, 0.68) 0 45px, transparent 49px),
-    radial-gradient(ellipse at 68% 50%, rgba(246, 255, 231, 0.72) 0 39px, transparent 43px),
-    radial-gradient(ellipse at 91% 50%, rgba(246, 255, 231, 0.7) 0 32px, transparent 36px);
-  filter: blur(1.7px);
-  opacity: 0.78;
+.wave-front-shadow,
+.wave-foam-soft,
+.wave-foam-core,
+.wave-foam-fragments {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
-.wave-foam {
-  position: absolute;
-  z-index: 2;
-  height: 28px;
-  border-top: 2px solid rgba(248, 255, 234, 0.78);
-  border-radius: 50%;
+.wave-front-shadow {
+  stroke: rgba(9, 96, 113, 0.32);
+  stroke-width: 19;
+  transform: translateY(5px);
+}
+
+.wave-foam-soft {
+  stroke: rgba(242, 255, 239, 0.62);
+  stroke-width: 24;
+  filter: url("#shore-foam-soften");
   opacity: 0;
 }
 
-.wave-foam-a {
-  right: 54%;
-  bottom: 7%;
-  width: 31%;
-  transform: rotate(6deg);
-}
-
-.wave-foam-b {
-  left: 7%;
-  bottom: 15%;
-  width: 35%;
-  transform: rotate(-7deg);
-}
-
-.wave-foam-c {
-  right: 5%;
-  bottom: 11%;
-  width: 27%;
-  transform: rotate(4deg);
-}
-
-.wave-bubbles {
-  position: absolute;
-  right: 5%;
-  bottom: 3%;
-  left: 5%;
-  height: 34px;
+.wave-foam-core {
+  stroke: rgba(249, 255, 238, 0.94);
+  stroke-width: 9;
+  filter: url("#shore-foam-distortion");
   opacity: 0;
-  background:
-    radial-gradient(circle at 7% 42%, rgba(250, 255, 235, 0.94) 0 2px, transparent 2.8px),
-    radial-gradient(circle at 18% 68%, rgba(250, 255, 235, 0.78) 0 1px, transparent 2px),
-    radial-gradient(circle at 33% 31%, rgba(250, 255, 235, 0.88) 0 1.7px, transparent 2.5px),
-    radial-gradient(circle at 48% 72%, rgba(250, 255, 235, 0.78) 0 1.2px, transparent 2px),
-    radial-gradient(circle at 65% 38%, rgba(250, 255, 235, 0.9) 0 2px, transparent 2.8px),
-    radial-gradient(circle at 78% 66%, rgba(250, 255, 235, 0.78) 0 1.2px, transparent 2px),
-    radial-gradient(circle at 92% 35%, rgba(250, 255, 235, 0.9) 0 1.8px, transparent 2.6px);
+}
+
+.wave-foam-fragments {
+  stroke: rgba(254, 255, 242, 0.88);
+  stroke-width: 4.2;
+  stroke-dasharray: 22 15 8 19 34 13;
+  filter: url("#shore-foam-distortion");
+  opacity: 0;
+}
+
+.wave-spray {
+  fill: rgba(252, 255, 240, 0.88);
+  opacity: 0;
 }
 
 .completion-backwash {
@@ -1343,34 +1300,52 @@ canvas {
   overflow: hidden;
   pointer-events: none;
   opacity: 0;
+  border-radius: 46% 54% 58% 42% / 8% 12% 17% 11%;
+  background:
+    linear-gradient(180deg, rgba(153, 218, 205, 0.32), rgba(105, 180, 169, 0.12) 48%, rgba(230, 247, 221, 0) 92%),
+    repeating-linear-gradient(101deg, transparent 0 31px, rgba(235, 255, 232, 0.16) 32px 33px, transparent 34px 67px);
+  transform-origin: 50% 0;
 }
 
 .completion-backwash span {
   position: absolute;
-  top: 8%;
-  width: 2px;
+  top: 3%;
+  width: 1.5px;
   height: 76%;
   border-radius: 50%;
-  background: linear-gradient(180deg, rgba(226, 250, 225, 0), rgba(226, 250, 225, 0.65) 38%, rgba(122, 189, 171, 0.08));
-  filter: blur(0.4px);
+  background: linear-gradient(180deg, rgba(245, 255, 236, 0.74), rgba(217, 247, 224, 0.34) 42%, rgba(122, 189, 171, 0));
+  filter: blur(0.25px);
   transform-origin: 50% 0;
 }
 
 .completion-backwash span:nth-child(1) {
-  left: 23%;
-  transform: rotate(7deg);
+  left: 16%;
+  height: 68%;
+  transform: rotate(8deg);
 }
 
 .completion-backwash span:nth-child(2) {
-  left: 53%;
-  height: 88%;
-  transform: rotate(-4deg);
+  left: 34%;
+  height: 91%;
+  transform: rotate(-5deg);
 }
 
 .completion-backwash span:nth-child(3) {
-  left: 78%;
-  height: 62%;
-  transform: rotate(5deg);
+  left: 54%;
+  height: 74%;
+  transform: rotate(3deg);
+}
+
+.completion-backwash span:nth-child(4) {
+  left: 71%;
+  height: 86%;
+  transform: rotate(-7deg);
+}
+
+.completion-backwash span:nth-child(5) {
+  left: 87%;
+  height: 58%;
+  transform: rotate(6deg);
 }
 
 .completion-afterwave {
@@ -1410,27 +1385,32 @@ canvas {
 }
 
 #completion-overlay.active .completion-wave {
-  animation: shoreWash 3600ms linear 180ms both;
+  animation: shoreWash 4200ms cubic-bezier(0.37, 0.01, 0.22, 1) 120ms both;
 }
 
-#completion-overlay.active .wave-foam {
-  animation: foamBreak 3600ms ease-in-out 180ms both;
+#completion-overlay.active .wave-mass {
+  animation: waveMassRoll 1650ms ease-in-out 120ms infinite alternate;
 }
 
-#completion-overlay.active .wave-bubbles {
-  animation: foamBubbles 3600ms ease-in-out 180ms both;
+#completion-overlay.active .wave-foam-soft,
+#completion-overlay.active .wave-foam-core {
+  animation: foamBreak 4200ms ease-in-out 120ms both;
 }
 
-#completion-overlay.active .wave-surface {
-  animation: waveSurfaceDrift 1550ms linear infinite;
+#completion-overlay.active .wave-foam-fragments {
+  animation: foamFragments 4200ms ease-in-out 120ms both;
+}
+
+#completion-overlay.active .wave-spray {
+  animation: foamSpray 4200ms ease-out 120ms both;
 }
 
 #completion-overlay.active .completion-backwash {
-  animation: backwashReveal 3600ms ease-out 180ms both;
+  animation: backwashReveal 4200ms ease-out 120ms both;
 }
 
 #completion-overlay.active .completion-afterwave {
-  animation: afterwaveRetreat 3600ms ease-out 180ms both;
+  animation: afterwaveRetreat 4200ms ease-out 120ms both;
 }
 
 .star-result {
@@ -1449,10 +1429,48 @@ canvas {
 }
 
 .star-slot {
+  position: relative;
   display: grid;
   place-items: center;
   width: 90px;
   height: 90px;
+}
+
+.star-slot::before,
+.star-slot::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 3px;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.star-slot::before {
+  border: 2px solid rgba(255, 239, 139, 0.72);
+  box-shadow:
+    0 0 11px rgba(255, 224, 87, 0.62),
+    0 0 28px rgba(97, 224, 210, 0.48),
+    inset 0 0 14px rgba(255, 246, 180, 0.26);
+}
+
+.star-slot::after {
+  inset: -8px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 250, 195, 0.95) 0 2px, transparent 3px),
+    radial-gradient(circle at 92% 33%, rgba(184, 255, 232, 0.9) 0 1.8px, transparent 3px),
+    radial-gradient(circle at 78% 87%, rgba(255, 238, 132, 0.9) 0 2px, transparent 3px),
+    radial-gradient(circle at 18% 82%, rgba(192, 255, 235, 0.88) 0 1.7px, transparent 3px),
+    radial-gradient(circle at 5% 30%, rgba(255, 242, 156, 0.92) 0 2px, transparent 3px);
+}
+
+#completion-overlay.active.minimum-clear .star-slot.earned::before {
+  animation: minimumStarAura 1500ms ease-out 3510ms both;
+}
+
+#completion-overlay.active.minimum-clear .star-slot.earned::after {
+  animation: minimumStarSparkles 1650ms ease-in-out 3590ms both;
 }
 
 .starfish {
@@ -1575,43 +1593,43 @@ canvas {
 
 @keyframes shoreWash {
   0% {
-    transform: translateY(-48%) rotate(-0.5deg) scaleX(1.02);
+    transform: translateY(-58%) rotate(-0.55deg) scaleX(1.025);
   }
-  14% {
-    transform: translateY(-22%) rotate(0.25deg) scaleX(1);
+  13% {
+    transform: translateY(-39%) rotate(0.18deg) scaleX(1.008);
   }
-  36% {
-    transform: translateY(35%) rotate(-0.7deg) scaleX(1.015);
+  27% {
+    transform: translateY(-7%) rotate(var(--wave-counter-tilt)) scaleX(1.018);
   }
-  49% {
-    transform: translateY(48%) rotate(0.55deg) scaleX(1.03);
+  43% {
+    transform: translateY(var(--wave-surge)) rotate(var(--wave-tilt)) scaleX(1.035);
   }
-  57% {
-    transform: translateY(45%) rotate(0.1deg) scaleX(1.02);
+  51% {
+    transform: translateY(calc(var(--wave-surge) - 2.5%)) rotate(var(--wave-counter-tilt)) scaleX(1.026);
   }
-  72% {
-    transform: translateY(27%) rotate(-0.35deg) scaleX(1.01);
+  64% {
+    transform: translateY(29%) rotate(0.22deg) scaleX(1.014);
   }
-  88% {
-    transform: translateY(-12%) rotate(0.15deg) scaleX(1);
+  79% {
+    transform: translateY(7%) rotate(-0.18deg) scaleX(1.004);
   }
   100% {
-    transform: translateY(-50%) rotate(-0.3deg) scaleX(1.01);
+    transform: translateY(-55%) rotate(0.1deg) scaleX(1.012);
   }
 }
 
 @keyframes wetSandAfterWave {
-  0%, 32% {
+  0%, 34% {
     opacity: 0;
   }
-  49% {
+  45% {
+    opacity: 0.88;
+  }
+  66% {
     opacity: 0.72;
   }
-  67% {
-    opacity: 0.58;
-  }
   100% {
-    opacity: 0.43;
+    opacity: 0.6;
   }
 }
 
@@ -1629,91 +1647,146 @@ canvas {
 }
 
 @keyframes foamBreak {
-  0%, 19% {
+  0%, 18% {
     opacity: 0;
-    translate: 0 -5px;
-    scale: 0.9 0.72;
+    translate: var(--foam-drift-reverse) -7px;
+    scale: 0.94 0.62;
   }
-  34% {
-    opacity: 0.48;
+  31% {
+    opacity: 0.56;
   }
-  48% {
+  43% {
+    opacity: 1;
+    translate: var(--foam-drift) 2px;
+    scale: 1.03 1;
+  }
+  54% {
+    opacity: 0.78;
+    translate: var(--foam-drift-reverse) 5px;
+  }
+  76%, 100% {
+    opacity: 0;
+    translate: var(--foam-drift-reverse) 15px;
+    scale: 1.1 0.52;
+  }
+}
+
+@keyframes foamFragments {
+  0%, 24% {
+    opacity: 0;
+    stroke-dashoffset: 76;
+    transform: translateX(var(--foam-drift-reverse));
+  }
+  42% {
     opacity: 0.94;
-    translate: 0 3px;
-    scale: 1.05 1;
+    stroke-dashoffset: 12;
+    transform: translateX(var(--foam-drift));
   }
-  58% {
-    opacity: 0.72;
+  60% {
+    opacity: 0.46;
+    stroke-dashoffset: -42;
   }
-  79%, 100% {
+  78%, 100% {
     opacity: 0;
-    translate: 0 13px;
-    scale: 1.12 0.65;
+    stroke-dashoffset: -94;
+    transform: translateX(var(--foam-drift-reverse)) translateY(12px);
   }
 }
 
-@keyframes foamBubbles {
-  0%, 27% {
+@keyframes foamSpray {
+  0%, 29% {
     opacity: 0;
-    transform: translateY(-3px) scaleX(0.9);
+    transform: translateY(-5px) scale(0.72);
   }
-  47% {
-    opacity: 0.9;
-    transform: translateY(2px) scaleX(1.04);
+  43% {
+    opacity: 0.92;
+    transform: translateY(0) scale(1);
   }
-  67% {
-    opacity: 0.38;
+  57% {
+    opacity: 0.42;
   }
-  83%, 100% {
+  73%, 100% {
     opacity: 0;
-    transform: translateY(12px) scaleX(1.12);
+    transform: translateY(14px) scale(1.16 0.72);
   }
 }
 
-@keyframes waveSurfaceDrift {
+@keyframes waveMassRoll {
   from {
-    background-position: 0 0, 0 0, 0 0, 0 0;
-    transform: translate3d(-1.5%, -1px, 0) scaleX(1.02);
+    transform: translateX(var(--foam-drift-reverse)) skewX(-0.35deg) scaleY(0.99);
   }
   to {
-    background-position: 82px 8px, -97px 5px, 113px -6px, 0 18px;
-    transform: translate3d(1.5%, 2px, 0) scaleX(0.99);
+    transform: translateX(var(--foam-drift)) skewX(0.35deg) scaleY(1.012);
   }
 }
 
 @keyframes backwashReveal {
-  0%, 53% {
+  0%, 50% {
     opacity: 0;
-    transform: translateY(-12px) scaleY(0.42);
+    transform: translateY(-17px) rotate(var(--runoff-skew)) scaleY(0.28) scaleX(0.9);
   }
-  67% {
-    opacity: 0.64;
+  61% {
+    opacity: 0.62;
+    transform: translateY(-2px) rotate(var(--runoff-skew)) scaleY(0.78) scaleX(1.02);
   }
-  88% {
-    opacity: 0.22;
-    transform: translateY(9px) scaleY(1);
+  82% {
+    opacity: 0.26;
+    transform: translateY(12px) rotate(var(--runoff-counter-skew)) scaleY(1.05) scaleX(1.08);
   }
   100% {
     opacity: 0;
-    transform: translateY(15px) scaleY(1.08);
+    transform: translateY(20px) rotate(0deg) scaleY(1.12) scaleX(1.12);
   }
 }
 
 @keyframes afterwaveRetreat {
-  0%, 49% {
+  0%, 48% {
     opacity: 0;
     transform: translateY(-18px) scaleX(0.88);
   }
-  61% {
-    opacity: 0.68;
-    transform: translateY(0) scaleX(1.02);
+  58% {
+    opacity: 0.72;
+    transform: translateY(1px) scaleX(1.03);
   }
-  76% {
-    opacity: 0.34;
+  73% {
+    opacity: 0.31;
   }
-  91%, 100% {
+  90%, 100% {
     opacity: 0;
-    transform: translateY(-35px) scaleX(1.12);
+    transform: translateY(-37px) scaleX(1.15);
+  }
+}
+
+@keyframes minimumStarAura {
+  0% {
+    opacity: 0;
+    transform: scale(0.52);
+  }
+  26% {
+    opacity: 0.96;
+    transform: scale(1.02);
+  }
+  58% {
+    opacity: 0.58;
+    transform: scale(1.22);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.46);
+  }
+}
+
+@keyframes minimumStarSparkles {
+  0% {
+    opacity: 0;
+    transform: rotate(-18deg) scale(0.7);
+  }
+  24%, 54% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(25deg) scale(1.24);
   }
 }
 
@@ -1834,6 +1907,18 @@ canvas {
     animation: none;
     opacity: 1;
     transform: rotate(var(--star-turn));
+  }
+
+  #completion-overlay.active.minimum-clear .star-slot.earned::before {
+    animation: none;
+    opacity: 0.55;
+    transform: scale(1.08);
+  }
+
+  #completion-overlay.active.minimum-clear .star-slot.earned::after {
+    animation: none;
+    opacity: 0.78;
+    transform: rotate(8deg);
   }
 
   #completion-overlay.active .lotus-mark {

@@ -12,6 +12,8 @@ export class UIController {
     this.starSlots = Array.from(
       this.starResult.querySelectorAll("[data-star-slot]")
     );
+    this.completionBeach = this.overlay.querySelector(".completion-beach");
+    this.waveNoise = this.overlay.querySelector("[data-wave-noise]");
     this.completionReadyTimer = null;
 
     this.nextButton = document.getElementById("next-lvl-btn");
@@ -300,6 +302,7 @@ export class UIController {
     }
 
     this.overlay.classList.remove("is-ready");
+    this.overlay.classList.remove("minimum-clear");
     this.overlay.classList.remove("active");
     this.nextButton.disabled = false;
 
@@ -310,6 +313,7 @@ export class UIController {
 
   showCompletion(result) {
     const earnedStars = Math.max(0, Math.min(3, Number(result.stars) || 0));
+    const minimumClear = Number(result.moves) === Number(result.minimumMoves);
 
     if (this.completionReadyTimer) {
       window.clearTimeout(this.completionReadyTimer);
@@ -318,6 +322,9 @@ export class UIController {
     this.starSlots.forEach((slot, index) => {
       slot.classList.toggle("earned", index < earnedStars);
     });
+
+    this.configureCompletionWave();
+    this.overlay.classList.toggle("minimum-clear", minimumClear);
 
     this.starResult.setAttribute(
       "aria-label",
@@ -337,13 +344,56 @@ export class UIController {
 
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")
       .matches;
-    const readyDelay = reducedMotion ? 120 : 3780;
+    const readyDelay = reducedMotion ? 120 : 4480;
 
     this.completionReadyTimer = window.setTimeout(() => {
       this.nextButton.disabled = false;
       this.overlay.classList.add("is-ready");
       this.completionReadyTimer = null;
     }, readyDelay);
+  }
+
+  configureCompletionWave() {
+    const randomBetween = (min, max) => min + Math.random() * (max - min);
+    const waveTilt = randomBetween(-1.05, 0.9);
+    const foamDrift = randomBetween(-18, 18);
+    const runoffSkew = randomBetween(-2.2, 2.2);
+
+    this.completionBeach.style.setProperty(
+      "--wave-surge",
+      `${randomBetween(56, 63).toFixed(2)}%`
+    );
+    this.completionBeach.style.setProperty(
+      "--wave-tilt",
+      `${waveTilt.toFixed(2)}deg`
+    );
+    this.completionBeach.style.setProperty(
+      "--wave-counter-tilt",
+      `${(-waveTilt * 0.45).toFixed(2)}deg`
+    );
+    this.completionBeach.style.setProperty(
+      "--foam-drift",
+      `${foamDrift.toFixed(1)}px`
+    );
+    this.completionBeach.style.setProperty(
+      "--foam-drift-reverse",
+      `${(-foamDrift * 0.4).toFixed(1)}px`
+    );
+    this.completionBeach.style.setProperty(
+      "--runoff-skew",
+      `${runoffSkew.toFixed(2)}deg`
+    );
+    this.completionBeach.style.setProperty(
+      "--runoff-counter-skew",
+      `${(-runoffSkew * 0.4).toFixed(2)}deg`
+    );
+
+    if (this.waveNoise) {
+      this.waveNoise.setAttribute(
+        "seed",
+        String(Math.floor(randomBetween(2, 97)))
+      );
+    }
   }
 
   renderStarfishRating(count) {

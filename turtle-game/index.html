@@ -153,15 +153,47 @@
     <section class="completion-beach" role="dialog" aria-labelledby="completion-title">
       <div class="completion-wet-sand" aria-hidden="true"></div>
       <div class="completion-sea" aria-hidden="true"></div>
-      <div class="completion-wave" aria-hidden="true">
-        <span class="wave-surface"></span>
-        <span class="wave-foam wave-foam-a"></span>
-        <span class="wave-foam wave-foam-b"></span>
-        <span class="wave-foam wave-foam-c"></span>
-        <span class="wave-bubbles"></span>
-      </div>
+      <svg class="completion-wave" viewBox="0 0 640 300" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="shore-water-gradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#0d6178" />
+            <stop offset="0.58" stop-color="#1596a9" />
+            <stop offset="0.86" stop-color="#45c7c2" />
+            <stop offset="1" stop-color="#a9ead8" stop-opacity="0.9" />
+          </linearGradient>
+          <linearGradient id="shore-water-glass" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#d5fff0" stop-opacity="0.04" />
+            <stop offset="0.5" stop-color="#eafff5" stop-opacity="0.28" />
+            <stop offset="1" stop-color="#9ce1d7" stop-opacity="0.06" />
+          </linearGradient>
+          <filter id="shore-foam-distortion" x="-12%" y="-80%" width="124%" height="260%">
+            <feTurbulence data-wave-noise type="fractalNoise" baseFrequency="0.012 0.075" numOctaves="2" seed="7" result="foam-noise" />
+            <feDisplacementMap in="SourceGraphic" in2="foam-noise" scale="9" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+          <filter id="shore-foam-soften" x="-10%" y="-120%" width="120%" height="340%">
+            <feGaussianBlur stdDeviation="2.4 1.25" />
+          </filter>
+        </defs>
+
+        <g class="wave-mass">
+          <path class="wave-body" d="M-24,-8 H664 V218 C602,207 552,239 487,226 C425,214 390,251 319,232 C252,214 218,248 151,227 C91,208 42,239 -24,219 Z" />
+          <path class="wave-glass" d="M-30,63 C88,39 149,86 269,57 C391,27 480,86 670,48 L670,202 C562,181 502,221 408,202 C310,183 236,223 135,202 C76,190 24,207 -30,199 Z" />
+          <path class="wave-front-shadow" d="M-24,219 C42,239 91,208 151,227 C218,248 252,214 319,232 C390,251 425,214 487,226 C552,239 602,207 664,218" />
+          <path class="wave-foam-soft" d="M-24,218 C42,241 91,205 151,228 C218,251 252,211 319,233 C390,254 425,211 487,227 C552,242 602,204 664,219" />
+          <path class="wave-foam-core" d="M-24,218 C42,241 91,205 151,228 C218,251 252,211 319,233 C390,254 425,211 487,227 C552,242 602,204 664,219" />
+          <path class="wave-foam-fragments" d="M-18,223 C34,236 68,218 111,224 M138,231 C178,241 205,223 244,226 M278,237 C316,244 350,225 390,228 M423,232 C464,241 495,220 535,224 M566,230 C598,236 624,219 660,222" />
+          <g class="wave-spray">
+            <circle cx="42" cy="224" r="3.5" /><circle cx="67" cy="230" r="2" />
+            <circle cx="123" cy="219" r="2.6" /><circle cx="174" cy="235" r="3" />
+            <circle cx="237" cy="221" r="2" /><circle cx="286" cy="236" r="3.4" />
+            <circle cx="347" cy="230" r="2.2" /><circle cx="407" cy="239" r="2.8" />
+            <circle cx="463" cy="221" r="3.2" /><circle cx="522" cy="232" r="2" />
+            <circle cx="579" cy="218" r="2.7" /><circle cx="621" cy="228" r="3.3" />
+          </g>
+        </g>
+      </svg>
       <div class="completion-backwash" aria-hidden="true">
-        <span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
       </div>
       <div class="completion-afterwave" aria-hidden="true"></div>
 
