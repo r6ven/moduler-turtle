@@ -4,7 +4,7 @@ Son guncelleme: 16 Temmuz 2026
 Uygulama surumu: `0.1.0`  
 GitHub: `r6ven/moduler-turtle`  
 Uygulama dizini: `turtle-game/`  
-Belge hazirlanirken uygulama HEAD'i: `5515023` (`Rebuild completion shore animation`)
+Belge, bulundugu Git commit'indeki uygulama durumunu anlatir.
 
 ## 1. Proje Ozeti
 
@@ -31,6 +31,7 @@ moduler-turtle/                 # Git deposunun koku
    ├─ PROJECT_STATUS.md         # Bu durum ve devir belgesi
    ├─ public/
    │  └─ images/
+   │     ├─ completion-lotus.png # Sonuc basliginin iki yanindaki seffaf nilufer asseti
    │     ├─ starfish.png        # Sonuc, bolum ve rekor ekranlarindaki deniz yildizi
    │     ├─ turtle-gameplay.png # Mevcut Canvas kaplumbagasinda kullanilmayan aday asset
    │     └─ turtle-menu.png     # Mevcut CSS marka isaretinde kullanilmayan aday asset
@@ -161,7 +162,9 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Kazanilan 1-3 derece `public/images/starfish.png` ile deniz yildizi olarak gosterilir.
 - Eski hizli deniz yildizi belirme animasyonu CSS'te pasif `legacy-star-reveal` geri donus modu olarak korunur.
 - Bolum listesi ve rekor ekranindaki tum derece ikonlari da ayni deniz yildizi assetini kullanir.
-- Basligin iki yaninda CSS ile cizilen nilufer isaretleri vardir.
+- Basligin iki yaninda seffaf `public/images/completion-lotus.png` nilufer asseti vardir.
+- Sonuc basligi 1-2 yildizda `Tebrikler!`, normal 3 yildizda `Profesyonel!`, minimum hamleli parlak 3 yildizda `Harika bir uyum!` olur.
+- Sonuc basligi beyaz, siyah golgeli ve sahne uzaktan okunacak boyuttadir.
 - Sonraki bolum dugmesi ana animasyon tamamlanana kadar kilitlidir.
 
 ### 4.9 Ses ve efekt

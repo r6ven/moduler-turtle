@@ -6,6 +6,7 @@ export class UIController {
     this.timeValue = document.getElementById("time-val");
 
     this.overlay = document.getElementById("completion-overlay");
+    this.completeTitleText = document.getElementById("completion-title-text");
     this.completeText = document.getElementById("complete-text");
     this.completeGoal = document.getElementById("complete-goal");
     this.starResult = document.getElementById("star-result");
@@ -325,6 +326,14 @@ export class UIController {
 
     this.configureCompletionWave();
     this.overlay.classList.toggle("minimum-clear", minimumClear);
+
+    if (minimumClear && earnedStars === 3) {
+      this.completeTitleText.innerText = "Harika bir uyum!";
+    } else if (earnedStars === 3) {
+      this.completeTitleText.innerText = "Profesyonel!";
+    } else {
+      this.completeTitleText.innerText = "Tebrikler!";
+    }
 
     this.starResult.setAttribute(
       "aria-label",
