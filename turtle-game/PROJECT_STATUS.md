@@ -97,6 +97,7 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Aktif, bagli/cozulmus ve pasif taslar farkli materyal ve renk durumlarina sahiptir.
 - Kanal cizimi hex siniri icinde kirpilir; kanal yatagi, su ve yuzey parlakligi katmanlari vardir.
 - Eslesmis kanal kollarinin acikliklari ortak hex kenarini kaplayacak kadar uzatilir; boylece tas siniri suyun ustunden gecmez. Eslesmeyen kollar hex sinirina kadar ulasir, disari tasmadan duz bir kanal agziyla biter.
+- Duragan taslarda kanal agizlari ust yuzey sinirinda kesilmez; gorunen yan yuzey/golge derinligine kadar uzanir. Donen bir tasin kanali ise yalnizca kendi ekrandaki acisi komsu kanal agziyla gercekten hizalandigi karelerde bu mesafeyi asip gorsel olarak birlesir.
 - Kum lekeleri, kum taneleri, taslar, cimenler ve yabani cicekler seeded rastgele dagitilir.
 - Dekor sayisi kontrolludur; bazi hexler bos kalabilir, tek bir hexte asiri yigilma olusmaz.
 - Bagli hexlerde cimen miktari hafif artar ve cimenlerin bir kismi ciceklenir.
@@ -122,6 +123,7 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Akis izleri tek kalin orta cizgi degil; kanal icinde farkli yanal konumlarda birden fazla ince kesik cizgidir.
 - Sabit su yuzeyi yansimasi komsu hexlerde ters yone donmez; kanal ekseni icin ortak bir dunya-isigi normali kullanir ve eslesmis sinir boyunca kesintisiz devam eder.
 - Yari saydam yansima katmanlari ortak kenarda ust uste binmez; iki komsu cizgi sinirda uc uca gelirken opak kanal govdesi alttan ortuserek surekliligi korur.
+- Mantiksal rotasyon hamle aninda guncellense de hareketli akis, donus animasyonu komsu kanalla gorsel olarak hizalanmadan baslamaz.
 - Bagli olmayan kanallar acik ve hareketsiz gorunur.
 - Ana menudeki dekoratif akis da kaynak-kanal-bitis fikrini ayni gorsel dille anlatir.
 
