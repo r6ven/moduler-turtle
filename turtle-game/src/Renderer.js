@@ -121,7 +121,7 @@ export class Renderer {
       this.drawHexWaterLayer(ctx, entry, hexRadius, grid, flowState);
     });
 
-    this.drawWaterBridges(
+    this.drawWaterConnectionExtensions(
       ctx,
       [...stableTiles, ...liftedTiles],
       hexRadius,
@@ -1185,7 +1185,7 @@ export class Renderer {
     });
   }
 
-  drawWaterBridges(ctx, entries, radius, grid, flowState) {
+  drawWaterConnectionExtensions(ctx, entries, radius, grid, flowState) {
     const entryByKey = new Map(
       entries.map((entry) => [tileKey(entry.tile.q, entry.tile.r), entry])
     );
@@ -1207,7 +1207,7 @@ export class Renderer {
           grid
         );
 
-        if (!visualConnection.matched) return;
+        if (visualConnection.strength <= 0) return;
 
         const offset = DIR_NEIGHBORS[visualConnection.dir];
         const neighborKey = tileKey(tile.q + offset.q, tile.r + offset.r);
@@ -1248,13 +1248,34 @@ export class Renderer {
         };
         const connected =
           flowState.keys.has(currentKey) && flowState.keys.has(neighborKey);
+        const midpoint = {
+          x: (start.x + end.x) * 0.5,
+          y: (start.y + end.y) * 0.5
+        };
+        const currentTarget = {
+          x:
+            start.x +
+            (midpoint.x - start.x) * visualConnection.strength,
+          y:
+            start.y +
+            (midpoint.y - start.y) * visualConnection.strength
+        };
+        const neighborTarget = {
+          x:
+            end.x +
+            (midpoint.x - end.x) * visualConnection.strength,
+          y:
+            end.y +
+            (midpoint.y - end.y) * visualConnection.strength
+        };
 
-        this.drawWaterBridge(ctx, start, end, connected);
+        this.drawWaterExtension(ctx, start, currentTarget, connected);
+        this.drawWaterExtension(ctx, end, neighborTarget, connected);
       });
     });
   }
 
-  drawWaterBridge(ctx, start, end, connected) {
+  drawWaterExtension(ctx, start, end, connected) {
     const layers = connected
       ? [
           [18, CONFIG.colors.channelBedShadow],
@@ -1296,26 +1317,40 @@ export class Renderer {
     ctx.restore();
   }
 
-  getVisualConnection(tile, exitIndex, grid, tolerance = 0.085) {
+  getVisualConnection(tile, exitIndex, grid) {
+    const emergenceTolerance = 0.24;
+    const fullAlignmentTolerance = 0.055;
     const visualStep = exitIndex + tile.visualRotation;
     const nearestStep = Math.round(visualStep);
     const alignmentError = Math.abs(visualStep - nearestStep);
     const dir = ((nearestStep % 6) + 6) % 6;
 
-    if (alignmentError > tolerance) {
-      return { matched: false, dir, neighborExitIndex: null };
+    if (alignmentError > emergenceTolerance) {
+      return {
+        matched: false,
+        strength: 0,
+        dir,
+        neighborExitIndex: null
+      };
     }
 
     const offset = DIR_NEIGHBORS[dir];
     const neighbor = grid[tileKey(tile.q + offset.q, tile.r + offset.r)];
 
     if (!neighbor?.active) {
-      return { matched: false, dir, neighborExitIndex: null };
+      return {
+        matched: false,
+        strength: 0,
+        dir,
+        neighborExitIndex: null
+      };
     }
 
     const oppositeDir = (dir + 3) % 6;
     let matchedNeighborExitIndex = null;
-    const neighborMatched = neighbor.exits.some((hasExit, neighborExitIndex) => {
+    let matchedNeighborError = Number.POSITIVE_INFINITY;
+
+    neighbor.exits.forEach((hasExit, neighborExitIndex) => {
       if (!hasExit) return false;
 
       const neighborVisualStep = neighborExitIndex + neighbor.visualRotation;
@@ -1323,17 +1358,39 @@ export class Renderer {
       const neighborError = Math.abs(neighborVisualStep - neighborNearestStep);
       const neighborDir = ((neighborNearestStep % 6) + 6) % 6;
 
-      const matched = neighborError <= tolerance && neighborDir === oppositeDir;
+      const candidate =
+        neighborError <= emergenceTolerance && neighborDir === oppositeDir;
 
-      if (matched) {
+      if (candidate && neighborError < matchedNeighborError) {
         matchedNeighborExitIndex = neighborExitIndex;
+        matchedNeighborError = neighborError;
       }
-
-      return matched;
     });
 
+    if (matchedNeighborExitIndex == null) {
+      return {
+        matched: false,
+        strength: 0,
+        dir,
+        neighborExitIndex: null
+      };
+    }
+
+    const maxError = Math.max(alignmentError, matchedNeighborError);
+    const linearStrength = Math.max(
+      0,
+      Math.min(
+        1,
+        (emergenceTolerance - maxError) /
+          (emergenceTolerance - fullAlignmentTolerance)
+      )
+    );
+    const strength =
+      linearStrength * linearStrength * (3 - 2 * linearStrength);
+
     return {
-      matched: neighborMatched,
+      matched: maxError <= fullAlignmentTolerance,
+      strength,
       dir,
       neighborExitIndex: matchedNeighborExitIndex
     };

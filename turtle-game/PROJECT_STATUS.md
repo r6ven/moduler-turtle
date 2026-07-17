@@ -96,7 +96,7 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Guncel sanat yonu sicak keten/kum zemin, petrol mavisi su, hardal-turuncu vurgu, zeytin yesili bitki ve toprak-kahve golge paletidir.
 - Aktif, bagli/cozulmus ve pasif taslar farkli materyal ve renk durumlarina sahiptir.
 - Kanal cizimi hex siniri icinde kirpilir; kanal yatagi, su ve yuzey parlakligi katmanlari vardir.
-- Her kanal kolu tek basina tam olarak hexin ust yuzey sinirinda duz biter ve yan yuzey/golge alanina gecmez. Iki komsu kanal agzi gorsel olarak hizalandiginda aradaki bosluk ayri bir su koprusu katmaniyla tamamlanir; tas donerken kopru yalnizca gercek hizalanma aninda gorunur.
+- Her kanal kolu tek basina tam olarak hexin ust yuzey sinirinda duz biter ve yan yuzey/golge alanina gecmez. Iki komsu kanal agzi birbirine yaklastikca her iki kanal kendi kenarindan ortak orta noktaya dogru yumusakca uzar; tam hizalanmada uclar bulusur. Son durumda kanalin ustune ayri bir kopru parcasi bindirilmez.
 - Kum lekeleri, kum taneleri, taslar, cimenler ve yabani cicekler seeded rastgele dagitilir.
 - Dekor sayisi kontrolludur; bazi hexler bos kalabilir, tek bir hexte asiri yigilma olusmaz.
 - Bagli hexlerde cimen miktari hafif artar ve cimenlerin bir kismi ciceklenir.
@@ -122,7 +122,7 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Akis izleri tek kalin orta cizgi degil; kanal icinde farkli yanal konumlarda birden fazla ince kesik cizgidir.
 - Sabit su yuzeyi yansimasi komsu hexlerde ters yone donmez; kanal ekseni icin ortak bir dunya-isigi normali kullanir ve eslesmis sinir boyunca kesintisiz devam eder.
 - Yari saydam yansima katmanlari ortak kenarda ust uste binmez; iki komsu cizgi sinirda uc uca gelirken opak kanal govdesi alttan ortuserek surekliligi korur.
-- Mantiksal rotasyon hamle aninda guncellense de hareketli akis, donus animasyonu komsu kanalla gorsel olarak hizalanmadan baslamaz.
+- Mantiksal rotasyon hamle aninda guncellense de hareketli akis, donus animasyonu komsu kanalla gorsel olarak hizalanmadan baslamaz. Kanal uzamasi genis bir aci araliginda smoothstep gecisiyle baslayarak ani parca belirmesini gizler.
 - Bagli olmayan kanallar acik ve hareketsiz gorunur.
 - Ana menudeki dekoratif akis da kaynak-kanal-bitis fikrini ayni gorsel dille anlatir.
 - Ana menu kaplumbagasi tek renk ailesinden bir kaliptir; kafa kabuktan boslukla ayrilir, kabuk hucrelerinin sinirlari menu zemini rengindedir ve kafa/yuzgecler kabugun farkli tonunu kullanir.
