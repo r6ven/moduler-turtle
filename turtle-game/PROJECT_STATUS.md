@@ -96,7 +96,7 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Guncel sanat yonu sicak keten/kum zemin, petrol mavisi su, hardal-turuncu vurgu, zeytin yesili bitki ve toprak-kahve golge paletidir.
 - Aktif, bagli/cozulmus ve pasif taslar farkli materyal ve renk durumlarina sahiptir.
 - Kanal cizimi hex siniri icinde kirpilir; kanal yatagi, su ve yuzey parlakligi katmanlari vardir.
-- Her kanal kolu tek basina tam olarak hexin ust yuzey sinirinda duz biter ve yan yuzey/golge alanina gecmez. Iki komsu kanal agzi birbirine yaklastikca kollar merkezden ortak orta noktaya yumusakca uzar. Hizalama tamamlandiginda iki yarim cizim yerine komsu merkezleri arasinda govde, parlaklik ve akisi paylasan tek kanal cizilir; hex kenarinda veya orta noktada ek yeri kalmaz.
+- Her kanal kolu tek basina tam olarak hexin ust yuzey sinirinda duz biter ve yan yuzey/golge alanina gecmez. Iki komsu kanal agzi birbirine yaklastikca kollar hex kenarlarindan ortak orta noktaya yumusakca uzar. Hizalama tamamlandiginda sinir boslugu, iki tasin kenarindan kontrollu miktarda iceri giren tek bir baglanti govdesiyle kapanir; bu govde hex merkezindeki yerel kanal birlesimini yeniden boyamaz.
 - Kum lekeleri, kum taneleri, taslar, cimenler ve yabani cicekler seeded rastgele dagitilir.
 - Dekor sayisi kontrolludur; bazi hexler bos kalabilir, tek bir hexte asiri yigilma olusmaz.
 - Bagli hexlerde cimen miktari hafif artar ve cimenlerin bir kismi ciceklenir.

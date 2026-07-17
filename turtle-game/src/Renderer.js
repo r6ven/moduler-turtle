@@ -1102,7 +1102,6 @@ export class Renderer {
       channels.push({
         angle: (i - 1) * Math.PI / 3 + tile.visualRotation * Math.PI / 3,
         active,
-        connectionStrength: visualConnection.strength,
         length: faceDistance,
         flowSeed: (
           this.getTileSeed(tile) ^ Math.imul(i + 1, 0x9e3779b1)
@@ -1163,13 +1162,27 @@ export class Renderer {
     );
 
     channels.forEach((channel) => {
-      if (channel.connectionStrength > 0) return;
-
       this.drawWaterSurfaceSheen(
         ctx,
         Math.min(channel.length, faceDistance),
         channel.angle,
         channel.active
+      );
+
+      if (!channel.active) return;
+
+      this.drawFlowDash(
+        ctx,
+        channel.length,
+        channel.angle,
+        channel.direction,
+        channel.flowSeed
+      );
+      this.drawWaterBubbles(
+        ctx,
+        channel.length,
+        channel.angle,
+        channel.direction
       );
     });
 
@@ -1180,6 +1193,7 @@ export class Renderer {
       entries.map((entry) => [tileKey(entry.tile.q, entry.tile.r), entry])
     );
     const faceDistance = (radius - 2) * Math.cos(Math.PI / 6);
+    const boundaryOverlap = 11;
 
     entries.forEach((entry) => {
       const tile = entry.tile;
@@ -1246,6 +1260,30 @@ export class Renderer {
           x: neighborState.x,
           y: neighborState.y - neighborState.lift
         };
+        const currentInner = {
+          x:
+            currentCenter.x +
+            currentState.actionScale *
+              (faceDistance - boundaryOverlap) *
+              Math.cos(currentAngle),
+          y:
+            currentCenter.y +
+            currentState.actionScale *
+              (faceDistance - boundaryOverlap) *
+              Math.sin(currentAngle)
+        };
+        const neighborInner = {
+          x:
+            neighborCenter.x +
+            neighborState.actionScale *
+              (faceDistance - boundaryOverlap) *
+              Math.cos(neighborAngle),
+          y:
+            neighborCenter.y +
+            neighborState.actionScale *
+              (faceDistance - boundaryOverlap) *
+              Math.sin(neighborAngle)
+        };
         const midpoint = {
           x: (start.x + end.x) * 0.5,
           y: (start.y + end.y) * 0.5
@@ -1271,68 +1309,33 @@ export class Renderer {
           visualConnection.matched &&
           visualConnection.dir === currentFinalDir &&
           PuzzleValidator.isExitMatched(tile, currentFinalDir, grid);
-        const currentDepth = flowState.depths.get(currentKey);
-        const neighborDepth = flowState.depths.get(neighborKey);
-        const currentOrder = flowState.orders.get(currentKey);
-        const neighborOrder = flowState.orders.get(neighborKey);
-        const flowDirection = logicalMatch && connected
-          ? this.getFlowDirection(
-              currentKey,
-              neighborKey,
-              currentDepth,
-              neighborDepth,
-              currentOrder,
-              neighborOrder
-            )
-          : 0;
-        const currentSeed = (
-          this.getTileSeed(tile) ^ Math.imul(exitIndex + 1, 0x9e3779b1)
-        ) >>> 0;
-        const neighborSeed = (
-          this.getTileSeed(neighbor) ^
-          Math.imul(visualConnection.neighborExitIndex + 1, 0x9e3779b1)
-        ) >>> 0;
-
         if (visualConnection.matched && logicalMatch) {
-          this.drawContinuousWaterBranch(
+          this.drawWaterConnectionSpan(
             ctx,
-            currentCenter,
-            neighborCenter,
-            connected,
-            flowDirection,
-            currentSeed
+            currentInner,
+            neighborInner,
+            connected
           );
           return;
         }
 
-        this.drawContinuousWaterBranch(
+        this.drawWaterConnectionSpan(
           ctx,
-          currentCenter,
+          currentInner,
           currentTarget,
-          flowState.keys.has(currentKey),
-          flowDirection,
-          currentSeed
+          flowState.keys.has(currentKey)
         );
-        this.drawContinuousWaterBranch(
+        this.drawWaterConnectionSpan(
           ctx,
-          neighborCenter,
+          neighborInner,
           neighborTarget,
-          flowState.keys.has(neighborKey),
-          -flowDirection,
-          neighborSeed
+          flowState.keys.has(neighborKey)
         );
       });
     });
   }
 
-  drawContinuousWaterBranch(
-    ctx,
-    start,
-    end,
-    connected,
-    flowDirection,
-    flowSeed
-  ) {
+  drawWaterConnectionSpan(ctx, start, end, connected) {
     const layers = connected
       ? [
           [18, CONFIG.colors.channelBedShadow],
@@ -1365,25 +1368,22 @@ export class Renderer {
     const offsetX = Math.cos(normalAngle) * sheenOffset;
     const offsetY = Math.sin(normalAngle) * sheenOffset;
 
-    ctx.beginPath();
-    ctx.moveTo(
-      start.x + 8 * Math.cos(angle) + offsetX,
-      start.y + 8 * Math.sin(angle) + offsetY
-    );
-    ctx.lineTo(end.x + offsetX, end.y + offsetY);
-    ctx.globalAlpha = connected ? 0.34 : 0.21;
-    ctx.lineWidth = connected ? 1.35 : 1.05;
-    ctx.strokeStyle = CONFIG.colors.waterHighlight;
-    ctx.stroke();
-    ctx.restore();
-
-    if (flowDirection !== 0 && length > 8) {
-      ctx.save();
-      ctx.translate(start.x, start.y);
-      this.drawFlowDash(ctx, length, angle, flowDirection, flowSeed);
-      this.drawWaterBubbles(ctx, length, angle, flowDirection);
-      ctx.restore();
+    if (length > 16) {
+      ctx.beginPath();
+      ctx.moveTo(
+        start.x + 8 * Math.cos(angle) + offsetX,
+        start.y + 8 * Math.sin(angle) + offsetY
+      );
+      ctx.lineTo(
+        end.x - 8 * Math.cos(angle) + offsetX,
+        end.y - 8 * Math.sin(angle) + offsetY
+      );
+      ctx.globalAlpha = connected ? 0.34 : 0.21;
+      ctx.lineWidth = connected ? 1.35 : 1.05;
+      ctx.strokeStyle = CONFIG.colors.waterHighlight;
+      ctx.stroke();
     }
+    ctx.restore();
   }
 
   drawWaterPortals(ctx, entries, radius, flowState) {
