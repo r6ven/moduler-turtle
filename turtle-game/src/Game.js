@@ -21,6 +21,8 @@ export class Game {
 
     this.level = 1;
     this.hexRadius = CONFIG.desktopHexRadius;
+    this.displaySize = 1;
+    this.pixelRatio = 1;
     this.grid = {};
     this.levelCompleted = false;
     this.menuOpen = true;
@@ -272,6 +274,8 @@ export class Game {
       averageFrameMs: Number(this.performanceState.averageFrameMs.toFixed(2)),
       sampleCount: this.performanceState.frameTimes.length,
       renderScale: this.getQualityProfile().renderScale,
+      pixelRatio: this.pixelRatio,
+      devicePixelRatio: Number((window.devicePixelRatio || 1).toFixed(2)),
       canvasWidth: this.canvas.width,
       canvasHeight: this.canvas.height,
       cssWidth: this.canvas.getBoundingClientRect().width,
@@ -284,6 +288,7 @@ export class Game {
     this.canvas.dataset.quality = this.performanceState.qualityName;
     this.canvas.dataset.averageFps = this.performanceState.averageFps.toFixed(1);
     this.canvas.dataset.renderScale = String(this.getQualityProfile().renderScale);
+    this.canvas.dataset.pixelRatio = this.pixelRatio.toFixed(2);
   }
 
   hasPlayableSession() {
@@ -325,20 +330,29 @@ export class Game {
       CONFIG.canvasMaxSize
     );
     const profile = this.getQualityProfile();
-    const renderScale = profile.renderScale;
+    const devicePixelRatio = Math.max(1, window.devicePixelRatio || 1);
+    const pixelRatio = Math.max(
+      1,
+      Math.min(
+        profile.maxPixelRatio || 2,
+        devicePixelRatio * profile.renderScale
+      )
+    );
     const previousHexRadius = this.hexRadius;
-    const size = Math.max(1, Math.round(displaySize * renderScale));
+    const size = Math.max(1, Math.round(displaySize * pixelRatio));
 
     this.canvas.width = size;
     this.canvas.height = size;
     this.canvas.style.width = `${displaySize}px`;
     this.canvas.style.height = `${displaySize}px`;
+    this.displaySize = displaySize;
+    this.pixelRatio = pixelRatio;
 
     const baseHexRadius = window.innerWidth < CONFIG.mobileBreakpoint
       ? CONFIG.mobileHexRadius
       : CONFIG.desktopHexRadius;
 
-    this.hexRadius = baseHexRadius * renderScale;
+    this.hexRadius = baseHexRadius;
 
     if (previousHexRadius > 0 && previousHexRadius !== this.hexRadius) {
       const coordinateScale = this.hexRadius / previousHexRadius;
@@ -348,6 +362,7 @@ export class Game {
     }
 
     this.turtle.syncToTile(this.hexRadius, false);
+    this.renderer.setViewport(displaySize, displaySize, pixelRatio);
     this.renderer.invalidateGrid();
     this.renderer.resetClock();
   }
@@ -594,7 +609,7 @@ export class Game {
     this.levelCompleted = true;
 
     this.audio.play("success");
-    this.particles.createCelebration(this.canvas.width, this.canvas.height);
+    this.particles.createCelebration(this.displaySize, this.displaySize);
 
     const result = this.progress.completeCurrentLevel();
 

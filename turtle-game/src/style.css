@@ -82,6 +82,7 @@ canvas {
   max-height: 100%;
   background: transparent;
   touch-action: none;
+  image-rendering: auto;
 }
 
 #ui-layer {

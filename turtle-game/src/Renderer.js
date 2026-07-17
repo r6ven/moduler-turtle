@@ -11,6 +11,9 @@ export class Renderer {
     this.tileSurfaceCache = new Map();
     this.flowStreakCache = new Map();
     this.quality = CONFIG.performance.profiles.high;
+    this.logicalWidth = canvas.width || 1;
+    this.logicalHeight = canvas.height || 1;
+    this.pixelRatio = 1;
     this.tileLayoutCache = {
       grid: null,
       radius: 0,
@@ -27,6 +30,19 @@ export class Renderer {
 
   setQuality(profile) {
     this.quality = profile || CONFIG.performance.profiles.high;
+  }
+
+  setViewport(width, height, pixelRatio = 1) {
+    const nextRatio = Math.max(1, Number(pixelRatio) || 1);
+    const ratioChanged = Math.abs(nextRatio - this.pixelRatio) > 0.001;
+
+    this.logicalWidth = Math.max(1, Number(width) || 1);
+    this.logicalHeight = Math.max(1, Number(height) || 1);
+    this.pixelRatio = nextRatio;
+
+    if (ratioChanged) {
+      this.tileSurfaceCache.clear();
+    }
   }
 
   resetClock(timestamp = performance.now()) {
@@ -53,10 +69,14 @@ export class Renderer {
 
     this.lastFrameTime = now;
 
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
     ctx.save();
-    ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
+    ctx.scale(this.pixelRatio, this.pixelRatio);
+    ctx.translate(this.logicalWidth / 2, this.logicalHeight / 2);
 
     const flowState = this.getFlowState(grid);
     const tiles = this.getTileLayout(grid, hexRadius);
@@ -275,11 +295,14 @@ export class Renderer {
 
   drawTileSurface(ctx, radius, tile, connected) {
     const surface = this.getTileSurface(radius, tile, connected);
+    const logicalSize = surface.logicalSize || surface.width / this.pixelRatio;
 
     ctx.drawImage(
       surface,
-      -surface.width / 2,
-      -surface.height / 2
+      -logicalSize / 2,
+      -logicalSize / 2,
+      logicalSize,
+      logicalSize
     );
   }
 
@@ -294,6 +317,7 @@ export class Renderer {
     const cacheKey = [
       Math.round(radius * 10),
       state,
+      Math.round(this.pixelRatio * 100),
       tile.decorSeed,
       tile.q,
       tile.r
@@ -305,12 +329,17 @@ export class Renderer {
 
     const padding = 5;
     const size = Math.ceil((radius + padding) * 2);
+    const pixelSize = Math.max(1, Math.ceil(size * this.pixelRatio));
     const surface = document.createElement("canvas");
     const surfaceCtx = surface.getContext("2d");
 
-    surface.width = size;
-    surface.height = size;
+    surface.width = pixelSize;
+    surface.height = pixelSize;
+    surface.logicalSize = size;
 
+    surfaceCtx.imageSmoothingEnabled = true;
+    surfaceCtx.imageSmoothingQuality = "high";
+    surfaceCtx.scale(this.pixelRatio, this.pixelRatio);
     surfaceCtx.translate(size / 2, size / 2);
     this.paintTileSurface(surfaceCtx, radius, tile, connected);
     this.tileSurfaceCache.set(cacheKey, surface);
@@ -370,20 +399,58 @@ export class Renderer {
 
   drawTileTexture(ctx, radius, tile) {
     const seed = this.getTileSeed(tile);
+    const random = this.createSeededRandom(seed ^ 0xa53a9e37);
+
+    ctx.save();
+
+    for (let i = 0; i < 3; i += 1) {
+      const angle = random() * Math.PI * 2;
+      const distance = radius * (0.08 + random() * 0.42);
+      const x = Math.cos(angle) * distance;
+      const y = Math.sin(angle) * distance;
+      const patchRadius = radius * (0.16 + random() * 0.1);
+      const patch = ctx.createRadialGradient(x, y, 0, x, y, patchRadius);
+
+      patch.addColorStop(0, i % 2 === 0
+        ? CONFIG.colors.tileTextureLight
+        : CONFIG.colors.tileTextureShade);
+      patch.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+      ctx.fillStyle = patch;
+      ctx.beginPath();
+      ctx.arc(x, y, patchRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     ctx.fillStyle = CONFIG.colors.tileTexture;
 
-    for (let i = 0; i < 5; i += 1) {
-      const angle = (seed * 0.19 + i * 1.37) % (Math.PI * 2);
-      const distance = radius * (0.27 + ((seed + i * 11) % 18) / 100);
+    for (let i = 0; i < 18; i += 1) {
+      const angle = random() * Math.PI * 2;
+      const distance = radius * Math.sqrt(random()) * 0.72;
       const x = Math.cos(angle) * distance;
       const y = Math.sin(angle) * distance;
-      const dotRadius = 0.7 + ((seed + i * 7) % 5) * 0.13;
+      const dotRadius = 0.28 + random() * 0.62;
 
+      ctx.globalAlpha = 0.34 + random() * 0.5;
       ctx.beginPath();
       ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
       ctx.fill();
     }
+
+    ctx.globalAlpha = 0.22;
+    ctx.strokeStyle = CONFIG.colors.tileTextureShade;
+    ctx.lineWidth = 0.45;
+
+    for (let i = 0; i < 4; i += 1) {
+      const x = (random() - 0.5) * radius * 0.85;
+      const y = (random() - 0.5) * radius * 0.68;
+
+      ctx.beginPath();
+      ctx.arc(x, y, 1.8 + random() * 3.2, 0.15, 1.25);
+      ctx.stroke();
+    }
+
+    ctx.restore();
   }
 
   drawIslandDecorations(ctx, radius, tile, connected) {
@@ -957,7 +1024,9 @@ export class Renderer {
         18,
         channel.active
           ? CONFIG.colors.channelBedActive
-          : CONFIG.colors.channelBedIdle
+          : CONFIG.colors.channelBedIdle,
+        "bed",
+        channel.active
       );
     });
 
@@ -969,7 +1038,9 @@ export class Renderer {
         12,
         channel.active
           ? CONFIG.colors.matchedWater
-          : CONFIG.colors.idleWater
+          : CONFIG.colors.idleWater,
+        "water",
+        channel.active
       );
     });
 
@@ -1020,11 +1091,40 @@ export class Renderer {
     return currentKey.localeCompare(neighborKey) < 0 ? 1 : -1;
   }
 
-  drawChannelLine(ctx, channelLength, angle, width, color) {
+  drawChannelLine(ctx, channelLength, angle, width, color, layer = "flat", active = false) {
     ctx.save();
     ctx.lineWidth = width;
     ctx.lineCap = "round";
-    ctx.strokeStyle = color;
+
+    if (layer === "water") {
+      const normalAngle = angle + Math.PI / 2;
+      const halfWidth = width * 0.5;
+      const normalX = Math.cos(normalAngle) * halfWidth;
+      const normalY = Math.sin(normalAngle) * halfWidth;
+      const waterGradient = ctx.createLinearGradient(
+        -normalX,
+        -normalY,
+        normalX,
+        normalY
+      );
+
+      waterGradient.addColorStop(
+        0,
+        active ? CONFIG.colors.matchedWaterDeep : CONFIG.colors.idleWaterDeep
+      );
+      waterGradient.addColorStop(0.28, color);
+      waterGradient.addColorStop(
+        0.58,
+        active ? CONFIG.colors.matchedWaterLight : CONFIG.colors.idleWaterLight
+      );
+      waterGradient.addColorStop(1, color);
+      ctx.strokeStyle = waterGradient;
+    } else {
+      ctx.strokeStyle = layer === "bed" && active
+        ? CONFIG.colors.channelBedShadow
+        : color;
+    }
+
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(
@@ -1096,13 +1196,13 @@ export class Renderer {
 
   drawWaterSurfaceSheen(ctx, channelLength, angle, active) {
     ctx.save();
-    ctx.globalAlpha = active ? 0.3 : 0.2;
-    ctx.lineWidth = active ? 2.4 : 1.8;
+    ctx.globalAlpha = active ? 0.38 : 0.24;
+    ctx.lineWidth = active ? 1.7 : 1.25;
     ctx.lineCap = "round";
     ctx.strokeStyle = CONFIG.colors.waterHighlight;
 
     const normalAngle = angle - Math.PI / 2;
-    const offset = active ? 1.6 : 1.2;
+    const offset = active ? 1.8 : 1.35;
     const offsetX = Math.cos(normalAngle) * offset;
     const offsetY = Math.sin(normalAngle) * offset;
 

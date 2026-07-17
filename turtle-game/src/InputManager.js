@@ -18,11 +18,8 @@ export class InputManager {
 
   clientToHex(clientX, clientY) {
     const rect = this.canvas.getBoundingClientRect();
-    const scaleX = this.canvas.width / rect.width;
-    const scaleY = this.canvas.height / rect.height;
-
-    const mouseX = ((clientX - rect.left) * scaleX) - this.canvas.width / 2;
-    const mouseY = ((clientY - rect.top) * scaleY) - this.canvas.height / 2;
+    const mouseX = (clientX - rect.left) - rect.width / 2;
+    const mouseY = (clientY - rect.top) - rect.height / 2;
 
     return pixelToHex(mouseX, mouseY, this.getHexRadius());
   }

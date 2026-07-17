@@ -104,6 +104,8 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Tas yukseltme, 60 derece donus, golge genislemesi ve yerine oturma animasyonu vardir.
 - Ayni tas animasyon bitmeden tekrar dondurulemez; diger taslarla etkilesim devam eder.
 - Cizim ve animasyonlar frame delta ile ilerler; baglanti ve yuzey sonuc cache'leri kullanilir.
+- Ana Canvas ve onbellege alinan hex yuzeyleri cihaz piksel oranina gore 1x-2x backing resolution ile uretilir; yuksek DPI ekranlarda tarayici tarafindan buyutulmus dusuk cozunurluklu doku kullanilmaz.
+- Kum yuzeyinde cok olcekli mikro taneler, yumusak ton kirilmalari ve ince izler; suda koyu kanal kenari, turkuaz govde, aydinlik merkez ve ince yansima katmanlari vardir.
 
 ### 4.4 Su sistemi
 
@@ -185,6 +187,7 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Kalite profilleri puzzle geometrisini degil, Canvas ic cozunurlugunu, su izi/kabarcik sayisini, parcacik yogunlugunu ve wake izi orneklemesini ayarlar.
 - Degismeyen tile yerlesimi ve akis baglantisi cache'lenir; baglanti cache'i yalnizca tas rotasyonunda veya yeni gridde gecersiz olur.
 - Menu acikken arka plan Canvas'i profile gore 20-30 FPS ile sinirlanir.
+- Uyarlanabilir kalite dususu hex geometrisini veya dokunma koordinatini kucultmez; yalnizca backing piksel yogunlugu, parcacik ve su efekti sayisini kontrollu azaltir.
 - Sekme gizlendiginde oyun guncellemeleri ve aktif sure durur; geri donuste animasyon saatleri sifirlanir.
 - HUD zaman metni her kare yerine yalnizca saniye degistiginde guncellenir.
 - Parcacik hareketi frame delta ile ilerler; dusuk FPS'te animasyon suresi uzamaz.

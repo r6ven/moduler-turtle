@@ -28,6 +28,7 @@ export const CONFIG = {
     profiles: {
       high: {
         renderScale: 1,
+        maxPixelRatio: 2,
         flowStreakCount: 3,
         bubbleCount: 2,
         particleScale: 1,
@@ -35,7 +36,8 @@ export const CONFIG = {
         menuFps: 30
       },
       medium: {
-        renderScale: 0.9,
+        renderScale: 0.86,
+        maxPixelRatio: 1.6,
         flowStreakCount: 2,
         bubbleCount: 1,
         particleScale: 0.66,
@@ -43,7 +45,8 @@ export const CONFIG = {
         menuFps: 24
       },
       low: {
-        renderScale: 0.78,
+        renderScale: 0.72,
+        maxPixelRatio: 1.25,
         flowStreakCount: 1,
         bubbleCount: 0,
         particleScale: 0.4,
@@ -100,6 +103,8 @@ export const CONFIG = {
     solvedTileSide: "#6f873d",
     tileHighlight: "rgba(255, 249, 229, 0.82)",
     tileTexture: "rgba(122, 73, 62, 0.12)",
+    tileTextureLight: "rgba(255, 250, 231, 0.28)",
+    tileTextureShade: "rgba(113, 78, 54, 0.085)",
     sandSpeck: "rgba(143, 105, 73, 0.42)",
     stoneTop: "#aaa493",
     stoneShade: "#746b5f",
@@ -114,8 +119,13 @@ export const CONFIG = {
     wildflowerWhite: "#fff8e8",
     channelBedIdle: "#7f9997",
     channelBedActive: "#176e78",
+    channelBedShadow: "#10555e",
     matchedWater: "#168f9c",
+    matchedWaterDeep: "#0b6d78",
+    matchedWaterLight: "#4fb8b8",
     idleWater: "#75bec0",
+    idleWaterDeep: "#4d979a",
+    idleWaterLight: "#a8d9d3",
     waterHighlight: "rgba(255, 248, 232, 0.80)",
     turtleWaterShadow: "rgba(25, 100, 105, 0.38)",
     turtleWake: "rgba(244, 249, 224, 0.80)",
