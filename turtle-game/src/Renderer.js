@@ -121,11 +121,17 @@ export class Renderer {
       this.drawHexWaterLayer(ctx, entry, hexRadius, grid, flowState);
     });
 
-    this.drawWaterConnectionExtensions(
+    this.drawWaterConnections(
       ctx,
       [...stableTiles, ...liftedTiles],
       hexRadius,
       grid,
+      flowState
+    );
+    this.drawWaterPortals(
+      ctx,
+      [...stableTiles, ...liftedTiles],
+      hexRadius,
       flowState
     );
 
@@ -1096,6 +1102,7 @@ export class Renderer {
       channels.push({
         angle: (i - 1) * Math.PI / 3 + tile.visualRotation * Math.PI / 3,
         active,
+        connectionStrength: visualConnection.strength,
         length: faceDistance,
         flowSeed: (
           this.getTileSeed(tile) ^ Math.imul(i + 1, 0x9e3779b1)
@@ -1156,6 +1163,8 @@ export class Renderer {
     );
 
     channels.forEach((channel) => {
+      if (channel.connectionStrength > 0) return;
+
       this.drawWaterSurfaceSheen(
         ctx,
         Math.min(channel.length, faceDistance),
@@ -1164,28 +1173,9 @@ export class Renderer {
       );
     });
 
-    this.drawWaterPortal(ctx, tile, currentConnected);
-
-    channels.forEach((channel) => {
-      if (channel.active) {
-        this.drawFlowDash(
-          ctx,
-          channel.length,
-          channel.angle,
-          channel.direction,
-          channel.flowSeed
-        );
-        this.drawWaterBubbles(
-          ctx,
-          channel.length,
-          channel.angle,
-          channel.direction
-        );
-      }
-    });
   }
 
-  drawWaterConnectionExtensions(ctx, entries, radius, grid, flowState) {
+  drawWaterConnections(ctx, entries, radius, grid, flowState) {
     const entryByKey = new Map(
       entries.map((entry) => [tileKey(entry.tile.q, entry.tile.r), entry])
     );
@@ -1248,6 +1238,14 @@ export class Renderer {
         };
         const connected =
           flowState.keys.has(currentKey) && flowState.keys.has(neighborKey);
+        const currentCenter = {
+          x: currentState.x,
+          y: currentState.y - currentState.lift
+        };
+        const neighborCenter = {
+          x: neighborState.x,
+          y: neighborState.y - neighborState.lift
+        };
         const midpoint = {
           x: (start.x + end.x) * 0.5,
           y: (start.y + end.y) * 0.5
@@ -1268,14 +1266,73 @@ export class Renderer {
             end.y +
             (midpoint.y - end.y) * visualConnection.strength
         };
+        const currentFinalDir = (exitIndex + tile.rotation) % 6;
+        const logicalMatch =
+          visualConnection.matched &&
+          visualConnection.dir === currentFinalDir &&
+          PuzzleValidator.isExitMatched(tile, currentFinalDir, grid);
+        const currentDepth = flowState.depths.get(currentKey);
+        const neighborDepth = flowState.depths.get(neighborKey);
+        const currentOrder = flowState.orders.get(currentKey);
+        const neighborOrder = flowState.orders.get(neighborKey);
+        const flowDirection = logicalMatch && connected
+          ? this.getFlowDirection(
+              currentKey,
+              neighborKey,
+              currentDepth,
+              neighborDepth,
+              currentOrder,
+              neighborOrder
+            )
+          : 0;
+        const currentSeed = (
+          this.getTileSeed(tile) ^ Math.imul(exitIndex + 1, 0x9e3779b1)
+        ) >>> 0;
+        const neighborSeed = (
+          this.getTileSeed(neighbor) ^
+          Math.imul(visualConnection.neighborExitIndex + 1, 0x9e3779b1)
+        ) >>> 0;
 
-        this.drawWaterExtension(ctx, start, currentTarget, connected);
-        this.drawWaterExtension(ctx, end, neighborTarget, connected);
+        if (visualConnection.matched && logicalMatch) {
+          this.drawContinuousWaterBranch(
+            ctx,
+            currentCenter,
+            neighborCenter,
+            connected,
+            flowDirection,
+            currentSeed
+          );
+          return;
+        }
+
+        this.drawContinuousWaterBranch(
+          ctx,
+          currentCenter,
+          currentTarget,
+          flowState.keys.has(currentKey),
+          flowDirection,
+          currentSeed
+        );
+        this.drawContinuousWaterBranch(
+          ctx,
+          neighborCenter,
+          neighborTarget,
+          flowState.keys.has(neighborKey),
+          -flowDirection,
+          neighborSeed
+        );
       });
     });
   }
 
-  drawWaterExtension(ctx, start, end, connected) {
+  drawContinuousWaterBranch(
+    ctx,
+    start,
+    end,
+    connected,
+    flowDirection,
+    flowSeed
+  ) {
     const layers = connected
       ? [
           [18, CONFIG.colors.channelBedShadow],
@@ -1301,6 +1358,7 @@ export class Renderer {
     });
 
     const angle = Math.atan2(end.y - start.y, end.x - start.x);
+    const length = Math.hypot(end.x - start.x, end.y - start.y);
     const axisAngle = ((angle % Math.PI) + Math.PI) % Math.PI;
     const normalAngle = axisAngle - Math.PI / 2;
     const sheenOffset = connected ? 1.8 : 1.35;
@@ -1308,13 +1366,43 @@ export class Renderer {
     const offsetY = Math.sin(normalAngle) * sheenOffset;
 
     ctx.beginPath();
-    ctx.moveTo(start.x + offsetX, start.y + offsetY);
+    ctx.moveTo(
+      start.x + 8 * Math.cos(angle) + offsetX,
+      start.y + 8 * Math.sin(angle) + offsetY
+    );
     ctx.lineTo(end.x + offsetX, end.y + offsetY);
     ctx.globalAlpha = connected ? 0.34 : 0.21;
     ctx.lineWidth = connected ? 1.35 : 1.05;
     ctx.strokeStyle = CONFIG.colors.waterHighlight;
     ctx.stroke();
     ctx.restore();
+
+    if (flowDirection !== 0 && length > 8) {
+      ctx.save();
+      ctx.translate(start.x, start.y);
+      this.drawFlowDash(ctx, length, angle, flowDirection, flowSeed);
+      this.drawWaterBubbles(ctx, length, angle, flowDirection);
+      ctx.restore();
+    }
+  }
+
+  drawWaterPortals(ctx, entries, radius, flowState) {
+    entries.forEach((entry) => {
+      const state = this.getHexRenderState(entry, radius);
+      const tile = state.tile;
+
+      if (!tile.active || (!tile.source && !tile.sink)) return;
+
+      ctx.save();
+      ctx.translate(state.x, state.y - state.lift);
+      ctx.scale(state.actionScale, state.actionScale);
+      this.drawWaterPortal(
+        ctx,
+        tile,
+        flowState.keys.has(tileKey(tile.q, tile.r))
+      );
+      ctx.restore();
+    });
   }
 
   getVisualConnection(tile, exitIndex, grid) {
