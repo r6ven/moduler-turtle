@@ -246,7 +246,7 @@ export class Renderer {
 
     if (tile.active) {
       ctx.save();
-      this.drawHexShape(ctx, surfaceRadius - 0.5);
+      this.drawHexShape(ctx, radius + 3);
       ctx.clip();
       this.drawWaterChannels(ctx, radius, tile, grid, flowState);
       ctx.restore();
@@ -978,7 +978,9 @@ export class Renderer {
   }
 
   drawWaterChannels(ctx, radius, tile, grid, flowState) {
-    const channelLength = radius * Math.cos(Math.PI / 6) + 2;
+    const faceDistance = radius * Math.cos(Math.PI / 6);
+    const matchedChannelLength = faceDistance + 2.5;
+    const closedChannelLength = Math.max(12, faceDistance - 10.5);
     const currentKey = tileKey(tile.q, tile.r);
     const currentConnected = flowState.keys.has(currentKey);
     const currentDepth = flowState.depths.get(currentKey);
@@ -1000,6 +1002,7 @@ export class Renderer {
       channels.push({
         angle: (i - 1) * Math.PI / 3 + tile.visualRotation * Math.PI / 3,
         active,
+        length: matched ? matchedChannelLength : closedChannelLength,
         flowSeed: (
           this.getTileSeed(tile) ^ Math.imul(i + 1, 0x9e3779b1)
         ) >>> 0,
@@ -1022,14 +1025,12 @@ export class Renderer {
     this.drawChannelNetwork(
       ctx,
       idleChannels,
-      channelLength,
       18,
       CONFIG.colors.channelBedIdle
     );
     this.drawChannelNetwork(
       ctx,
       filledChannels,
-      channelLength,
       18,
       CONFIG.colors.channelBedShadow
     );
@@ -1037,14 +1038,12 @@ export class Renderer {
     this.drawChannelNetwork(
       ctx,
       idleChannels,
-      channelLength,
       12,
       CONFIG.colors.idleWaterDeep
     );
     this.drawChannelNetwork(
       ctx,
       filledChannels,
-      channelLength,
       12,
       CONFIG.colors.matchedWaterDeep
     );
@@ -1052,14 +1051,12 @@ export class Renderer {
     this.drawChannelNetwork(
       ctx,
       idleChannels,
-      channelLength,
       9,
       CONFIG.colors.idleWater
     );
     this.drawChannelNetwork(
       ctx,
       filledChannels,
-      channelLength,
       9,
       CONFIG.colors.matchedWater
     );
@@ -1067,7 +1064,7 @@ export class Renderer {
     channels.forEach((channel) => {
       this.drawWaterSurfaceSheen(
         ctx,
-        channelLength,
+        channel.length,
         channel.angle,
         channel.active
       );
@@ -1079,14 +1076,14 @@ export class Renderer {
       if (channel.active) {
         this.drawFlowDash(
           ctx,
-          channelLength,
+          channel.length,
           channel.angle,
           channel.direction,
           channel.flowSeed
         );
         this.drawWaterBubbles(
           ctx,
-          channelLength,
+          channel.length,
           channel.angle,
           channel.direction
         );
@@ -1111,7 +1108,7 @@ export class Renderer {
     return currentKey.localeCompare(neighborKey) < 0 ? 1 : -1;
   }
 
-  drawChannelNetwork(ctx, channels, channelLength, width, color) {
+  drawChannelNetwork(ctx, channels, width, color) {
     if (channels.length === 0) return;
 
     ctx.save();
@@ -1124,8 +1121,8 @@ export class Renderer {
     channels.forEach((channel) => {
       ctx.moveTo(0, 0);
       ctx.lineTo(
-        channelLength * Math.cos(channel.angle),
-        channelLength * Math.sin(channel.angle)
+        channel.length * Math.cos(channel.angle),
+        channel.length * Math.sin(channel.angle)
       );
     });
 
