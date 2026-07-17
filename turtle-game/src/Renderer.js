@@ -80,6 +80,7 @@ export class Renderer {
 
     const flowState = this.getFlowState(grid);
     const tiles = this.getTileLayout(grid, hexRadius);
+    const stableTiles = [];
     const liftedTiles = [];
 
     tiles.forEach((entry) => {
@@ -91,28 +92,39 @@ export class Renderer {
         return;
       }
 
-      this.drawHexagon(
-        ctx,
-        entry.x,
-        entry.y,
-        hexRadius,
-        entry.tile,
-        grid,
-        flowState
-      );
+      stableTiles.push(entry);
     });
 
     liftedTiles.sort((a, b) => a.liftWave - b.liftWave);
+
+    [...stableTiles, ...liftedTiles].forEach((entry) => {
+      this.drawHexShadowLayer(ctx, entry, hexRadius);
+    });
+
+    stableTiles.forEach((entry) => {
+      this.drawHexSideLayer(ctx, entry, hexRadius);
+    });
+    stableTiles.forEach((entry) => {
+      this.drawHexSurfaceLayer(ctx, entry, hexRadius, flowState);
+    });
+    stableTiles.forEach((entry) => {
+      this.drawHexWaterLayer(ctx, entry, hexRadius, grid, flowState);
+    });
+    stableTiles.forEach((entry) => {
+      this.drawHexDetailLayer(ctx, entry, hexRadius);
+    });
+
     liftedTiles.forEach((entry) => {
-      this.drawHexagon(
-        ctx,
-        entry.x,
-        entry.y,
-        hexRadius,
-        entry.tile,
-        grid,
-        flowState
-      );
+      this.drawHexSideLayer(ctx, entry, hexRadius);
+    });
+    liftedTiles.forEach((entry) => {
+      this.drawHexSurfaceLayer(ctx, entry, hexRadius, flowState);
+    });
+    liftedTiles.forEach((entry) => {
+      this.drawHexWaterLayer(ctx, entry, hexRadius, grid, flowState);
+    });
+    liftedTiles.forEach((entry) => {
+      this.drawHexDetailLayer(ctx, entry, hexRadius);
     });
 
     this.drawTurtle(ctx, turtle, hexRadius);
@@ -221,39 +233,105 @@ export class Renderer {
     return depths;
   }
 
-  drawHexagon(ctx, x, y, radius, tile, grid, flowState) {
+  getHexRenderState(entry, radius) {
+    const { tile, x, y } = entry;
     const liftWave = tile.getLiftWave();
     const lift = tile.active ? liftWave * 10 : 0;
     const actionScale = tile.active ? 1 + liftWave * 0.032 : 1;
     const surfaceRadius = radius - 2;
     const glowRadius = radius + tile.hintGlow * 12;
-    const currentConnected = flowState.keys.has(tileKey(tile.q, tile.r));
 
-    this.drawTileShadow(ctx, x, y, radius, tile, liftWave);
-    this.drawTileSide(ctx, x, y - lift, surfaceRadius, tile, liftWave);
+    return {
+      tile,
+      x,
+      y,
+      liftWave,
+      lift,
+      actionScale,
+      surfaceRadius,
+      glowRadius
+    };
+  }
+
+  drawHexShadowLayer(ctx, entry, radius) {
+    const state = this.getHexRenderState(entry, radius);
+
+    this.drawTileShadow(
+      ctx,
+      state.x,
+      state.y,
+      radius,
+      state.tile,
+      state.liftWave
+    );
+  }
+
+  drawHexSideLayer(ctx, entry, radius) {
+    const state = this.getHexRenderState(entry, radius);
+
+    this.drawTileSide(
+      ctx,
+      state.x,
+      state.y - state.lift,
+      state.surfaceRadius,
+      state.tile,
+      state.liftWave
+    );
+  }
+
+  drawHexSurfaceLayer(ctx, entry, radius, flowState) {
+    const state = this.getHexRenderState(entry, radius);
+    const currentConnected = flowState.keys.has(
+      tileKey(state.tile.q, state.tile.r)
+    );
 
     ctx.save();
-    ctx.translate(x, y - lift);
-    ctx.scale(actionScale, actionScale);
+    ctx.translate(state.x, state.y - state.lift);
+    ctx.scale(state.actionScale, state.actionScale);
 
-    if (tile.hintGlow > 0) {
-      this.drawHexShape(ctx, glowRadius);
-      ctx.fillStyle = `rgba(255, 213, 79, ${tile.hintGlow * 0.18})`;
+    if (state.tile.hintGlow > 0) {
+      this.drawHexShape(ctx, state.glowRadius);
+      ctx.fillStyle = `rgba(255, 213, 79, ${state.tile.hintGlow * 0.18})`;
       ctx.fill();
     }
 
-    this.drawTileSurface(ctx, surfaceRadius, tile, currentConnected);
+    this.drawTileSurface(
+      ctx,
+      state.surfaceRadius,
+      state.tile,
+      currentConnected
+    );
+    ctx.restore();
+  }
 
-    if (tile.active) {
-      ctx.save();
-      this.drawHexShape(ctx, radius + 3);
-      ctx.clip();
-      this.drawWaterChannels(ctx, radius, tile, grid, flowState);
-      ctx.restore();
+  drawHexWaterLayer(ctx, entry, radius, grid, flowState) {
+    const state = this.getHexRenderState(entry, radius);
 
-      this.drawFlower(ctx, tile);
-      this.drawSettleGlow(ctx, radius, tile);
-    }
+    if (!state.tile.active) return;
+
+    ctx.save();
+    ctx.translate(state.x, state.y - state.lift);
+    ctx.scale(state.actionScale, state.actionScale);
+
+    ctx.save();
+    this.drawHexShape(ctx, radius + 3);
+    ctx.clip();
+    this.drawWaterChannels(ctx, radius, state.tile, grid, flowState);
+    ctx.restore();
+    ctx.restore();
+  }
+
+  drawHexDetailLayer(ctx, entry, radius) {
+    const state = this.getHexRenderState(entry, radius);
+
+    if (!state.tile.active) return;
+
+    ctx.save();
+    ctx.translate(state.x, state.y - state.lift);
+    ctx.scale(state.actionScale, state.actionScale);
+
+    this.drawFlower(ctx, state.tile);
+    this.drawSettleGlow(ctx, radius, state.tile);
 
     ctx.restore();
   }

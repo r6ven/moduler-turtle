@@ -92,6 +92,7 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 ### 4.3 Hex ve cevre cizimi
 
 - Hexler ust yuzey, yan yuzey, golge, parlama ve settle glow katmanlariyla cizilir.
+- Render sirasi tum harita icin global katmanlidir: once golgeler, sonra yan/ust ada yuzeyleri, ardindan su agi ve detaylar cizilir. Bu nedenle komsu bir hexin golgesi veya konturu daha once cizilmis kanalin ustune cikamaz.
 - Guncel sanat yonu sicak keten/kum zemin, petrol mavisi su, hardal-turuncu vurgu, zeytin yesili bitki ve toprak-kahve golge paletidir.
 - Aktif, bagli/cozulmus ve pasif taslar farkli materyal ve renk durumlarina sahiptir.
 - Kanal cizimi hex siniri icinde kirpilir; kanal yatagi, su ve yuzey parlakligi katmanlari vardir.
