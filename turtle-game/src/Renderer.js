@@ -1142,7 +1142,7 @@ export class Renderer {
     channels.forEach((channel) => {
       this.drawWaterSurfaceSheen(
         ctx,
-        channel.length,
+        Math.min(channel.length, faceDistance),
         channel.angle,
         channel.active
       );
@@ -1276,10 +1276,11 @@ export class Renderer {
     ctx.save();
     ctx.globalAlpha = active ? 0.34 : 0.21;
     ctx.lineWidth = active ? 1.35 : 1.05;
-    ctx.lineCap = "round";
+    ctx.lineCap = "butt";
     ctx.strokeStyle = CONFIG.colors.waterHighlight;
 
-    const normalAngle = angle - Math.PI / 2;
+    const axisAngle = ((angle % Math.PI) + Math.PI) % Math.PI;
+    const normalAngle = axisAngle - Math.PI / 2;
     const offset = active ? 1.8 : 1.35;
     const offsetX = Math.cos(normalAngle) * offset;
     const offsetY = Math.sin(normalAngle) * offset;
@@ -1290,8 +1291,8 @@ export class Renderer {
       8 * Math.sin(angle) + offsetY
     );
     ctx.lineTo(
-      channelLength * 0.88 * Math.cos(angle) + offsetX,
-      channelLength * 0.88 * Math.sin(angle) + offsetY
+      channelLength * Math.cos(angle) + offsetX,
+      channelLength * Math.sin(angle) + offsetY
     );
     ctx.stroke();
     ctx.restore();
