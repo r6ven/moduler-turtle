@@ -110,9 +110,6 @@ export class Renderer {
     stableTiles.forEach((entry) => {
       this.drawHexWaterLayer(ctx, entry, hexRadius, grid, flowState);
     });
-    stableTiles.forEach((entry) => {
-      this.drawHexDetailLayer(ctx, entry, hexRadius);
-    });
 
     liftedTiles.forEach((entry) => {
       this.drawHexSideLayer(ctx, entry, hexRadius);
@@ -122,6 +119,18 @@ export class Renderer {
     });
     liftedTiles.forEach((entry) => {
       this.drawHexWaterLayer(ctx, entry, hexRadius, grid, flowState);
+    });
+
+    this.drawWaterBridges(
+      ctx,
+      [...stableTiles, ...liftedTiles],
+      hexRadius,
+      grid,
+      flowState
+    );
+
+    stableTiles.forEach((entry) => {
+      this.drawHexDetailLayer(ctx, entry, hexRadius);
     });
     liftedTiles.forEach((entry) => {
       this.drawHexDetailLayer(ctx, entry, hexRadius);
@@ -314,7 +323,7 @@ export class Renderer {
     ctx.scale(state.actionScale, state.actionScale);
 
     ctx.save();
-    this.drawHexWaterClipShape(ctx, radius);
+    this.drawHexShape(ctx, radius - 2);
     ctx.clip();
     this.drawWaterChannels(ctx, radius, state.tile, grid, flowState);
     ctx.restore();
@@ -337,12 +346,12 @@ export class Renderer {
   }
 
   drawTileShadow(ctx, x, y, radius, tile, liftWave) {
-    const shadowOffset = tile.active ? 4 + liftWave * 6 : 3;
-    const shadowScale = 1 + liftWave * 0.045;
+    const shadowOffset = tile.active ? 1.5 + liftWave * 6 : 1;
+    const shadowScale = 1 + liftWave * 0.04;
 
     ctx.save();
-    ctx.translate(x + 2, y + shadowOffset);
-    ctx.scale(shadowScale, 1 + liftWave * 0.025);
+    ctx.translate(x + 1, y + shadowOffset);
+    ctx.scale(shadowScale, 1 + liftWave * 0.022);
     this.drawHexShape(ctx, radius - 2);
     ctx.fillStyle = tile.active
       ? CONFIG.colors.tileShadow
@@ -352,7 +361,7 @@ export class Renderer {
   }
 
   drawTileSide(ctx, x, y, radius, tile, liftWave) {
-    const sideDepth = tile.active ? 4 + liftWave * 1.5 : 2;
+    const sideDepth = tile.active ? 2 + liftWave * 1.5 : 1;
 
     ctx.save();
     ctx.translate(x, y + sideDepth);
@@ -1024,12 +1033,6 @@ export class Renderer {
     this.appendHexShape(ctx, radius);
   }
 
-  drawHexWaterClipShape(ctx, radius) {
-    ctx.beginPath();
-    this.appendHexShape(ctx, radius + 1.25);
-    this.appendHexShape(ctx, radius - 2, 2, 4);
-  }
-
   appendHexShape(ctx, radius, offsetX = 0, offsetY = 0) {
     for (let i = 0; i < 6; i += 1) {
       const angle = (Math.PI / 3) * i - Math.PI / 6;
@@ -1065,9 +1068,7 @@ export class Renderer {
   }
 
   drawWaterChannels(ctx, radius, tile, grid, flowState) {
-    const faceDistance = radius * Math.cos(Math.PI / 6);
-    const shadowBoundaryLength = faceDistance + 6;
-    const boundaryChannelLength = faceDistance;
+    const faceDistance = (radius - 2) * Math.cos(Math.PI / 6);
     const currentKey = tileKey(tile.q, tile.r);
     const currentConnected = flowState.keys.has(currentKey);
     const currentDepth = flowState.depths.get(currentKey);
@@ -1085,8 +1086,6 @@ export class Renderer {
       const neighborDepth = flowState.depths.get(neighborKey);
       const neighborOrder = flowState.orders.get(neighborKey);
       const visualConnection = this.getVisualConnection(tile, i, grid);
-      const visuallySettled = !tile.isAnimating();
-      const reachesShadowBoundary = visuallySettled || visualConnection.matched;
       const active =
         currentConnected &&
         neighborConnected &&
@@ -1097,9 +1096,7 @@ export class Renderer {
       channels.push({
         angle: (i - 1) * Math.PI / 3 + tile.visualRotation * Math.PI / 3,
         active,
-        length: reachesShadowBoundary
-          ? shadowBoundaryLength
-          : boundaryChannelLength,
+        length: faceDistance,
         flowSeed: (
           this.getTileSeed(tile) ^ Math.imul(i + 1, 0x9e3779b1)
         ) >>> 0,
@@ -1188,6 +1185,117 @@ export class Renderer {
     });
   }
 
+  drawWaterBridges(ctx, entries, radius, grid, flowState) {
+    const entryByKey = new Map(
+      entries.map((entry) => [tileKey(entry.tile.q, entry.tile.r), entry])
+    );
+    const faceDistance = (radius - 2) * Math.cos(Math.PI / 6);
+
+    entries.forEach((entry) => {
+      const tile = entry.tile;
+
+      if (!tile.active) return;
+
+      const currentKey = tileKey(tile.q, tile.r);
+
+      tile.exits.forEach((hasExit, exitIndex) => {
+        if (!hasExit) return;
+
+        const visualConnection = this.getVisualConnection(
+          tile,
+          exitIndex,
+          grid
+        );
+
+        if (!visualConnection.matched) return;
+
+        const offset = DIR_NEIGHBORS[visualConnection.dir];
+        const neighborKey = tileKey(tile.q + offset.q, tile.r + offset.r);
+
+        if (currentKey.localeCompare(neighborKey) >= 0) return;
+
+        const neighborEntry = entryByKey.get(neighborKey);
+        const neighbor = neighborEntry?.tile;
+
+        if (!neighbor || visualConnection.neighborExitIndex == null) return;
+
+        const currentState = this.getHexRenderState(entry, radius);
+        const neighborState = this.getHexRenderState(neighborEntry, radius);
+        const currentAngle =
+          (exitIndex - 1) * Math.PI / 3 +
+          tile.visualRotation * Math.PI / 3;
+        const neighborAngle =
+          (visualConnection.neighborExitIndex - 1) * Math.PI / 3 +
+          neighbor.visualRotation * Math.PI / 3;
+
+        const start = {
+          x:
+            currentState.x +
+            currentState.actionScale * faceDistance * Math.cos(currentAngle),
+          y:
+            currentState.y -
+            currentState.lift +
+            currentState.actionScale * faceDistance * Math.sin(currentAngle)
+        };
+        const end = {
+          x:
+            neighborState.x +
+            neighborState.actionScale * faceDistance * Math.cos(neighborAngle),
+          y:
+            neighborState.y -
+            neighborState.lift +
+            neighborState.actionScale * faceDistance * Math.sin(neighborAngle)
+        };
+        const connected =
+          flowState.keys.has(currentKey) && flowState.keys.has(neighborKey);
+
+        this.drawWaterBridge(ctx, start, end, connected);
+      });
+    });
+  }
+
+  drawWaterBridge(ctx, start, end, connected) {
+    const layers = connected
+      ? [
+          [18, CONFIG.colors.channelBedShadow],
+          [12, CONFIG.colors.matchedWaterDeep],
+          [9, CONFIG.colors.matchedWater]
+        ]
+      : [
+          [18, CONFIG.colors.channelBedIdle],
+          [12, CONFIG.colors.idleWaterDeep],
+          [9, CONFIG.colors.idleWater]
+        ];
+
+    ctx.save();
+    ctx.lineCap = "butt";
+
+    layers.forEach(([width, color]) => {
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.lineWidth = width;
+      ctx.strokeStyle = color;
+      ctx.stroke();
+    });
+
+    const angle = Math.atan2(end.y - start.y, end.x - start.x);
+    const axisAngle = ((angle % Math.PI) + Math.PI) % Math.PI;
+    const normalAngle = axisAngle - Math.PI / 2;
+    const sheenOffset = connected ? 1.8 : 1.35;
+    const offsetX = Math.cos(normalAngle) * sheenOffset;
+    const offsetY = Math.sin(normalAngle) * sheenOffset;
+
+    ctx.beginPath();
+    ctx.moveTo(start.x + offsetX, start.y + offsetY);
+    ctx.lineTo(end.x + offsetX, end.y + offsetY);
+    ctx.globalAlpha = connected ? 0.34 : 0.21;
+    ctx.lineWidth = connected ? 1.35 : 1.05;
+    ctx.strokeStyle = CONFIG.colors.waterHighlight;
+    ctx.stroke();
+    ctx.restore();
+  }
+
   getVisualConnection(tile, exitIndex, grid, tolerance = 0.085) {
     const visualStep = exitIndex + tile.visualRotation;
     const nearestStep = Math.round(visualStep);
@@ -1195,17 +1303,18 @@ export class Renderer {
     const dir = ((nearestStep % 6) + 6) % 6;
 
     if (alignmentError > tolerance) {
-      return { matched: false, dir };
+      return { matched: false, dir, neighborExitIndex: null };
     }
 
     const offset = DIR_NEIGHBORS[dir];
     const neighbor = grid[tileKey(tile.q + offset.q, tile.r + offset.r)];
 
     if (!neighbor?.active) {
-      return { matched: false, dir };
+      return { matched: false, dir, neighborExitIndex: null };
     }
 
     const oppositeDir = (dir + 3) % 6;
+    let matchedNeighborExitIndex = null;
     const neighborMatched = neighbor.exits.some((hasExit, neighborExitIndex) => {
       if (!hasExit) return false;
 
@@ -1214,10 +1323,20 @@ export class Renderer {
       const neighborError = Math.abs(neighborVisualStep - neighborNearestStep);
       const neighborDir = ((neighborNearestStep % 6) + 6) % 6;
 
-      return neighborError <= tolerance && neighborDir === oppositeDir;
+      const matched = neighborError <= tolerance && neighborDir === oppositeDir;
+
+      if (matched) {
+        matchedNeighborExitIndex = neighborExitIndex;
+      }
+
+      return matched;
     });
 
-    return { matched: neighborMatched, dir };
+    return {
+      matched: neighborMatched,
+      dir,
+      neighborExitIndex: matchedNeighborExitIndex
+    };
   }
 
   getFlowDirection(

@@ -98,7 +98,7 @@ export const CONFIG = {
     inactiveStroke: "rgba(122, 73, 62, 0.34)",
     solvedStroke: "#71853e",
     idleStroke: "#a9824f",
-    tileShadow: "rgba(79, 57, 44, 0.24)",
+    tileShadow: "rgba(79, 57, 44, 0.11)",
     tileSide: "#9c7549",
     solvedTileSide: "#6f873d",
     tileHighlight: "rgba(255, 249, 229, 0.82)",

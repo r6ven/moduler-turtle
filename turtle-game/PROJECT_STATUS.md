@@ -91,13 +91,12 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 
 ### 4.3 Hex ve cevre cizimi
 
-- Hexler ust yuzey, yan yuzey, golge, parlama ve settle glow katmanlariyla cizilir.
+- Hexler ust yuzey, ince yan yuzey, hafif temas golgesi, parlama ve settle glow katmanlariyla cizilir. Durağan golge tepeden gorunuse uygun olacak kadar kucuktur; belirgin derinlik yalnizca tas yukselip donerken artar.
 - Render sirasi tum harita icin global katmanlidir: once golgeler, sonra yan/ust ada yuzeyleri, ardindan su agi ve detaylar cizilir. Bu nedenle komsu bir hexin golgesi veya konturu daha once cizilmis kanalin ustune cikamaz.
 - Guncel sanat yonu sicak keten/kum zemin, petrol mavisi su, hardal-turuncu vurgu, zeytin yesili bitki ve toprak-kahve golge paletidir.
 - Aktif, bagli/cozulmus ve pasif taslar farkli materyal ve renk durumlarina sahiptir.
 - Kanal cizimi hex siniri icinde kirpilir; kanal yatagi, su ve yuzey parlakligi katmanlari vardir.
-- Eslesmis kanal kollarinin acikliklari ortak hex kenarini kaplayacak kadar uzatilir; boylece tas siniri suyun ustunden gecmez. Eslesmeyen kollar hex sinirina kadar ulasir, disari tasmadan duz bir kanal agziyla biter.
-- Duragan taslarda kanal agizlari ust yuzey sinirinda kesilmez; gorunen yan yuzey/golge derinligine kadar uzanir. Donen bir tasin kanali ise yalnizca kendi ekrandaki acisi komsu kanal agziyla gercekten hizalandigi karelerde bu mesafeyi asip gorsel olarak birlesir.
+- Her kanal kolu tek basina tam olarak hexin ust yuzey sinirinda duz biter ve yan yuzey/golge alanina gecmez. Iki komsu kanal agzi gorsel olarak hizalandiginda aradaki bosluk ayri bir su koprusu katmaniyla tamamlanir; tas donerken kopru yalnizca gercek hizalanma aninda gorunur.
 - Kum lekeleri, kum taneleri, taslar, cimenler ve yabani cicekler seeded rastgele dagitilir.
 - Dekor sayisi kontrolludur; bazi hexler bos kalabilir, tek bir hexte asiri yigilma olusmaz.
 - Bagli hexlerde cimen miktari hafif artar ve cimenlerin bir kismi ciceklenir.
@@ -126,6 +125,7 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Mantiksal rotasyon hamle aninda guncellense de hareketli akis, donus animasyonu komsu kanalla gorsel olarak hizalanmadan baslamaz.
 - Bagli olmayan kanallar acik ve hareketsiz gorunur.
 - Ana menudeki dekoratif akis da kaynak-kanal-bitis fikrini ayni gorsel dille anlatir.
+- Ana menu kaplumbagasi tek renk ailesinden bir kaliptir; kafa kabuktan boslukla ayrilir, kabuk hucrelerinin sinirlari menu zemini rengindedir ve kafa/yuzgecler kabugun farkli tonunu kullanir.
 
 ### 4.5 Kaplumbaga
 
