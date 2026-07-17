@@ -980,7 +980,7 @@ export class Renderer {
   drawWaterChannels(ctx, radius, tile, grid, flowState) {
     const faceDistance = radius * Math.cos(Math.PI / 6);
     const matchedChannelLength = faceDistance + 2.5;
-    const closedChannelLength = Math.max(12, faceDistance - 10.5);
+    const boundaryChannelLength = faceDistance;
     const currentKey = tileKey(tile.q, tile.r);
     const currentConnected = flowState.keys.has(currentKey);
     const currentDepth = flowState.depths.get(currentKey);
@@ -1002,7 +1002,7 @@ export class Renderer {
       channels.push({
         angle: (i - 1) * Math.PI / 3 + tile.visualRotation * Math.PI / 3,
         active,
-        length: matched ? matchedChannelLength : closedChannelLength,
+        length: matched ? matchedChannelLength : boundaryChannelLength,
         flowSeed: (
           this.getTileSeed(tile) ^ Math.imul(i + 1, 0x9e3779b1)
         ) >>> 0,
@@ -1113,7 +1113,7 @@ export class Renderer {
 
     ctx.save();
     ctx.lineWidth = width;
-    ctx.lineCap = "round";
+    ctx.lineCap = "butt";
     ctx.lineJoin = "round";
     ctx.strokeStyle = color;
     ctx.beginPath();
@@ -1127,6 +1127,11 @@ export class Renderer {
     });
 
     ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(0, 0, width * 0.505, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
     ctx.restore();
   }
 
