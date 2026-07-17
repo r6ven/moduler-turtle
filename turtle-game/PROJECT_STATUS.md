@@ -1,6 +1,6 @@
 # Zen Kaplumbaga - Proje Durumu
 
-Son guncelleme: 16 Temmuz 2026  
+Son guncelleme: 17 Temmuz 2026
 Uygulama surumu: `0.1.0`  
 GitHub: `r6ven/moduler-turtle`  
 Uygulama dizini: `turtle-game/`  
@@ -92,12 +92,15 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 ### 4.3 Hex ve cevre cizimi
 
 - Hexler ust yuzey, yan yuzey, golge, parlama ve settle glow katmanlariyla cizilir.
+- Guncel sanat yonu sicak keten/kum zemin, petrol mavisi su, hardal-turuncu vurgu, zeytin yesili bitki ve toprak-kahve golge paletidir.
 - Aktif, bagli/cozulmus ve pasif taslar farkli materyal ve renk durumlarina sahiptir.
 - Kanal cizimi hex siniri icinde kirpilir; kanal yatagi, su ve yuzey parlakligi katmanlari vardir.
 - Kum lekeleri, kum taneleri, taslar, cimenler ve yabani cicekler seeded rastgele dagitilir.
 - Dekor sayisi kontrolludur; bazi hexler bos kalabilir, tek bir hexte asiri yigilma olusmaz.
 - Bagli hexlerde cimen miktari hafif artar ve cimenlerin bir kismi ciceklenir.
 - Tas, cimen, yabani cicek ve merkez cicegi icin birden fazla sekil varyanti vardir.
+- Kayalar tek tip ve sabit konumlu degildir; bazi hexler bos kalirken digerlerinde sinirli sayida, farkli renk ve bicimlerde kucuk kaya kumeleri olusur.
+- Bagli hexlerde cimen miktari kontrollu artar; cicekler tek sembol yerine farkli renk ve yaprak duzenlerine sahip kucuk yamalar halinde acabilir.
 - Tas yukseltme, 60 derece donus, golge genislemesi ve yerine oturma animasyonu vardir.
 - Ayni tas animasyon bitmeden tekrar dondurulemez; diger taslarla etkilesim devam eder.
 - Cizim ve animasyonlar frame delta ile ilerler; baglanti ve yuzey sonuc cache'leri kullanilir.
@@ -143,6 +146,7 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 ### 4.7 Menu ve UI
 
 - Kayit/giris ekrani ve giris sonrasi ana menu vardir.
+- Ana menu kart gorunumunden arindirilmis, sicak keten zeminli, ortalanmis iki satirli baslik ve dokunsal petrol mavisi/hardal dugmeler kullanan sakin bir oyun sahnesidir.
 - Ana menu oyunun kaynak-kanal-bitis fikrini gosteren animasyonlu marka ve akis seridine sahiptir.
 - Marka amblemi kum/cimen hex adasi, kaynak-bitis kanali ve yuzgecli geometrik kaplumbagayi tek simgede birlestirir.
 - Kullanici adi, kayitli ada ve tamamlanan bolum sayisi gosterilir.
@@ -259,6 +263,8 @@ Liderlik tablosunda her kayit icin `username`, `last_level` ve `best_by_level` b
 - [x] Mobil koordinat olceklemesi ve Pointer Events.
 - [x] Tam ekran dugmesi.
 - [x] Yenilenmis ana menu ve kaynak-bitis akis motifi.
+- [x] Sicak keten, petrol mavisi, hardal-turuncu ve zeytin yesili guncel oyun paleti.
+- [x] Kontrollu kaya kumeleri ile cesitlendirilmis cimen ve cicek yamalari.
 - [x] Kaynak ve bitis portallari.
 - [x] Kaynaktan disa dogru tutarli su yonu.
 - [x] Kaplumbaganin kaynak-bitis zafer turu.

@@ -392,38 +392,36 @@ export class Renderer {
     const stoneRoll = random();
     const sandRoll = random();
     const grassChance = tile.flowerBloomed
-      ? 0.72
+      ? 0.82
       : tile.active
-        ? 0.26
-        : 0.46;
-    const stoneCount = stoneRoll < 0.42
+        ? 0.3
+        : 0.42;
+    const stoneClusterCount = stoneRoll < 0.34
       ? 0
-      : stoneRoll < 0.8
+      : stoneRoll < 0.82
         ? 1
-        : stoneRoll < 0.96
-          ? 2
-          : 3;
+        : 2;
     const sandPatchCount = sandRoll < 0.22
       ? 0
       : sandRoll < 0.82
         ? 1
         : 2;
     const baseGrassCount = random() < grassChance
-      ? random() < 0.82 ? 1 : 2
+      ? random() < 0.72 ? 1 : 2
       : 0;
     const connectedGrassBonus = connected
-      ? 1 + (random() < 0.38 ? 1 : 0)
+      ? 1 + (random() < 0.58 ? 1 : 0)
       : 0;
-    const grassCount = Math.min(4, baseGrassCount + connectedGrassBonus);
+    const grassCount = Math.min(5, baseGrassCount + connectedGrassBonus);
     const flowerRoll = random();
-    const requestedFlowerCount = !connected
+    const requestedFlowerPatchCount = !connected
       ? 0
-      : flowerRoll < 0.44
+      : flowerRoll < 0.5
         ? 1
-        : flowerRoll < 0.58
+        : flowerRoll < 0.64
           ? 2
           : 0;
-    const flowerCount = Math.min(grassCount, requestedFlowerCount);
+    const flowerPatchCount = Math.min(grassCount, requestedFlowerPatchCount);
     const grassPoints = [];
 
     for (let i = 0; i < sandPatchCount; i += 1) {
@@ -433,8 +431,8 @@ export class Renderer {
 
     for (let i = 0; i < grassCount; i += 1) {
       const point = this.pickDecorPoint(random, radius, 0.34, 0.57);
-      const scale = 0.68 + random() * 0.28;
-      const rotation = random() * 0.8 - 0.4;
+      const scale = 0.72 + random() * 0.38;
+      const rotation = random() * 0.9 - 0.45;
 
       grassPoints.push({
         ...point,
@@ -452,28 +450,26 @@ export class Renderer {
       );
     }
 
-    for (let i = 0; i < flowerCount; i += 1) {
+    for (let i = 0; i < flowerPatchCount; i += 1) {
       const point = grassPoints[i];
 
-      this.drawWildFlower(
+      this.drawFlowerPatch(
         ctx,
+        random,
         point.x,
         point.y,
-        0.72 + random() * 0.24,
-        Math.floor(random() * 3),
-        Math.floor(random() * 4)
+        0.7 + random() * 0.2
       );
     }
 
-    for (let i = 0; i < stoneCount; i += 1) {
-      const point = this.pickDecorPoint(random, radius, 0.34, 0.59);
-      this.drawStone(
+    for (let i = 0; i < stoneClusterCount; i += 1) {
+      const point = this.pickDecorPoint(random, radius, 0.38, 0.61);
+      this.drawStoneCluster(
         ctx,
+        random,
         point.x,
         point.y,
-        0.68 + random() * 0.34,
-        random() * 0.9 - 0.45,
-        Math.floor(random() * 3)
+        0.72 + random() * 0.28
       );
     }
   }
@@ -493,7 +489,11 @@ export class Renderer {
   }
 
   pickDecorPoint(random, radius, minDistance, maxDistance) {
-    const angle = random() * Math.PI * 2;
+    const sector = Math.floor(random() * 6);
+    const angle =
+      sector * Math.PI / 3 +
+      Math.PI / 6 +
+      (random() - 0.5) * 0.3;
     const distance = radius * (
       minDistance + random() * (maxDistance - minDistance)
     );
@@ -534,8 +534,45 @@ export class Renderer {
       this.drawRoundStone(ctx);
     } else if (style === 2) {
       this.drawAngularStone(ctx);
+    } else if (style === 3) {
+      this.drawWarmStone(ctx);
     } else {
       this.drawFlatStone(ctx);
+    }
+
+    ctx.restore();
+  }
+
+  drawStoneCluster(ctx, random, x, y, scale) {
+    const clusterSize = random() < 0.56
+      ? 1
+      : random() < 0.82
+        ? 2
+        : 3;
+
+    ctx.save();
+    ctx.translate(x, y);
+
+    const shadowWidth = 5.5 + clusterSize * 2.4;
+    ctx.fillStyle = "rgba(90, 67, 50, 0.14)";
+    ctx.beginPath();
+    ctx.ellipse(1.5, 3.5, shadowWidth * scale, 3.2 * scale, -0.12, 0, Math.PI * 2);
+    ctx.fill();
+
+    for (let i = clusterSize - 1; i >= 0; i -= 1) {
+      const direction = i === 0 ? 0 : i % 2 === 0 ? 1 : -1;
+      const offsetX = direction * (4.2 + random() * 1.7);
+      const offsetY = i === 0 ? -1.2 : 1.4 + random() * 1.8;
+      const stoneScale = scale * (i === 0 ? 1.08 : 0.62 + random() * 0.18);
+
+      this.drawStone(
+        ctx,
+        offsetX,
+        offsetY,
+        stoneScale,
+        random() * 0.9 - 0.45,
+        Math.floor(random() * 4)
+      );
     }
 
     ctx.restore();
@@ -592,6 +629,34 @@ export class Renderer {
     ctx.beginPath();
     ctx.moveTo(-2.2, -2.1);
     ctx.lineTo(1.8, -2.8);
+    ctx.stroke();
+  }
+
+  drawWarmStone(ctx) {
+    const gradient = ctx.createLinearGradient(-4, -4, 4, 4);
+    gradient.addColorStop(0, CONFIG.colors.stoneLight);
+    gradient.addColorStop(0.5, CONFIG.colors.stoneWarm);
+    gradient.addColorStop(1, CONFIG.colors.stoneShade);
+
+    ctx.fillStyle = CONFIG.colors.stoneShade;
+    ctx.beginPath();
+    ctx.ellipse(1, 1.9, 5.2, 3.7, 0.18, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.moveTo(-4.5, 1.8);
+    ctx.quadraticCurveTo(-4.1, -2.9, -0.8, -4.1);
+    ctx.quadraticCurveTo(3.4, -4, 4.8, -0.7);
+    ctx.quadraticCurveTo(4.1, 3.2, 0.4, 3.7);
+    ctx.quadraticCurveTo(-3.2, 3.5, -4.5, 1.8);
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(255, 249, 229, 0.34)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-2.8, -1.3);
+    ctx.quadraticCurveTo(-0.4, -3.2, 2.1, -2.1);
     ctx.stroke();
   }
 
@@ -714,6 +779,30 @@ export class Renderer {
       this.drawStarBlossom(ctx, blossomColor);
     } else {
       this.drawDaisyBlossom(ctx, blossomColor);
+    }
+
+    ctx.restore();
+  }
+
+  drawFlowerPatch(ctx, random, x, y, scale) {
+    const blossomCount = 2 + Math.floor(random() * 3);
+
+    ctx.save();
+    ctx.translate(x, y);
+
+    for (let i = 0; i < blossomCount; i += 1) {
+      const spreadX = (random() - 0.5) * 8;
+      const spreadY = (random() - 0.5) * 4;
+      const flowerScale = scale * (0.72 + random() * 0.34);
+
+      this.drawWildFlower(
+        ctx,
+        spreadX,
+        spreadY,
+        flowerScale,
+        Math.floor(random() * 3),
+        Math.floor(random() * 4)
+      );
     }
 
     ctx.restore();
