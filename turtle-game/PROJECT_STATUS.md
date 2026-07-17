@@ -115,6 +115,8 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Akis yonu BFS derinligine gore kaynaktan disa dogru belirlenir.
 - Esit derinlikli dongu kenarlarinda kararli siralama/anahtar eslemesi kullanilir.
 - Su katmanlari: kanal yatagi, ana su, yanal yuzey isiltisi, hareketli ince kesik izler ve kabarciklar.
+- Ayni durumdaki kanal kollari tek bir compound Canvas path'i olarak katman katman cizilir; hex merkezinde ayri stroke uclari veya gradyan dilimleri ust uste binmez.
+- Su bir hex merkezine ulastiginda o tasin tum kanal oyuklari ayni su govdesiyle dolar; hareketli akis izleri ise yalnizca gercekten eslesmis komsu baglantilarinda ilerler.
 - Akis izleri tek kalin orta cizgi degil; kanal icinde farkli yanal konumlarda birden fazla ince kesik cizgidir.
 - Bagli olmayan kanallar acik ve hareketsiz gorunur.
 - Ana menudeki dekoratif akis da kaynak-kanal-bitis fikrini ayni gorsel dille anlatir.

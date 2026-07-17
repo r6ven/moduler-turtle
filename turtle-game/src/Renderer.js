@@ -1016,33 +1016,53 @@ export class Renderer {
       });
     }
 
-    channels.forEach((channel) => {
-      this.drawChannelLine(
-        ctx,
-        channelLength,
-        channel.angle,
-        18,
-        channel.active
-          ? CONFIG.colors.channelBedActive
-          : CONFIG.colors.channelBedIdle,
-        "bed",
-        channel.active
-      );
-    });
+    const idleChannels = currentConnected ? [] : channels;
+    const filledChannels = currentConnected ? channels : [];
 
-    channels.forEach((channel) => {
-      this.drawChannelLine(
-        ctx,
-        channelLength,
-        channel.angle,
-        12,
-        channel.active
-          ? CONFIG.colors.matchedWater
-          : CONFIG.colors.idleWater,
-        "water",
-        channel.active
-      );
-    });
+    this.drawChannelNetwork(
+      ctx,
+      idleChannels,
+      channelLength,
+      18,
+      CONFIG.colors.channelBedIdle
+    );
+    this.drawChannelNetwork(
+      ctx,
+      filledChannels,
+      channelLength,
+      18,
+      CONFIG.colors.channelBedShadow
+    );
+
+    this.drawChannelNetwork(
+      ctx,
+      idleChannels,
+      channelLength,
+      12,
+      CONFIG.colors.idleWaterDeep
+    );
+    this.drawChannelNetwork(
+      ctx,
+      filledChannels,
+      channelLength,
+      12,
+      CONFIG.colors.matchedWaterDeep
+    );
+
+    this.drawChannelNetwork(
+      ctx,
+      idleChannels,
+      channelLength,
+      9,
+      CONFIG.colors.idleWater
+    );
+    this.drawChannelNetwork(
+      ctx,
+      filledChannels,
+      channelLength,
+      9,
+      CONFIG.colors.matchedWater
+    );
 
     channels.forEach((channel) => {
       this.drawWaterSurfaceSheen(
@@ -1091,46 +1111,24 @@ export class Renderer {
     return currentKey.localeCompare(neighborKey) < 0 ? 1 : -1;
   }
 
-  drawChannelLine(ctx, channelLength, angle, width, color, layer = "flat", active = false) {
+  drawChannelNetwork(ctx, channels, channelLength, width, color) {
+    if (channels.length === 0) return;
+
     ctx.save();
     ctx.lineWidth = width;
     ctx.lineCap = "round";
-
-    if (layer === "water") {
-      const normalAngle = angle + Math.PI / 2;
-      const halfWidth = width * 0.5;
-      const normalX = Math.cos(normalAngle) * halfWidth;
-      const normalY = Math.sin(normalAngle) * halfWidth;
-      const waterGradient = ctx.createLinearGradient(
-        -normalX,
-        -normalY,
-        normalX,
-        normalY
-      );
-
-      waterGradient.addColorStop(
-        0,
-        active ? CONFIG.colors.matchedWaterDeep : CONFIG.colors.idleWaterDeep
-      );
-      waterGradient.addColorStop(0.28, color);
-      waterGradient.addColorStop(
-        0.58,
-        active ? CONFIG.colors.matchedWaterLight : CONFIG.colors.idleWaterLight
-      );
-      waterGradient.addColorStop(1, color);
-      ctx.strokeStyle = waterGradient;
-    } else {
-      ctx.strokeStyle = layer === "bed" && active
-        ? CONFIG.colors.channelBedShadow
-        : color;
-    }
-
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = color;
     ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(
-      channelLength * Math.cos(angle),
-      channelLength * Math.sin(angle)
-    );
+
+    channels.forEach((channel) => {
+      ctx.moveTo(0, 0);
+      ctx.lineTo(
+        channelLength * Math.cos(channel.angle),
+        channelLength * Math.sin(channel.angle)
+      );
+    });
+
     ctx.stroke();
     ctx.restore();
   }
@@ -1196,8 +1194,8 @@ export class Renderer {
 
   drawWaterSurfaceSheen(ctx, channelLength, angle, active) {
     ctx.save();
-    ctx.globalAlpha = active ? 0.38 : 0.24;
-    ctx.lineWidth = active ? 1.7 : 1.25;
+    ctx.globalAlpha = active ? 0.34 : 0.21;
+    ctx.lineWidth = active ? 1.35 : 1.05;
     ctx.lineCap = "round";
     ctx.strokeStyle = CONFIG.colors.waterHighlight;
 
@@ -1208,8 +1206,8 @@ export class Renderer {
 
     ctx.beginPath();
     ctx.moveTo(
-      5 * Math.cos(angle) + offsetX,
-      5 * Math.sin(angle) + offsetY
+      8 * Math.cos(angle) + offsetX,
+      8 * Math.sin(angle) + offsetY
     );
     ctx.lineTo(
       channelLength * 0.88 * Math.cos(angle) + offsetX,
