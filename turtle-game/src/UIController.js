@@ -184,24 +184,34 @@ export class UIController {
   }
 
   showLevelSelect(levels) {
-    if (!levels.length) {
+    const safeLevels = Array.isArray(levels)
+      ? levels
+          .filter((item) => {
+            const level = Number(item?.level);
+            return Number.isInteger(level) && level >= 1 && level <= 10000;
+          })
+          .slice(0, 200)
+      : [];
+
+    if (!safeLevels.length) {
       this.levelList.innerHTML = `
         <div class="level-empty">
           Henüz tamamlanmış bölüm yok. İlk adayı bitirince burada görünecek.
         </div>
       `;
     } else {
-      this.levelList.innerHTML = levels
+      this.levelList.innerHTML = safeLevels
         .map((item) => {
+          const level = Number(item.level);
           const starfish = this.renderStarfishRating(item.stars || 1);
-          const bestMoves = item.bestMoves == null ? "-" : item.bestMoves;
+          const bestMoves = this.formatRecordInteger(item.bestMoves);
           const bestTime = item.bestTimeSeconds == null
             ? "-"
             : this.formatDuration(item.bestTimeSeconds);
 
           return `
-            <button class="level-item" data-level="${item.level}">
-              <div class="level-number">Ada ${item.level}</div>
+            <button class="level-item" data-level="${level}">
+              <div class="level-number">Ada ${level}</div>
               <div class="level-stars">${starfish}</div>
               <div class="level-moves">Hamle: ${bestMoves}</div>
               <div class="level-moves">Süre: ${bestTime}</div>
@@ -219,7 +229,9 @@ export class UIController {
   }
 
   showRecords(records) {
-    if (!records.length) {
+    const safeRecords = Array.isArray(records) ? records.slice(0, 200) : [];
+
+    if (!safeRecords.length) {
       this.recordsList.innerHTML = `
         <div class="records-empty">
           Henüz rekor yok. İlk bölüm tamamlanınca burada görünecek.
@@ -229,18 +241,32 @@ export class UIController {
       return;
     }
 
-    this.recordsList.innerHTML = records
+    this.recordsList.innerHTML = safeRecords
       .map((player) => {
-        const bestByLevel = player.best_by_level || player.bestByLevel || {};
+        const progressCandidate =
+          player?.best_by_level || player?.bestByLevel || {};
+        const bestByLevel =
+          progressCandidate &&
+          typeof progressCandidate === "object" &&
+          !Array.isArray(progressCandidate)
+            ? progressCandidate
+            : {};
+        const username = this.escapeHtml(
+          String(player?.username || "Oyuncu").slice(0, 48)
+        );
         const levels = Object.keys(bestByLevel)
           .map((level) => Number(level))
-          .filter((level) => Number.isFinite(level))
-          .sort((a, b) => a - b);
+          .filter(
+            (level) =>
+              Number.isInteger(level) && level >= 1 && level <= 10000
+          )
+          .sort((a, b) => a - b)
+          .slice(0, 200);
 
         if (!levels.length) {
           return `
             <div class="record-player">
-              <div class="record-player-title">${player.username}</div>
+              <div class="record-player-title">${username}</div>
               <div class="records-empty">Henüz tamamlanan bölüm yok.</div>
             </div>
           `;
@@ -250,7 +276,7 @@ export class UIController {
           .map((level) => {
             const record = bestByLevel[level] || bestByLevel[String(level)] || {};
             const starfish = this.renderStarfishRating(record.stars || 1);
-            const moves = record.bestMoves ?? "-";
+            const moves = this.formatRecordInteger(record.bestMoves);
             const time = record.bestTimeSeconds == null
               ? "-"
               : this.formatDuration(record.bestTimeSeconds);
@@ -268,7 +294,7 @@ export class UIController {
 
         return `
           <div class="record-player">
-            <div class="record-player-title">${player.username}</div>
+            <div class="record-player-title">${username}</div>
             <div class="record-row header">
               <div>Bölüm</div>
               <div>Deniz yıldızı</div>
@@ -417,6 +443,31 @@ export class UIController {
         ${starfish}
       </span>
     `;
+  }
+
+  escapeHtml(value) {
+    const entities = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    };
+
+    return String(value ?? "").replace(
+      /[&<>"']/g,
+      (character) => entities[character]
+    );
+  }
+
+  formatRecordInteger(value) {
+    if (value == null) return "-";
+
+    const number = Number(value);
+
+    if (!Number.isFinite(number) || number < 0) return "-";
+
+    return String(Math.min(999999, Math.floor(number)));
   }
 
   formatDuration(seconds) {

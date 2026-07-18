@@ -247,6 +247,14 @@ Liderlik tablosunda her kayit icin `username`, `last_level` ve `best_by_level` b
 - Sifirlama aktif kullanicinin ilerlemesini Supabase'de temizler; hesabi silmez.
 - `localStorage` kodu eski veya kimliksiz kayitlar icin fallback olarak kalir; normal oyun akisi giris gerektirir.
 
+### 5.5 OWASP guvenlik gelistirme kurali
+
+- Gelistirme sirasinda degistirilen veya incelenen dosyalarda gorulen guncel OWASP Top 10 riskleri, mevcut gorevle celismedigi surece ayrica talep beklenmeden giderilir.
+- Istemci girdileri ve Supabase dahil uzak veriler guvenilmez kabul edilir; cikti kodlama, tip/sinir dogrulama, en az yetki, RLS ve dar yetkili RPC ilkeleri uygulanir.
+- Gizli anahtarlar istemci paketine eklenmez. Backend semasi, credential degisimi veya kirici migration gerektiren bulgular belgelenir ve uygulama adimi ayrica planlanir.
+- Ilgili degisikliklerde production build ile birlikte kotu niyetli girdi ve sinir deger senaryolari kontrol edilir.
+- Bu surekli kontrol, yayin oncesi bagimsiz guvenlik incelemesi ve bagimlilik taramasinin yerine gecmez.
+
 ## 6. Gelistirme Plani Durumu
 
 ### Tamamlanan gorsel yol haritasi
@@ -353,7 +361,7 @@ Simdilik yildiz ve skor hesabina etkisi yoktur.
 - Kilit dosyasi Git tarafindan izlenmedigi icin `npm install` farkli zamanlarda farkli alt bagimliliklar cozebilir.
 - `@vitejs/plugin-legacy` bagimliligi vardir fakat `vite.config.js` yoktur; plugin etkin degildir ve su an gereksiz bagimlilik gibi durur.
 - `turtle-gameplay.png` ve `turtle-menu.png` mevcut render akisinda kullanilmamaktadir.
-- Leaderboard ve bolum listesi HTML stringleriyle uretilir. Kullanici adi karakterleri istemcide sinirli olsa da backend verisi guvenilmez kabul edilip escape edilmelidir.
+- Leaderboard ve bolum listesi HTML'i olusturulmadan once uzak kullanici adlari escape edilir; oyuncu/bolum satirlari sinirlanir ve seviye, yildiz, hamle, sure alanlari sayisal olarak normalize edilir.
 
 ### Bilinen acik oyun hatasi
 

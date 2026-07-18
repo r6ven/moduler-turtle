@@ -36,3 +36,19 @@ Render, Netlify veya benzeri servislere `dist` klasörü yayınlanabilir.
 - Davranış ileride doğru bağlantı kurma ödülü olarak kullanılacak.
 - Ödülün görsel geri bildirim, ses, seri bonusu veya skor etkisi olmasına daha
   sonra karar verilecek. Şimdilik puan ve yıldız hesabı değişmeyecek.
+
+## Güvenlik İlkesi
+
+- Geliştirme sırasında değiştirilen veya incelenen dosyalarda görülen güncel
+  OWASP Top 10 riskleri, görevle çelişmediği sürece ayrıca talep beklenmeden
+  giderilir.
+- İstemci girdileri ve Supabase dahil uzak kaynaklardan gelen bütün veriler
+  güvenilmez kabul edilir; çıktı kodlanır, sayısal alanlar doğrulanır ve yetki
+  kontrolleri yalnızca istemciye bırakılmaz.
+- Gizli anahtarlar istemci paketine eklenmez. Supabase erişimi RLS, dar yetkili
+  RPC fonksiyonları ve sunucu tarafı doğrulamayla sınırlandırılmalıdır.
+- Güvenlik düzeltmeleri production build ve ilgili kötü niyetli/sınır değer
+  senaryolarıyla doğrulanır. Backend şeması, credential değişimi veya kırıcı bir
+  migration gerekiyorsa durum belgelenir ve uygulama adımı ayrıca planlanır.
+- Bu sürekli kontrol, yayın öncesi bağımsız güvenlik incelemesi ve bağımlılık
+  taramasının yerine geçmez.
