@@ -34,6 +34,7 @@ export class PuzzleGenerator {
       cleanMap.pathKeys[cleanMap.pathKeys.length - 1]
     );
     PuzzleGenerator.addExtraLoops(grid, level);
+    PuzzleGenerator.assignLandmarks(grid);
     PuzzleGenerator.shuffleLevelRotations(grid);
 
     const activeTiles = Object.values(grid).filter((tile) => tile.active);
@@ -193,6 +194,38 @@ return {
       tile.sink = tileKey(tile.q, tile.r) === sinkKey;
       tile.endpoint = tile.source || tile.sink;
     });
+  }
+
+  static assignLandmarks(grid) {
+    const tiles = Object.values(grid);
+    const inactiveTiles = shuffled(tiles.filter((tile) => !tile.active));
+    const treeTile = inactiveTiles.shift();
+
+    if (treeTile) {
+      treeTile.landmark = "tree";
+    }
+
+    const lanternIndex = inactiveTiles.findIndex((tile) => {
+      if (!treeTile) return true;
+
+      const deltaQ = tile.q - treeTile.q;
+      const deltaR = tile.r - treeTile.r;
+      const distance = Math.max(
+        Math.abs(deltaQ),
+        Math.abs(deltaR),
+        Math.abs(deltaQ + deltaR)
+      );
+
+      return distance > 1;
+    });
+    const lanternTile = lanternIndex >= 0
+      ? inactiveTiles.splice(lanternIndex, 1)[0]
+      : inactiveTiles.shift();
+
+    if (lanternTile) {
+      lanternTile.landmark = "lantern";
+    }
+
   }
 
 static calculateMinimumMoves(grid) {

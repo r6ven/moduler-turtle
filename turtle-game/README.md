@@ -28,6 +28,18 @@ Render, Netlify veya benzeri servislere `dist` klasörü yayınlanabilir.
 - `InputManager.js`: Mobil ve mouse girişlerini hex koordinatına çevirir.
 - `ProgressSystem.js`: Hamle, ipucu, yıldız ve kayıt işlerini tutar.
 
+## Ada Modelleri
+
+- Ağaç ve antik fener, pasif kum adalarında kontrollü rastgele konumlarda ve bölüm
+  başına en fazla birer tane üretilir; çevrelerindeki taş, kum, çimen ve çiçekler
+  aynı seeded dekor düzeninin parçasıdır.
+- Modeller basit Canvas sembolleri değildir; `public/images/hex-tree.webp` ve
+  `hex-ancient-lantern.webp` şeffaf üretim varlıkları kullanılır.
+- Modeller puzzle bağlantı mantığını değiştirmez; yalnız görsel çeşitlilik sağlar.
+- Kaplumbağanın bölüm sonu yüzme turu boyunca antik fenerin sıcak ışığı yumuşak
+  biçimde yanıp söner; normal puzzle sırasında sabit kalır.
+- Ahşap köprü modeli değerlendirme sonrasında oyundan çıkarılmıştır.
+
 ## Karar Bekleyen Mekanikler
 
 - Kaplumbağanın puzzle sırasında tıklanan hexe gitme davranışı korunacak.

@@ -12,6 +12,7 @@ export class Tile {
     this.sink = false;
     this.victoryIndex = -1;
     this.locked = false;
+    this.landmark = null;
 
     decorSequence = (decorSequence + 0x9e3779b9) >>> 0;
     this.decorSeed = (

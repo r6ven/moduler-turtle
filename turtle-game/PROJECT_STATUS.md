@@ -32,6 +32,8 @@ moduler-turtle/                 # Git deposunun koku
    ├─ public/
    │  └─ images/
    │     ├─ completion-lotus.png # Sonuc basliginin iki yanindaki seffaf nilufer asseti
+   │     ├─ hex-ancient-lantern.webp # Pasif adalardaki antik fener modeli
+   │     ├─ hex-tree.webp          # Pasif adalardaki agac modeli
    │     ├─ starfish.png        # Sonuc, bolum ve rekor ekranlarindaki deniz yildizi
    │     ├─ turtle-gameplay.png # Mevcut Canvas kaplumbagasinda kullanilmayan aday asset
    │     └─ turtle-menu.png     # Mevcut CSS marka isaretinde kullanilmayan aday asset
@@ -101,6 +103,14 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Dekor sayisi kontrolludur; bazi hexler bos kalabilir, tek bir hexte asiri yigilma olusmaz.
 - Bagli hexlerde cimen miktari hafif artar ve cimenlerin bir kismi ciceklenir.
 - Tas, cimen, yabani cicek ve merkez cicegi icin birden fazla sekil varyanti vardir.
+- Agac ve antik fener, puzzle okunurlugunu korumak icin pasif kum adalarinda
+  kontrollu rastgele konumlara ve bolum basina en fazla birer tane yerlestirilir.
+  Ikisinin komsu olmamasi tercih edilir; tas, kum, cimen ve cicekler modelin
+  kapladigi alana binmeden ayni seeded dekor kompozisyonuna katilir.
+- Agac ve fener basit Canvas sembolleri yerine optimize edilmis seffaf WebP
+  modelleridir. Boylece onaylanan model dili ve doku kalitesi oyun icinde korunur.
+- Antik fener normal puzzle sirasinda sabittir; kaplumbaganin bolum sonu kaynak-bitis
+  turu boyunca sicak isigi yumusak bir nabiz ve hafif titresimle yanip soner.
 - Kayalar tek tip ve sabit konumlu degildir; bazi hexler bos kalirken digerlerinde sinirli sayida, farkli renk ve bicimlerde kucuk kaya kumeleri olusur.
 - Bagli hexlerde cimen miktari kontrollu artar; cicekler tek sembol yerine farkli renk ve yaprak duzenlerine sahip kucuk yamalar halinde acabilir.
 - Tas yukseltme, 60 derece donus, golge genislemesi ve yerine oturma animasyonu vardir.
@@ -284,6 +294,7 @@ Liderlik tablosunda her kayit icin `username`, `last_level` ve `best_by_level` b
 - [x] Yenilenmis ana menu ve kaynak-bitis akis motifi.
 - [x] Sicak keten, petrol mavisi, hardal-turuncu ve zeytin yesili guncel oyun paleti.
 - [x] Kontrollu kaya kumeleri ile cesitlendirilmis cimen ve cicek yamalari.
+- [x] Kontrollu agac ve antik fener modelleri.
 - [x] Kaynak ve bitis portallari.
 - [x] Kaynaktan disa dogru tutarli su yonu.
 - [x] Kaplumbaganin kaynak-bitis zafer turu.
@@ -295,7 +306,7 @@ Liderlik tablosunda her kayit icin `username`, `last_level` ve `best_by_level` b
 - [ ] Kaplumbaganin dogru baglanti kurulan hexe gitmesini odullendiren net mekanik.
 - [ ] Kilitli/dondurulemeyen tas tipi.
 - [ ] Ozel cicek veya bonus tas.
-- [ ] Kopru, tek yonlu kanal veya ikinci kaynak gibi ileri puzzle taslari.
+- [ ] Kopru, tek yonlu kanal veya ikinci kaynak gibi ileri puzzle taslari. Ilk gorsel ahsap kopru denemesi begenilmedigi icin oyundan cikarildi.
 - [ ] Ada tema sistemi ve tema acma/ilerleme sistemi.
 - [ ] Tema bazli cevre varliklari ve ses paletleri.
 - [ ] Gunluk puzzle veya paylasilabilir gunluk sonuc.
@@ -312,10 +323,10 @@ Liderlik tablosunda her kayit icin `username`, `last_level` ve `best_by_level` b
 | Sinif/modul | Ana gorev |
 |---|---|
 | `Game` | Tum sistemleri kurar; menu, bolum, input, tamamlanma, zafer turu ve ana donguyu yonetir. |
-| `PuzzleGenerator` | Cozulmus ana yolu kurar, terminalleri atar, ek dongu ekler, taslari karistirir ve minimum hamleyi hesaplar. |
+| `PuzzleGenerator` | Cozulmus ana yolu kurar, terminalleri atar, ek dongu ve kontrollu ada modellerini yerlestirir, taslari karistirir ve minimum hamleyi hesaplar. |
 | `PuzzleValidator` | Kaynaktan erisimi, karsilikli cikislari, bosta uclari ve tamamlama durumunu denetler. |
-| `Tile` | Tek hexin mantiksal rotasyonunu, aktif/kilitli/terminal durumunu ve gorsel animasyon state'ini tutar. |
-| `Renderer` | Hex materyali, dekor, kanal, yonlu akis, portal, cicek ve kaplumbagayi Canvas'a cizer; cizim cache'lerini yonetir. |
+| `Tile` | Tek hexin mantiksal rotasyonunu, aktif/kilitli/terminal ve `landmark` durumunu ve gorsel animasyon state'ini tutar. |
+| `Renderer` | Hex materyali, dekor, kanal, yonlu akis, portal, cicek, ada modelleri ve kaplumbagayi Canvas'a cizer; cizim cache'lerini yonetir. |
 | `Turtle` | Konum, hedef, hiz, aci, yuzgec/idle zamanlamasi, kutlama ve wake trail durumunu yonetir. |
 | `ProgressSystem` | Hamle, ipucu, sure, hedefler, yildizlar, rekorlar ve yerel/uzak ilerlemeyi yonetir. |
 | `UserAuthSystem` | Ozel Supabase RPC kayit, giris, cikis, kaydetme, reset ve leaderboard cagrilarini yapar. |
@@ -428,7 +439,9 @@ Her buyuk degisiklikten sonra en az su akislari elle kontrol edilmelidir:
 10. Reset onayi, vazgecme ve onay sonrasi yalniz aktif kullanici ilerlemesinin silinmesi.
 11. Masaustu ve mobil boyutlarda HUD/canvas cakismamasi.
 12. Tam ekrana girme ve cikma.
-13. `npm run build` production derlemesinin basarili olmasi.
+13. Agac/fener modellerinin pasif hexlerde kontrollu rastgele konumlanmasi,
+    cevre dekoruyla cakismamasi ve zafer turunda fener isiginin calismasi.
+14. `npm run build` production derlemesinin basarili olmasi.
 
 ## 12. Sonraki Mantikli Isler
 
@@ -448,8 +461,10 @@ Oncelik onerisi:
 - Bu ortamda kullanilan esdeger dogrulama: paketli Node ile `node_modules/vite/bin/vite.js build`
 - Vite: `5.4.21`
 - Sonuc: Basarili; 60 modul donusturuldu.
-- Cikti: `dist/index.html`, `dist/assets/index-B-D74QYL.css`, `dist/assets/index-Bi9m1XYS.js`
-- Boyutlar: HTML 10.16 kB, CSS 32.06 kB, JS 276.01 kB.
-- Tarih: 16 Temmuz 2026
+- Cikti: `dist/index.html`, `dist/assets/index-CsHyja38.css`, `dist/assets/index-B--QgYBM.js`
+- Boyutlar: HTML 10.35 kB, CSS 42.99 kB, JS 294.79 kB.
+- Tarih: 20 Temmuz 2026
+- Ek algoritma dogrulamasi: 100 prosedurel seviyede agac/fener sayisi, pasif tile
+  kosulu ve koprunun oyundan cikarildigi kontrol edildi; tum seviyeler gecti.
 
 Not: Sistem PATH'inde `npm` bulunmadigi icin ayni `build` scriptinin calistirdigi Vite production girisi Codex'in paketli Node runtime'i ile dogrudan yurutuldu. Derleme basariyla tamamlandi.

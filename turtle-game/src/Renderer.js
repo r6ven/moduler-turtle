@@ -10,6 +10,7 @@ export class Renderer {
     this.lastFrameTime = performance.now();
     this.tileSurfaceCache = new Map();
     this.flowStreakCache = new Map();
+    this.landmarkImages = this.createLandmarkImages();
     this.quality = CONFIG.performance.profiles.high;
     this.logicalWidth = canvas.width || 1;
     this.logicalHeight = canvas.height || 1;
@@ -30,6 +31,24 @@ export class Renderer {
 
   setQuality(profile) {
     this.quality = profile || CONFIG.performance.profiles.high;
+  }
+
+  createLandmarkImages() {
+    if (typeof Image === "undefined") return {};
+
+    const sources = {
+      tree: "/images/hex-tree.webp",
+      lantern: "/images/hex-ancient-lantern.webp"
+    };
+
+    return Object.fromEntries(
+      Object.entries(sources).map(([name, source]) => {
+        const image = new Image();
+        image.decoding = "async";
+        image.src = source;
+        return [name, image];
+      })
+    );
   }
 
   setViewport(width, height, pixelRatio = 1) {
@@ -62,7 +81,13 @@ export class Renderer {
     this.flowStreakCache.clear();
   }
 
-  render({ grid, turtle, particleSystem, hexRadius }) {
+  render({
+    grid,
+    turtle,
+    particleSystem,
+    hexRadius,
+    victoryTourActive = false
+  }) {
     const ctx = this.ctx;
     const now = performance.now();
     const deltaMs = Math.min(50, Math.max(4, now - this.lastFrameTime));
@@ -136,10 +161,10 @@ export class Renderer {
     );
 
     stableTiles.forEach((entry) => {
-      this.drawHexDetailLayer(ctx, entry, hexRadius);
+      this.drawHexDetailLayer(ctx, entry, hexRadius, victoryTourActive);
     });
     liftedTiles.forEach((entry) => {
-      this.drawHexDetailLayer(ctx, entry, hexRadius);
+      this.drawHexDetailLayer(ctx, entry, hexRadius, victoryTourActive);
     });
 
     this.drawTurtle(ctx, turtle, hexRadius);
@@ -336,18 +361,107 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawHexDetailLayer(ctx, entry, radius) {
+  drawHexDetailLayer(ctx, entry, radius, victoryTourActive = false) {
     const state = this.getHexRenderState(entry, radius);
 
-    if (!state.tile.active) return;
+    if (!state.tile.active && !state.tile.landmark) return;
 
     ctx.save();
     ctx.translate(state.x, state.y - state.lift);
     ctx.scale(state.actionScale, state.actionScale);
 
-    this.drawFlower(ctx, state.tile);
-    this.drawSettleGlow(ctx, radius, state.tile);
+    if (state.tile.landmark === "tree") {
+      const layout = this.getLandmarkLayout(state.tile, radius);
+      this.drawLandmarkSprite(
+        ctx,
+        "tree",
+        layout.size,
+        layout.x,
+        layout.y
+      );
+    } else if (state.tile.landmark === "lantern") {
+      const layout = this.getLandmarkLayout(state.tile, radius);
 
+      if (victoryTourActive) {
+        this.drawLanternVictoryGlow(ctx, layout, radius);
+      }
+
+      this.drawLandmarkSprite(
+        ctx,
+        "lantern",
+        layout.size,
+        layout.x,
+        layout.y
+      );
+    } else if (state.tile.active) {
+      this.drawFlower(ctx, state.tile);
+    }
+
+    if (state.tile.active) {
+      this.drawSettleGlow(ctx, radius, state.tile);
+    }
+
+    ctx.restore();
+  }
+
+  drawLanternVictoryGlow(ctx, layout, radius) {
+    const wave = 0.5 + Math.sin(this.waterFlowPhase * 5.4) * 0.5;
+    const flicker = 0.82 + Math.sin(this.waterFlowPhase * 13.7) * 0.18;
+    const intensity = (0.18 + wave * 0.48) * flicker;
+    const glowX = layout.x;
+    const glowY = layout.y + layout.size * 0.03;
+    const glowRadius = radius * (0.22 + wave * 0.12);
+    const glow = ctx.createRadialGradient(
+      glowX,
+      glowY,
+      0,
+      glowX,
+      glowY,
+      glowRadius
+    );
+
+    glow.addColorStop(0, `rgba(255, 226, 120, ${intensity})`);
+    glow.addColorStop(0.42, `rgba(255, 169, 62, ${intensity * 0.48})`);
+    glow.addColorStop(1, "rgba(255, 142, 39, 0)");
+
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(glowX, glowY, glowRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  getLandmarkLayout(tile, radius) {
+    const seed = this.getTileSeed(tile) ^ (
+      tile.landmark === "tree" ? 0x4f1bbcdc : 0x92d68ca2
+    );
+    const random = this.createSeededRandom(seed);
+    const isTree = tile.landmark === "tree";
+    const angle = random() * Math.PI * 2;
+    const minDistance = radius * (isTree ? 0.1 : 0.17);
+    const maxDistance = radius * (isTree ? 0.25 : 0.34);
+    const distance = minDistance + random() * (maxDistance - minDistance);
+
+    return {
+      x: Math.cos(angle) * distance,
+      y: Math.sin(angle) * distance * 0.62 - radius * (isTree ? 0.025 : 0.015),
+      size: radius * (isTree ? 1.18 : 0.62),
+      clearance: radius * (isTree ? 0.31 : 0.17)
+    };
+  }
+
+  drawLandmarkSprite(ctx, name, size, offsetX = 0, offsetY = 0) {
+    const image = this.landmarkImages[name];
+
+    if (!image?.complete || image.naturalWidth <= 0) return;
+
+    ctx.save();
+    ctx.translate(offsetX, offsetY);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(image, -size / 2, -size / 2, size, size);
     ctx.restore();
   }
 
@@ -412,6 +526,7 @@ export class Renderer {
       state,
       Math.round(this.pixelRatio * 100),
       tile.decorSeed,
+      tile.landmark || "none",
       tile.q,
       tile.r
     ].join(":");
@@ -549,6 +664,11 @@ export class Renderer {
   drawIslandDecorations(ctx, radius, tile, connected) {
     const seed = this.getTileSeed(tile);
     const random = this.createSeededRandom(seed);
+    const groundLandmark = tile.landmark === "tree" || tile.landmark === "lantern";
+    const landmarkLayout = groundLandmark
+      ? this.getLandmarkLayout(tile, radius)
+      : null;
+
     const stoneRoll = random();
     const sandRoll = random();
     const grassChance = tile.flowerBloomed
@@ -556,41 +676,70 @@ export class Renderer {
       : tile.active
         ? 0.3
         : 0.42;
-    const stoneClusterCount = stoneRoll < 0.34
-      ? 0
-      : stoneRoll < 0.82
-        ? 1
-        : 2;
-    const sandPatchCount = sandRoll < 0.22
-      ? 0
-      : sandRoll < 0.82
-        ? 1
-        : 2;
-    const baseGrassCount = random() < grassChance
-      ? random() < 0.72 ? 1 : 2
-      : 0;
+    const stoneClusterCount = groundLandmark
+      ? stoneRoll < 0.46 ? 0 : 1
+      : stoneRoll < 0.34
+        ? 0
+        : stoneRoll < 0.82
+          ? 1
+          : 2;
+    const sandPatchCount = groundLandmark
+      ? 1
+      : sandRoll < 0.22
+        ? 0
+        : sandRoll < 0.82
+          ? 1
+          : 2;
+    const baseGrassCount = groundLandmark
+      ? tile.landmark === "tree"
+        ? 2 + (random() < 0.48 ? 1 : 0)
+        : 1 + (random() < 0.55 ? 1 : 0)
+      : random() < grassChance
+        ? random() < 0.72 ? 1 : 2
+        : 0;
     const connectedGrassBonus = connected
       ? 1 + (random() < 0.58 ? 1 : 0)
       : 0;
     const grassCount = Math.min(5, baseGrassCount + connectedGrassBonus);
     const flowerRoll = random();
-    const requestedFlowerPatchCount = !connected
-      ? 0
-      : flowerRoll < 0.5
-        ? 1
-        : flowerRoll < 0.64
-          ? 2
-          : 0;
+    const requestedFlowerPatchCount = groundLandmark
+      ? tile.landmark === "tree"
+        ? 1 + (flowerRoll < 0.28 ? 1 : 0)
+        : flowerRoll < 0.58 ? 1 : 0
+      : !connected
+        ? 0
+        : flowerRoll < 0.5
+          ? 1
+          : flowerRoll < 0.64
+            ? 2
+            : 0;
     const flowerPatchCount = Math.min(grassCount, requestedFlowerPatchCount);
     const grassPoints = [];
 
     for (let i = 0; i < sandPatchCount; i += 1) {
-      const point = this.pickDecorPoint(random, radius, 0.3, 0.58);
+      const point = groundLandmark && i === 0
+        ? {
+            x: landmarkLayout.x + (random() - 0.5) * radius * 0.12,
+            y: landmarkLayout.y + radius * 0.16
+          }
+        : this.pickDecorPointAvoiding(
+            random,
+            radius,
+            0.3,
+            0.58,
+            landmarkLayout
+          );
       this.drawSandPatch(ctx, random, point.x, point.y, radius);
     }
 
     for (let i = 0; i < grassCount; i += 1) {
-      const point = this.pickDecorPoint(random, radius, 0.34, 0.57);
+      const point = this.pickDecorPointAvoiding(
+        random,
+        radius,
+        groundLandmark ? 0.27 : 0.34,
+        0.57,
+        landmarkLayout
+      );
       const scale = 0.72 + random() * 0.38;
       const rotation = random() * 0.9 - 0.45;
 
@@ -623,7 +772,13 @@ export class Renderer {
     }
 
     for (let i = 0; i < stoneClusterCount; i += 1) {
-      const point = this.pickDecorPoint(random, radius, 0.38, 0.61);
+      const point = this.pickDecorPointAvoiding(
+        random,
+        radius,
+        0.38,
+        0.61,
+        landmarkLayout
+      );
       this.drawStoneCluster(
         ctx,
         random,
@@ -661,6 +816,44 @@ export class Renderer {
     return {
       x: Math.cos(angle) * distance,
       y: Math.sin(angle) * distance
+    };
+  }
+
+  pickDecorPointAvoiding(
+    random,
+    radius,
+    minDistance,
+    maxDistance,
+    avoidedLayout
+  ) {
+    if (!avoidedLayout) {
+      return this.pickDecorPoint(random, radius, minDistance, maxDistance);
+    }
+
+    let fallback = this.pickDecorPoint(random, radius, minDistance, maxDistance);
+
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const point = attempt === 0
+        ? fallback
+        : this.pickDecorPoint(random, radius, minDistance, maxDistance);
+      const distance = Math.hypot(
+        point.x - avoidedLayout.x,
+        point.y - avoidedLayout.y
+      );
+
+      if (distance >= avoidedLayout.clearance) {
+        return point;
+      }
+
+      fallback = point;
+    }
+
+    const awayAngle = Math.atan2(-avoidedLayout.y, -avoidedLayout.x);
+    const fallbackDistance = radius * maxDistance;
+
+    return {
+      x: Math.cos(awayAngle) * fallbackDistance,
+      y: Math.sin(awayAngle) * fallbackDistance
     };
   }
 

@@ -829,7 +829,8 @@ export class Game {
       grid: this.grid,
       turtle: this.turtle,
       particleSystem: this.particles,
-      hexRadius: this.hexRadius
+      hexRadius: this.hexRadius,
+      victoryTourActive: this.victoryTour.active
     });
 
     requestAnimationFrame((nextTimestamp) => this.loop(nextTimestamp));
