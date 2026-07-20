@@ -30,9 +30,10 @@ Render, Netlify veya benzeri servislere `dist` klasörü yayınlanabilir.
 
 ## Ada Modelleri
 
-- Ağaç ve antik fener, pasif kum adalarında kontrollü rastgele konumlarda ve bölüm
-  başına en fazla birer tane üretilir; çevrelerindeki taş, kum, çimen ve çiçekler
-  aynı seeded dekor düzeninin parçasıdır.
+- Ağaç ve antik fener, pasif kum adalarında merkez dışındaki kontrollü yerleşim
+  bölgelerine tabanlarından oturtulur ve bölüm başına en fazla birer tane üretilir.
+  Çevrelerindeki taş, kum, çimen ve çiçekler model tabanının çevresinde aynı seeded
+  kompozisyonun parçası olarak kümelenir.
 - Modeller basit Canvas sembolleri değildir; `public/images/hex-tree.webp` ve
   `hex-ancient-lantern.webp` şeffaf üretim varlıkları kullanılır.
 - Modeller puzzle bağlantı mantığını değiştirmez; yalnız görsel çeşitlilik sağlar.

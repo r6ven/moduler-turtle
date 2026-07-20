@@ -104,9 +104,10 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Bagli hexlerde cimen miktari hafif artar ve cimenlerin bir kismi ciceklenir.
 - Tas, cimen, yabani cicek ve merkez cicegi icin birden fazla sekil varyanti vardir.
 - Agac ve antik fener, puzzle okunurlugunu korumak icin pasif kum adalarinda
-  kontrollu rastgele konumlara ve bolum basina en fazla birer tane yerlestirilir.
-  Ikisinin komsu olmamasi tercih edilir; tas, kum, cimen ve cicekler modelin
-  kapladigi alana binmeden ayni seeded dekor kompozisyonuna katilir.
+  merkez disindaki kontrollu yerlesim bolgelerine tabanlarindan oturtulur ve bolum
+  basina en fazla birer tane yerlestirilir. Ikisinin komsu olmamasi tercih edilir;
+  tas, kum, cimen ve cicekler model tabani cevresinde ayni seeded dekor
+  kompozisyonuna katilir.
 - Agac ve fener basit Canvas sembolleri yerine optimize edilmis seffaf WebP
   modelleridir. Boylece onaylanan model dili ve doku kalitesi oyun icinde korunur.
 - Antik fener normal puzzle sirasinda sabittir; kaplumbaganin bolum sonu kaynak-bitis
@@ -461,8 +462,8 @@ Oncelik onerisi:
 - Bu ortamda kullanilan esdeger dogrulama: paketli Node ile `node_modules/vite/bin/vite.js build`
 - Vite: `5.4.21`
 - Sonuc: Basarili; 60 modul donusturuldu.
-- Cikti: `dist/index.html`, `dist/assets/index-CsHyja38.css`, `dist/assets/index-B--QgYBM.js`
-- Boyutlar: HTML 10.35 kB, CSS 42.99 kB, JS 294.79 kB.
+- Cikti: `dist/index.html`, `dist/assets/index-CsHyja38.css`, `dist/assets/index-CWB7sQ2F.js`
+- Boyutlar: HTML 10.35 kB, CSS 42.99 kB, JS 295.21 kB.
 - Tarih: 20 Temmuz 2026
 - Ek algoritma dogrulamasi: 100 prosedurel seviyede agac/fener sayisi, pasif tile
   kosulu ve koprunun oyundan cikarildigi kontrol edildi; tum seviyeler gecti.
