@@ -389,6 +389,9 @@ export class Renderer {
     if (state.tile.landmark === "tree") {
       const layout = this.getLandmarkLayout(state.tile, radius);
 
+      ctx.save();
+      this.drawHexShape(ctx, radius - 2.4);
+      ctx.clip();
       this.drawTreeShadow(ctx, layout, radius);
       this.drawLandmarkSprite(
         ctx,
@@ -407,6 +410,7 @@ export class Renderer {
         layout.y,
         layout.anchorRatio
       );
+      ctx.restore();
     } else if (state.tile.landmark === "lantern") {
       const layout = this.getLandmarkLayout(state.tile, radius);
 
@@ -471,12 +475,12 @@ export class Renderer {
     const tree = isTree ? this.getTreeDefinition(tile) : null;
     const slots = isTree
       ? [
-          [-0.48, 0.24],
-          [0.48, 0.24],
-          [-0.44, -0.02],
-          [0.44, -0.02],
-          [-0.3, 0.34],
-          [0.3, 0.34]
+          [-0.22, 0.25],
+          [0.22, 0.25],
+          [-0.18, 0.18],
+          [0.18, 0.18],
+          [-0.1, 0.29],
+          [0.1, 0.29]
         ]
       : [
           [-0.43, 0.2],
@@ -493,7 +497,7 @@ export class Renderer {
     return {
       x: radius * slot[0] + jitterX,
       y: radius * slot[1] + jitterY,
-      size: radius * (isTree ? tree.sizeRatio : 0.62),
+      size: radius * (isTree ? tree.sizeRatio : 0.82),
       anchorRatio: isTree ? 0.965 : 0.96,
       imageName: isTree ? tree.imageName : "lantern",
       maskName: isTree ? tree.maskName : null,
@@ -503,10 +507,10 @@ export class Renderer {
 
   getTreeDefinition(tile) {
     const variants = [
-      { imageName: "treeOlive", maskName: "treeOliveMask", sizeRatio: 2.08, shadowScale: 1 },
-      { imageName: "treePine", maskName: "treePineMask", sizeRatio: 2.24, shadowScale: 1.08 },
-      { imageName: "treeFlowering", maskName: "treeFloweringMask", sizeRatio: 2.04, shadowScale: 0.94 },
-      { imageName: "treeBonsai", maskName: "treeBonsaiMask", sizeRatio: 2.16, shadowScale: 1.02 }
+      { imageName: "treeOlive", maskName: "treeOliveMask", sizeRatio: 1.18, shadowScale: 0.78 },
+      { imageName: "treePine", maskName: "treePineMask", sizeRatio: 1.24, shadowScale: 0.82 },
+      { imageName: "treeFlowering", maskName: "treeFloweringMask", sizeRatio: 1.16, shadowScale: 0.74 },
+      { imageName: "treeBonsai", maskName: "treeBonsaiMask", sizeRatio: 1.2, shadowScale: 0.78 }
     ];
     const index = Number.isInteger(tile.landmarkVariant)
       ? tile.landmarkVariant
@@ -518,14 +522,14 @@ export class Renderer {
   drawTreeShadow(ctx, layout, radius) {
     const scale = layout.shadowScale || 1;
     const shadowX = layout.x + radius * 0.16;
-    const shadowY = layout.y - layout.size * 0.2;
+    const shadowY = layout.y - layout.size * 0.12;
     const shadow = ctx.createRadialGradient(
       shadowX,
       shadowY,
       radius * 0.02,
       shadowX,
       shadowY,
-      radius * 0.62 * scale
+      radius * 0.48 * scale
     );
 
     shadow.addColorStop(0, "rgba(47, 55, 30, 0.24)");
@@ -539,7 +543,7 @@ export class Renderer {
     ctx.translate(-shadowX, -shadowY);
     ctx.fillStyle = shadow;
     ctx.beginPath();
-    ctx.arc(shadowX, shadowY, radius * 0.62 * scale, 0, Math.PI * 2);
+    ctx.arc(shadowX, shadowY, radius * 0.48 * scale, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
@@ -550,8 +554,8 @@ export class Renderer {
     ctx.ellipse(
       layout.x + radius * 0.04,
       layout.y + radius * 0.03,
-      radius * 0.22,
-      radius * 0.08,
+      radius * 0.17,
+      radius * 0.06,
       -0.18,
       0,
       Math.PI * 2
@@ -576,7 +580,9 @@ export class Renderer {
     ctx.translate(offsetX, offsetY);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
-    ctx.filter = "saturate(1.06) contrast(1.035)";
+    ctx.filter = name.startsWith("tree")
+      ? "saturate(0.78) sepia(0.1) hue-rotate(-7deg) contrast(1.025) brightness(1.015)"
+      : "saturate(1.08) contrast(1.045)";
     ctx.drawImage(image, -size / 2, -size * anchorRatio, size, size);
     ctx.restore();
   }
@@ -1945,66 +1951,31 @@ export class Renderer {
     });
 
     ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(0, 0, width * 0.505, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
     ctx.restore();
   }
 
   drawWaterSurfaceNetwork(ctx, channels, active) {
     if (channels.length === 0) return;
 
-    const deep = active
-      ? CONFIG.colors.matchedWaterDeep
-      : CONFIG.colors.idleWaterDeep;
     const water = active
       ? CONFIG.colors.matchedWater
       : CONFIG.colors.idleWater;
-    const light = active
-      ? CONFIG.colors.matchedWaterLight
-      : CONFIG.colors.idleWaterLight;
 
     ctx.save();
     ctx.lineWidth = 10;
     ctx.lineCap = "butt";
     ctx.lineJoin = "round";
 
+    ctx.strokeStyle = water;
+    ctx.beginPath();
     channels.forEach((channel) => {
-      const normalX = -Math.sin(channel.angle);
-      const normalY = Math.cos(channel.angle);
-      const gradient = ctx.createLinearGradient(
-        -normalX * 5,
-        -normalY * 5,
-        normalX * 5,
-        normalY * 5
-      );
-
-      gradient.addColorStop(0, deep);
-      gradient.addColorStop(0.24, water);
-      gradient.addColorStop(0.58, light);
-      gradient.addColorStop(0.78, water);
-      gradient.addColorStop(1, deep);
-
-      ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.lineTo(
         channel.length * Math.cos(channel.angle),
         channel.length * Math.sin(channel.angle)
       );
-      ctx.strokeStyle = gradient;
-      ctx.stroke();
     });
-
-    const pool = ctx.createRadialGradient(-1.6, -1.8, 0.5, 0, 0, 5.2);
-    pool.addColorStop(0, light);
-    pool.addColorStop(0.46, water);
-    pool.addColorStop(1, deep);
-    ctx.beginPath();
-    ctx.arc(0, 0, 5.15, 0, Math.PI * 2);
-    ctx.fillStyle = pool;
-    ctx.fill();
+    ctx.stroke();
     ctx.restore();
   }
 

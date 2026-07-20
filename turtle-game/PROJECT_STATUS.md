@@ -112,8 +112,8 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
   haritalarda 1-2, genis haritalarda en fazla 3 agac bulunur; ayni haritadaki agac
   turleri tekrar etmez ve mumkun oldugunda birbirlerine komsu secilmez.
 - Zeytin, kiyi cami, cicekli agac ve low-poly bonsai varyantlari 768x768 kayipsiz,
-  seffaf WebP varliklaridir. Model olcekleri hex oranina gore ayarlanir; kenara
-  yakin yerlesebilir ve yumusak golgesi komsu hex uzerine dusebilir.
+  seffaf WebP varliklaridir. Model olcekleri hex oranina gore ayarlanir, zeytin/toprak
+  paletine tonlanir ve agac ile golgesi hex ust yuzey siniri icinde kirpilir.
 - Her agacin dip topragi ayri bir seffaf maskeyle secilir. Renderer bu maskeyi
   agacin bulundugu hexin pasif kum, aktif kum veya yesermis yuzey tonuna gore
   dinamik renklendirir; govde, kaya, cimen ve cicek renkleri korunur.
@@ -144,14 +144,14 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Esit derinlikli dongu kenarlarinda kararli siralama/anahtar eslemesi kullanilir.
 - Su katmanlari: toprak kiyi, kanal yatagi, derin su, capraz yuzey gradyani,
   seeded mikro kirinim, hareketli ince kesik izler ve kabarciklar.
-- Ayni durumdaki kanal kollari tek bir compound Canvas path'i olarak katman katman cizilir; hex merkezinde ayri stroke uclari veya gradyan dilimleri ust uste binmez.
+- Ayni durumdaki kanal kollari tek bir compound Canvas path'i olarak katman katman cizilir; hex merkezinde ayri yuvarlak dugum, radyal havuz veya gradyan dilimi kullanilmaz.
 - Su bir hex merkezine ulastiginda o tasin tum kanal oyuklari ayni su govdesiyle dolar; hareketli akis izleri ise yalnizca gercekten eslesmis komsu baglantilarinda ilerler.
 - Akis izleri tek kalin orta cizgi degil; kanal icinde farkli yanal konumlarda birden fazla ince kesik cizgidir.
 - Sabit su yuzeyi yansimasi komsu hexlerde ters yone donmez; kanal ekseni icin ortak bir dunya-isigi normali kullanir ve eslesmis sinir boyunca kesintisiz devam eder.
 - Yari saydam yansima katmanlari ortak kenarda ust uste binmez; iki komsu cizgi sinirda uc uca gelirken opak kanal govdesi alttan ortuserek surekliligi korur.
 - Mantiksal rotasyon hamle aninda guncellense de hareketli akis, donus animasyonu komsu kanalla gorsel olarak hizalanmadan baslamaz. Kanal uzamasi genis bir aci araliginda smoothstep gecisiyle baslayarak ani parca belirmesini gizler.
 - Bagli olmayan kanallar acik ve hareketsiz gorunur.
-- Ana menudeki dekoratif akis da kaynak-kanal-bitis fikrini ayni gorsel dille anlatir.
+- Ana menudeki dekoratif akis da kaynak-kanal-bitis fikrini ayni gorsel dille anlatir; tas orgulu kaynak/batis kuyulari, duzensiz kanal yatagi ve coklu ince akis izleri kullanir.
 - Ana menu kaplumbagasi tek renk ailesinden bir kaliptir; kafa kabuktan boslukla ayrilir, kabuk hucrelerinin sinirlari menu zemini rengindedir ve kafa/yuzgecler kabugun farkli tonunu kullanir.
 
 ### 4.5 Kaplumbaga

@@ -2651,3 +2651,130 @@ canvas {
     height: 40px;
   }
 }
+
+/* Kaynak-kanal-bitis onizlemesi: tek parca su yatagi ve tas orgulu kuyular. */
+.menu-flow-preview {
+  isolation: isolate;
+  height: 76px;
+  overflow: hidden;
+}
+
+.menu-flow-preview::before {
+  top: 50%;
+  right: 38px;
+  left: 38px;
+  height: 25px;
+  border-radius: 0;
+  background: linear-gradient(180deg, #997550 0 15%, #6f5541 38% 72%, #a9855d 88% 100%);
+  clip-path: polygon(0 28%, 8% 18%, 18% 30%, 29% 15%, 41% 27%, 53% 13%, 66% 29%, 78% 18%, 90% 30%, 100% 22%, 100% 78%, 91% 70%, 80% 84%, 68% 72%, 55% 88%, 43% 73%, 30% 85%, 18% 70%, 7% 82%, 0 72%);
+  box-shadow: inset 0 5px 5px rgba(62, 43, 32, 0.34), 0 2px 0 rgba(255, 239, 196, 0.32);
+  transform: translateY(-50%);
+}
+
+.menu-flow-source,
+.menu-flow-sink {
+  z-index: 4;
+  width: 62px;
+  height: 62px;
+  overflow: visible;
+  border: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 12deg, #c6ad7f 0 11%, #8d704e 11% 18%, #d2bc8e 18% 31%, #977852 31% 39%, #c9ad79 39% 52%, #806245 52% 60%, #d6c090 60% 74%, #92714d 74% 84%, #c1a577 84% 100%);
+  box-shadow: 0 5px 0 #76583f, 0 9px 16px rgba(70, 47, 34, 0.22);
+  animation: none;
+}
+
+.menu-flow-source { left: 3px; }
+.menu-flow-sink { right: 3px; }
+
+.menu-flow-source::before,
+.menu-flow-sink::before {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border: 2px solid rgba(255, 237, 193, 0.48);
+  border-radius: 50%;
+  box-shadow: inset 0 5px 9px rgba(5, 48, 54, 0.58), inset 0 -2px 4px rgba(88, 204, 199, 0.24);
+}
+
+.menu-flow-source::before {
+  background: radial-gradient(ellipse at 42% 34%, #9ce1d6 0 8%, #4abdb7 10% 28%, #168f9c 52%, #0d5964 78%, #08383f 100%);
+}
+
+.menu-flow-sink::before {
+  background: radial-gradient(ellipse at 50% 54%, #071f24 0 24%, #0d4e58 36%, #168f9c 62%, #65c2ba 82%, #0b4149 100%);
+}
+
+.menu-flow-source::after,
+.menu-flow-sink::after {
+  content: "";
+  position: absolute;
+  inset: 16px;
+  border: 1px solid rgba(220, 255, 245, 0.55);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.menu-flow-source::after { animation: menuWellSpring 1700ms ease-out infinite; }
+.menu-flow-sink::after { animation: menuWellDrain 1350ms ease-in infinite; }
+
+.menu-flow-channel {
+  z-index: 2;
+  right: 42px;
+  left: 42px;
+  height: 12px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(180deg, #62c7be 0%, #25a6aa 28%, #168f9c 61%, #0d6570 100%);
+  clip-path: polygon(0 22%, 8% 8%, 18% 20%, 29% 6%, 41% 18%, 53% 4%, 66% 20%, 79% 7%, 90% 19%, 100% 10%, 100% 88%, 91% 78%, 80% 93%, 68% 79%, 56% 96%, 43% 81%, 31% 94%, 19% 80%, 8% 92%, 0 82%);
+  box-shadow: inset 0 2px 2px rgba(220, 255, 241, 0.25), inset 0 -2px 3px rgba(4, 60, 68, 0.36);
+}
+
+.menu-flow-channel::before,
+.menu-flow-channel i::before,
+.menu-flow-channel i::after {
+  height: 1px;
+  border-radius: 1px;
+  filter: blur(0.15px);
+}
+
+.menu-flow-channel::before { top: 2px; opacity: 0.32; }
+.menu-flow-channel i::before { top: 5px; opacity: 0.24; }
+.menu-flow-channel i::after { top: 8px; opacity: 0.28; }
+
+@keyframes menuWellSpring {
+  0% { opacity: 0; transform: scale(0.45); }
+  45% { opacity: 0.72; }
+  100% { opacity: 0; transform: scale(1.45); }
+}
+
+@keyframes menuWellDrain {
+  0% { opacity: 0; transform: scale(1.45); }
+  55% { opacity: 0.62; }
+  100% { opacity: 0; transform: scale(0.35); }
+}
+
+@media (max-height: 760px) {
+  .menu-flow-preview { height: 64px; }
+  .menu-flow-source,
+  .menu-flow-sink { width: 54px; height: 54px; }
+  .menu-flow-channel { right: 37px; left: 37px; }
+}
+
+@media (max-width: 370px), (max-height: 680px) {
+  .menu-flow-preview {
+    height: 52px;
+    margin: 5px auto 7px;
+    transform: scale(0.86);
+  }
+
+  .menu-flow-preview::before { right: 31px; left: 31px; height: 21px; }
+  .menu-flow-source,
+  .menu-flow-sink { width: 48px; height: 48px; }
+  .menu-flow-source::before,
+  .menu-flow-sink::before { inset: 7px; }
+  .menu-flow-source::after,
+  .menu-flow-sink::after { inset: 13px; }
+  .menu-flow-channel { right: 33px; left: 33px; height: 11px; }
+}

@@ -35,8 +35,8 @@ Render, Netlify veya benzeri servislere `dist` klasörü yayınlanabilir.
   1-2, geniş haritalarda en fazla 3 ağaç bulunur; aynı haritadaki türler tekrar
   etmez ve mümkün olduğunda komşu hexlere yığılmaz.
 - Ağaçlar zeytin, kıyı çamı, çiçekli ağaç ve low-poly bonsai modelleridir.
-  Modeller 768x768 kayıpsız, şeffaf WebP varlıklarıdır; yüksek DPI Canvas üzerinde
-  canlı renk, yumuşak komşu-hex gölgesi ve yüksek kaliteli ölçekleme ile çizilir.
+  Modeller 768x768 kayıpsız, şeffaf WebP varlıklarıdır; oyun paletine uyarlanmış
+  zeytin/toprak tonlarıyla, yüksek DPI Canvas üzerinde ve hex sınırı içinde çizilir.
 - Her modelin dip toprağı ayrı bir yumuşak maskeyle seçilir ve Renderer tarafından
   bulunduğu hexin kum/aktif/yeşermiş yüzey tonuna dinamik olarak uyarlanır. Ağaç,
   taş, çimen ve çiçek renkleri bu işlemden etkilenmez.
@@ -55,6 +55,9 @@ Render, Netlify veya benzeri servislere `dist` klasörü yayınlanabilir.
 - Kum yüzeyi çok ölçekli tanecik, mineral izi ve ton kırılmaları kullanır.
 - Su; kıyı, kanal yatağı, derinlik, çapraz renk kırılması, mikro yansıma ve kaynaktan
   ilerleyen ince akış izleri olarak ayrı katmanlarda çizilir.
+- Kanal merkezlerinde ayrı yuvarlak düğüm veya havuz yaması kullanılmaz; su gövdesi
+  tek yüzey olarak birleşir. Ana menüdeki kaynak ve bitiş kuyuları taş örgü, derinlik
+  ve su halkası katmanlarıyla oyun içindeki akış dilini takip eder.
 
 ## Karar Bekleyen Mekanikler
 
