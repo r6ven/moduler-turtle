@@ -144,7 +144,7 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Esit derinlikli dongu kenarlarinda kararli siralama/anahtar eslemesi kullanilir.
 - Su katmanlari: toprak kiyi, kanal yatagi, derin su, capraz yuzey gradyani,
   seeded mikro kirinim, hareketli ince kesik izler ve kabarciklar.
-- Ayni durumdaki kanal kollari tek bir compound Canvas path'i olarak katman katman cizilir; hex merkezinde ayri yuvarlak dugum, radyal havuz veya gradyan dilimi kullanilmaz.
+- Ayni durumdaki kanal kollari tek bir compound Canvas path'i olarak katman katman cizilir; hex merkezinde radyal havuz veya gradyan dilimi kullanilmaz. Cok kollu merkezler kanal genisligini asmayan, duz renkli sekizgen birlesim muhruyle bosluksuz kapanir.
 - Su bir hex merkezine ulastiginda o tasin tum kanal oyuklari ayni su govdesiyle dolar; hareketli akis izleri ise yalnizca gercekten eslesmis komsu baglantilarinda ilerler.
 - Akis izleri tek kalin orta cizgi degil; kanal icinde farkli yanal konumlarda birden fazla ince kesik cizgidir.
 - Sabit su yuzeyi yansimasi komsu hexlerde ters yone donmez; kanal ekseni icin ortak bir dunya-isigi normali kullanir ve eslesmis sinir boyunca kesintisiz devam eder.

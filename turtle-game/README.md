@@ -56,7 +56,8 @@ Render, Netlify veya benzeri servislere `dist` klasörü yayınlanabilir.
 - Su; kıyı, kanal yatağı, derinlik, çapraz renk kırılması, mikro yansıma ve kaynaktan
   ilerleyen ince akış izleri olarak ayrı katmanlarda çizilir.
 - Kanal merkezlerinde ayrı yuvarlak düğüm veya havuz yaması kullanılmaz; su gövdesi
-  tek yüzey olarak birleşir. Ana menüdeki kaynak ve bitiş kuyuları taş örgü, derinlik
+  kanal genişliğini aşmayan düz renkli bir birleşim mührüyle boşluksuz kapanır.
+  Ana menüdeki kaynak ve bitiş kuyuları taş örgü, derinlik
   ve su halkası katmanlarıyla oyun içindeki akış dilini takip eder.
 
 ## Karar Bekleyen Mekanikler

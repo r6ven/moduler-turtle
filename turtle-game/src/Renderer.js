@@ -1951,6 +1951,30 @@ export class Renderer {
     });
 
     ctx.stroke();
+    this.drawChannelJunctionSeal(ctx, channels, width, color);
+    ctx.restore();
+  }
+
+  drawChannelJunctionSeal(ctx, channels, width, color) {
+    if (channels.length < 2) return;
+
+    const radius = width * 0.45;
+
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+
+    for (let index = 0; index < 8; index += 1) {
+      const angle = Math.PI / 8 + index * Math.PI / 4;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+
+    ctx.closePath();
+    ctx.fill();
     ctx.restore();
   }
 
@@ -1976,6 +2000,7 @@ export class Renderer {
       );
     });
     ctx.stroke();
+    this.drawChannelJunctionSeal(ctx, channels, 10, water);
     ctx.restore();
   }
 
