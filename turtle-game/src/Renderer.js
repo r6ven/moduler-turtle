@@ -465,7 +465,7 @@ export class Renderer {
     return {
       x: radius * slot[0] + jitterX,
       y: radius * slot[1] + jitterY,
-      size: radius * (isTree ? 0.92 : 0.5),
+      size: radius * (isTree ? 0.92 : 0.62),
       anchorRatio: isTree ? 0.92 : 0.96
     };
   }

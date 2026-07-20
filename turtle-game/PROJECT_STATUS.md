@@ -111,7 +111,8 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Agac ve fener basit Canvas sembolleri yerine optimize edilmis seffaf WebP
   modelleridir. Boylece onaylanan model dili ve doku kalitesi oyun icinde korunur.
 - Antik fener normal puzzle sirasinda sabittir; kaplumbaganin bolum sonu kaynak-bitis
-  turu boyunca sicak isigi yumusak bir nabiz ve hafif titresimle yanip soner.
+  turu boyunca sicak isigi yumusak bir nabiz ve hafif titresimle yanip soner. Fener,
+  cevre tas ve cicekleriyle okunacak ancak hex merkezini kapatmayacak orta olcektedir.
 - Kayalar tek tip ve sabit konumlu degildir; bazi hexler bos kalirken digerlerinde sinirli sayida, farkli renk ve bicimlerde kucuk kaya kumeleri olusur.
 - Bagli hexlerde cimen miktari kontrollu artar; cicekler tek sembol yerine farkli renk ve yaprak duzenlerine sahip kucuk yamalar halinde acabilir.
 - Tas yukseltme, 60 derece donus, golge genislemesi ve yerine oturma animasyonu vardir.
