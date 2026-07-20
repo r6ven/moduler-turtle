@@ -10,6 +10,7 @@ export class Renderer {
     this.lastFrameTime = performance.now();
     this.tileSurfaceCache = new Map();
     this.flowStreakCache = new Map();
+    this.groundTintCache = new Map();
     this.landmarkImages = this.createLandmarkImages();
     this.quality = CONFIG.performance.profiles.high;
     this.logicalWidth = canvas.width || 1;
@@ -37,7 +38,14 @@ export class Renderer {
     if (typeof Image === "undefined") return {};
 
     const sources = {
-      tree: "/images/hex-tree.webp",
+      treeOlive: "/images/hex-tree-olive.webp",
+      treeOliveMask: "/images/hex-tree-olive-ground-mask.webp",
+      treePine: "/images/hex-tree-pine.webp",
+      treePineMask: "/images/hex-tree-pine-ground-mask.webp",
+      treeFlowering: "/images/hex-tree-flowering.webp",
+      treeFloweringMask: "/images/hex-tree-flowering-ground-mask.webp",
+      treeBonsai: "/images/hex-tree-bonsai.webp",
+      treeBonsaiMask: "/images/hex-tree-bonsai-ground-mask.webp",
       lantern: "/images/hex-ancient-lantern.webp"
     };
 
@@ -160,12 +168,20 @@ export class Renderer {
       flowState
     );
 
-    stableTiles.forEach((entry) => {
-      this.drawHexDetailLayer(ctx, entry, hexRadius, victoryTourActive);
-    });
-    liftedTiles.forEach((entry) => {
-      this.drawHexDetailLayer(ctx, entry, hexRadius, victoryTourActive);
-    });
+    const detailEntries = [...stableTiles, ...liftedTiles];
+
+    detailEntries
+      .filter((entry) => !entry.tile.landmark)
+      .forEach((entry) => {
+        this.drawHexDetailLayer(ctx, entry, hexRadius, victoryTourActive);
+      });
+
+    detailEntries
+      .filter((entry) => entry.tile.landmark)
+      .sort((a, b) => a.y - b.y)
+      .forEach((entry) => {
+        this.drawHexDetailLayer(ctx, entry, hexRadius, victoryTourActive);
+      });
 
     this.drawTurtle(ctx, turtle, hexRadius);
     particleSystem.draw(ctx);
@@ -372,9 +388,20 @@ export class Renderer {
 
     if (state.tile.landmark === "tree") {
       const layout = this.getLandmarkLayout(state.tile, radius);
+
+      this.drawTreeShadow(ctx, layout, radius);
       this.drawLandmarkSprite(
         ctx,
-        "tree",
+        layout.imageName,
+        layout.size,
+        layout.x,
+        layout.y,
+        layout.anchorRatio
+      );
+      this.drawLandmarkGroundTint(
+        ctx,
+        layout.maskName,
+        this.getLandmarkGroundTone(state.tile),
         layout.size,
         layout.x,
         layout.y,
@@ -441,14 +468,15 @@ export class Renderer {
     );
     const random = this.createSeededRandom(seed);
     const isTree = tile.landmark === "tree";
+    const tree = isTree ? this.getTreeDefinition(tile) : null;
     const slots = isTree
       ? [
-          [-0.36, 0.2],
-          [0.36, 0.2],
-          [-0.32, -0.02],
-          [0.32, -0.02],
-          [-0.17, 0.3],
-          [0.17, 0.3]
+          [-0.48, 0.24],
+          [0.48, 0.24],
+          [-0.44, -0.02],
+          [0.44, -0.02],
+          [-0.3, 0.34],
+          [0.3, 0.34]
         ]
       : [
           [-0.43, 0.2],
@@ -465,9 +493,71 @@ export class Renderer {
     return {
       x: radius * slot[0] + jitterX,
       y: radius * slot[1] + jitterY,
-      size: radius * (isTree ? 0.92 : 0.62),
-      anchorRatio: isTree ? 0.92 : 0.96
+      size: radius * (isTree ? tree.sizeRatio : 0.62),
+      anchorRatio: isTree ? 0.965 : 0.96,
+      imageName: isTree ? tree.imageName : "lantern",
+      maskName: isTree ? tree.maskName : null,
+      shadowScale: isTree ? tree.shadowScale : 0
     };
+  }
+
+  getTreeDefinition(tile) {
+    const variants = [
+      { imageName: "treeOlive", maskName: "treeOliveMask", sizeRatio: 2.08, shadowScale: 1 },
+      { imageName: "treePine", maskName: "treePineMask", sizeRatio: 2.24, shadowScale: 1.08 },
+      { imageName: "treeFlowering", maskName: "treeFloweringMask", sizeRatio: 2.04, shadowScale: 0.94 },
+      { imageName: "treeBonsai", maskName: "treeBonsaiMask", sizeRatio: 2.16, shadowScale: 1.02 }
+    ];
+    const index = Number.isInteger(tile.landmarkVariant)
+      ? tile.landmarkVariant
+      : this.getTileSeed(tile) % variants.length;
+
+    return variants[((index % variants.length) + variants.length) % variants.length];
+  }
+
+  drawTreeShadow(ctx, layout, radius) {
+    const scale = layout.shadowScale || 1;
+    const shadowX = layout.x + radius * 0.16;
+    const shadowY = layout.y - layout.size * 0.2;
+    const shadow = ctx.createRadialGradient(
+      shadowX,
+      shadowY,
+      radius * 0.02,
+      shadowX,
+      shadowY,
+      radius * 0.62 * scale
+    );
+
+    shadow.addColorStop(0, "rgba(47, 55, 30, 0.24)");
+    shadow.addColorStop(0.48, "rgba(47, 55, 30, 0.12)");
+    shadow.addColorStop(1, "rgba(47, 55, 30, 0)");
+
+    ctx.save();
+    ctx.translate(shadowX, shadowY);
+    ctx.rotate(-0.38);
+    ctx.scale(1.28, 0.48);
+    ctx.translate(-shadowX, -shadowY);
+    ctx.fillStyle = shadow;
+    ctx.beginPath();
+    ctx.arc(shadowX, shadowY, radius * 0.62 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = "#334025";
+    ctx.beginPath();
+    ctx.ellipse(
+      layout.x + radius * 0.04,
+      layout.y + radius * 0.03,
+      radius * 0.22,
+      radius * 0.08,
+      -0.18,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+    ctx.restore();
   }
 
   drawLandmarkSprite(
@@ -486,7 +576,62 @@ export class Renderer {
     ctx.translate(offsetX, offsetY);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
+    ctx.filter = "saturate(1.06) contrast(1.035)";
     ctx.drawImage(image, -size / 2, -size * anchorRatio, size, size);
+    ctx.restore();
+  }
+
+  getLandmarkGroundTone(tile) {
+    if (tile.flowerBloomed) return "#a9cc59";
+    if (tile.active) return "#dfba66";
+    return "#d8c79f";
+  }
+
+  getGroundTintSurface(maskName, color) {
+    const cacheKey = `${maskName}:${color}`;
+
+    if (this.groundTintCache.has(cacheKey)) {
+      return this.groundTintCache.get(cacheKey);
+    }
+
+    const mask = this.landmarkImages[maskName];
+
+    if (!mask?.complete || mask.naturalWidth <= 0) return null;
+
+    const surface = document.createElement("canvas");
+    const surfaceCtx = surface.getContext("2d");
+
+    surface.width = mask.naturalWidth;
+    surface.height = mask.naturalHeight;
+    surfaceCtx.drawImage(mask, 0, 0);
+    surfaceCtx.globalCompositeOperation = "source-in";
+    surfaceCtx.fillStyle = color;
+    surfaceCtx.fillRect(0, 0, surface.width, surface.height);
+    this.groundTintCache.set(cacheKey, surface);
+
+    return surface;
+  }
+
+  drawLandmarkGroundTint(
+    ctx,
+    maskName,
+    color,
+    size,
+    offsetX,
+    offsetY,
+    anchorRatio
+  ) {
+    const tint = this.getGroundTintSurface(maskName, color);
+
+    if (!tint) return;
+
+    ctx.save();
+    ctx.translate(offsetX, offsetY);
+    ctx.globalCompositeOperation = "color";
+    ctx.globalAlpha = 0.78;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(tint, -size / 2, -size * anchorRatio, size, size);
     ctx.restore();
   }
 
@@ -636,12 +781,12 @@ export class Renderer {
 
     ctx.save();
 
-    for (let i = 0; i < 3; i += 1) {
+    for (let i = 0; i < 4; i += 1) {
       const angle = random() * Math.PI * 2;
       const distance = radius * (0.08 + random() * 0.42);
       const x = Math.cos(angle) * distance;
       const y = Math.sin(angle) * distance;
-      const patchRadius = radius * (0.16 + random() * 0.1);
+      const patchRadius = radius * (0.1 + random() * 0.09);
       const patch = ctx.createRadialGradient(x, y, 0, x, y, patchRadius);
 
       patch.addColorStop(0, i % 2 === 0
@@ -657,14 +802,14 @@ export class Renderer {
 
     ctx.fillStyle = CONFIG.colors.tileTexture;
 
-    for (let i = 0; i < 18; i += 1) {
+    for (let i = 0; i < 30; i += 1) {
       const angle = random() * Math.PI * 2;
       const distance = radius * Math.sqrt(random()) * 0.72;
       const x = Math.cos(angle) * distance;
       const y = Math.sin(angle) * distance;
-      const dotRadius = 0.28 + random() * 0.62;
+      const dotRadius = 0.2 + random() * 0.52;
 
-      ctx.globalAlpha = 0.34 + random() * 0.5;
+      ctx.globalAlpha = 0.26 + random() * 0.48;
       ctx.beginPath();
       ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
       ctx.fill();
@@ -703,6 +848,27 @@ export class Renderer {
         landmarkLayout
       );
       return;
+    }
+
+    for (let i = 0; i < 8; i += 1) {
+      const angle = random() * Math.PI * 2;
+      const distance = radius * Math.sqrt(random()) * 0.64;
+      const x = Math.cos(angle) * distance;
+      const y = Math.sin(angle) * distance;
+      const width = 1.4 + random() * 2.8;
+      const height = 0.55 + random() * 1.15;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(random() * Math.PI);
+      ctx.globalAlpha = 0.16 + random() * 0.16;
+      ctx.fillStyle = i % 2 === 0
+        ? CONFIG.colors.tileTextureLight
+        : CONFIG.colors.tileTextureShade;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, width, height, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
 
     const stoneRoll = random();
@@ -1346,6 +1512,13 @@ export class Renderer {
 
     this.drawChannelNetwork(
       ctx,
+      channels,
+      20,
+      CONFIG.colors.channelBank
+    );
+
+    this.drawChannelNetwork(
+      ctx,
       idleChannels,
       18,
       CONFIG.colors.channelBedIdle
@@ -1370,20 +1543,17 @@ export class Renderer {
       CONFIG.colors.matchedWaterDeep
     );
 
-    this.drawChannelNetwork(
-      ctx,
-      idleChannels,
-      9,
-      CONFIG.colors.idleWater
-    );
-    this.drawChannelNetwork(
-      ctx,
-      filledChannels,
-      9,
-      CONFIG.colors.matchedWater
-    );
+    this.drawWaterSurfaceNetwork(ctx, idleChannels, false);
+    this.drawWaterSurfaceNetwork(ctx, filledChannels, true);
 
     channels.forEach((channel) => {
+      this.drawWaterRefraction(
+        ctx,
+        channel.length,
+        channel.angle,
+        channel.active,
+        channel.flowSeed
+      );
       this.drawWaterSurfaceSheen(
         ctx,
         Math.min(channel.length, faceDistance),
@@ -1560,14 +1730,14 @@ export class Renderer {
   drawWaterConnectionSpan(ctx, start, end, connected) {
     const layers = connected
       ? [
+          [20, CONFIG.colors.channelBank],
           [18, CONFIG.colors.channelBedShadow],
-          [12, CONFIG.colors.matchedWaterDeep],
-          [9, CONFIG.colors.matchedWater]
+          [12, CONFIG.colors.matchedWaterDeep]
         ]
       : [
+          [20, CONFIG.colors.channelBank],
           [18, CONFIG.colors.channelBedIdle],
-          [12, CONFIG.colors.idleWaterDeep],
-          [9, CONFIG.colors.idleWater]
+          [12, CONFIG.colors.idleWaterDeep]
         ];
 
     ctx.save();
@@ -1584,6 +1754,39 @@ export class Renderer {
 
     const angle = Math.atan2(end.y - start.y, end.x - start.x);
     const length = Math.hypot(end.x - start.x, end.y - start.y);
+    const normalX = -Math.sin(angle);
+    const normalY = Math.cos(angle);
+    const middleX = (start.x + end.x) * 0.5;
+    const middleY = (start.y + end.y) * 0.5;
+    const surfaceGradient = ctx.createLinearGradient(
+      middleX - normalX * 5,
+      middleY - normalY * 5,
+      middleX + normalX * 5,
+      middleY + normalY * 5
+    );
+    const deep = connected
+      ? CONFIG.colors.matchedWaterDeep
+      : CONFIG.colors.idleWaterDeep;
+    const water = connected
+      ? CONFIG.colors.matchedWater
+      : CONFIG.colors.idleWater;
+    const light = connected
+      ? CONFIG.colors.matchedWaterLight
+      : CONFIG.colors.idleWaterLight;
+
+    surfaceGradient.addColorStop(0, deep);
+    surfaceGradient.addColorStop(0.24, water);
+    surfaceGradient.addColorStop(0.58, light);
+    surfaceGradient.addColorStop(0.78, water);
+    surfaceGradient.addColorStop(1, deep);
+
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = surfaceGradient;
+    ctx.stroke();
+
     const axisAngle = ((angle % Math.PI) + Math.PI) % Math.PI;
     const normalAngle = axisAngle - Math.PI / 2;
     const sheenOffset = connected ? 1.8 : 1.35;
@@ -1750,6 +1953,102 @@ export class Renderer {
     ctx.restore();
   }
 
+  drawWaterSurfaceNetwork(ctx, channels, active) {
+    if (channels.length === 0) return;
+
+    const deep = active
+      ? CONFIG.colors.matchedWaterDeep
+      : CONFIG.colors.idleWaterDeep;
+    const water = active
+      ? CONFIG.colors.matchedWater
+      : CONFIG.colors.idleWater;
+    const light = active
+      ? CONFIG.colors.matchedWaterLight
+      : CONFIG.colors.idleWaterLight;
+
+    ctx.save();
+    ctx.lineWidth = 10;
+    ctx.lineCap = "butt";
+    ctx.lineJoin = "round";
+
+    channels.forEach((channel) => {
+      const normalX = -Math.sin(channel.angle);
+      const normalY = Math.cos(channel.angle);
+      const gradient = ctx.createLinearGradient(
+        -normalX * 5,
+        -normalY * 5,
+        normalX * 5,
+        normalY * 5
+      );
+
+      gradient.addColorStop(0, deep);
+      gradient.addColorStop(0.24, water);
+      gradient.addColorStop(0.58, light);
+      gradient.addColorStop(0.78, water);
+      gradient.addColorStop(1, deep);
+
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(
+        channel.length * Math.cos(channel.angle),
+        channel.length * Math.sin(channel.angle)
+      );
+      ctx.strokeStyle = gradient;
+      ctx.stroke();
+    });
+
+    const pool = ctx.createRadialGradient(-1.6, -1.8, 0.5, 0, 0, 5.2);
+    pool.addColorStop(0, light);
+    pool.addColorStop(0.46, water);
+    pool.addColorStop(1, deep);
+    ctx.beginPath();
+    ctx.arc(0, 0, 5.15, 0, Math.PI * 2);
+    ctx.fillStyle = pool;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  drawWaterRefraction(ctx, channelLength, angle, active, seed) {
+    const random = this.createSeededRandom(seed ^ 0x6c8e9cf5);
+    const normalAngle = angle + Math.PI / 2;
+    const count = active ? 4 : 3;
+
+    ctx.save();
+    ctx.lineCap = "round";
+
+    for (let index = 0; index < count; index += 1) {
+      const base = 0.14 + random() * 0.68;
+      const drift = active
+        ? Math.sin(this.waterFlowPhase * 0.72 + index * 1.8) * 0.025
+        : 0;
+      const distance = channelLength * Math.min(0.88, Math.max(0.1, base + drift));
+      const lateral = (random() - 0.5) * 5.8;
+      const length = 1.8 + random() * 3.8;
+      const x = distance * Math.cos(angle) + lateral * Math.cos(normalAngle);
+      const y = distance * Math.sin(angle) + lateral * Math.sin(normalAngle);
+
+      ctx.globalAlpha = (active ? 0.24 : 0.14) + random() * 0.12;
+      ctx.strokeStyle = index % 3 === 0
+        ? CONFIG.colors.waterShade
+        : CONFIG.colors.waterRefraction;
+      ctx.lineWidth = 0.55 + random() * 0.55;
+      ctx.beginPath();
+      ctx.moveTo(
+        x - Math.cos(angle) * length * 0.5,
+        y - Math.sin(angle) * length * 0.5
+      );
+      ctx.quadraticCurveTo(
+        x + Math.cos(normalAngle) * 0.8,
+        y + Math.sin(normalAngle) * 0.8,
+        x + Math.cos(angle) * length * 0.5,
+        y + Math.sin(angle) * length * 0.5
+      );
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
   drawWaterPortal(ctx, tile, connected) {
     if (!tile.source && !tile.sink) return;
 
@@ -1811,8 +2110,8 @@ export class Renderer {
 
   drawWaterSurfaceSheen(ctx, channelLength, angle, active) {
     ctx.save();
-    ctx.globalAlpha = active ? 0.34 : 0.21;
-    ctx.lineWidth = active ? 1.35 : 1.05;
+    ctx.globalAlpha = active ? 0.18 : 0.1;
+    ctx.lineWidth = active ? 0.95 : 0.72;
     ctx.lineCap = "butt";
     ctx.strokeStyle = CONFIG.colors.waterHighlight;
 

@@ -332,7 +332,7 @@ export class Game {
     const profile = this.getQualityProfile();
     const devicePixelRatio = Math.max(1, window.devicePixelRatio || 1);
     const pixelRatio = Math.max(
-      1,
+      profile.minPixelRatio || 1,
       Math.min(
         profile.maxPixelRatio || 2,
         devicePixelRatio * profile.renderScale

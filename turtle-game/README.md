@@ -30,16 +30,31 @@ Render, Netlify veya benzeri servislere `dist` klasörü yayınlanabilir.
 
 ## Ada Modelleri
 
-- Ağaç ve antik fener, pasif kum adalarında merkez dışındaki kontrollü yerleşim
-  bölgelerine tabanlarından oturtulur ve bölüm başına en fazla birer tane üretilir.
-  Çevrelerindeki taş, kum, çimen ve çiçekler model tabanının çevresinde aynı seeded
+- Dört yüksek çözünürlüklü ağaç varyantı ve antik fener pasif kum adalarında,
+  merkez dışındaki kontrollü bölgelere tabanlarından oturtulur. Küçük haritalarda
+  1-2, geniş haritalarda en fazla 3 ağaç bulunur; aynı haritadaki türler tekrar
+  etmez ve mümkün olduğunda komşu hexlere yığılmaz.
+- Ağaçlar zeytin, kıyı çamı, çiçekli ağaç ve low-poly bonsai modelleridir.
+  Modeller 768x768 kayıpsız, şeffaf WebP varlıklarıdır; yüksek DPI Canvas üzerinde
+  canlı renk, yumuşak komşu-hex gölgesi ve yüksek kaliteli ölçekleme ile çizilir.
+- Her modelin dip toprağı ayrı bir yumuşak maskeyle seçilir ve Renderer tarafından
+  bulunduğu hexin kum/aktif/yeşermiş yüzey tonuna dinamik olarak uyarlanır. Ağaç,
+  taş, çimen ve çiçek renkleri bu işlemden etkilenmez.
+- Çevrelerindeki taş, kum, çimen ve çiçekler model tabanının çevresinde aynı seeded
   kompozisyonun parçası olarak kümelenir.
-- Modeller basit Canvas sembolleri değildir; `public/images/hex-tree.webp` ve
-  `hex-ancient-lantern.webp` şeffaf üretim varlıkları kullanılır.
 - Modeller puzzle bağlantı mantığını değiştirmez; yalnız görsel çeşitlilik sağlar.
 - Kaplumbağanın bölüm sonu yüzme turu boyunca antik fenerin sıcak ışığı yumuşak
   biçimde yanıp söner; normal puzzle sırasında sabit kalır.
 - Ahşap köprü modeli değerlendirme sonrasında oyundan çıkarılmıştır.
+
+## HD Görüntü
+
+- Hex yüzeyleri ve önbellekleri kalite profiline göre en az `1.25x`, yüksek profilde
+  en az `1.75x` backing piksel yoğunluğunda üretilir. Performans düşüşü dokuyu
+  bulanıklaştırmak yerine parçacık ve hareketli efekt sayısını azaltır.
+- Kum yüzeyi çok ölçekli tanecik, mineral izi ve ton kırılmaları kullanır.
+- Su; kıyı, kanal yatağı, derinlik, çapraz renk kırılması, mikro yansıma ve kaynaktan
+  ilerleyen ince akış izleri olarak ayrı katmanlarda çizilir.
 
 ## Karar Bekleyen Mekanikler
 
