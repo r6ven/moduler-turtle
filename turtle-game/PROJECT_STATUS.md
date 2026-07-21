@@ -101,8 +101,8 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Render sirasi tum harita icin global katmanlidir: once golgeler, sonra yan/ust ada yuzeyleri, ardindan su agi ve detaylar cizilir. Bu nedenle komsu bir hexin golgesi veya konturu daha once cizilmis kanalin ustune cikamaz.
 - Guncel sanat yonu sicak keten/kum zemin, petrol mavisi su, hardal-turuncu vurgu, zeytin yesili bitki ve toprak-kahve golge paletidir.
 - Aktif, bagli/cozulmus ve pasif taslar farkli materyal ve renk durumlarina sahiptir.
-- Kanal cizimi hex siniri icinde kirpilir; kanal yatagi, su ve yuzey parlakligi katmanlari vardir.
-- Her kanal kolu tek basina tam olarak hexin ust yuzey sinirinda duz biter ve yan yuzey/golge alanina gecmez. Iki komsu kanal agzi birbirine yaklastikca kollar hex kenarlarindan ortak orta noktaya yumusakca uzar. Hizalama tamamlandiginda sinir boslugu, iki tasin kenarindan kontrollu miktarda iceri giren tek bir baglanti govdesiyle kapanir; bu govde hex merkezindeki yerel kanal birlesimini yeniden boyamaz.
+- Kanal cizimi hex siniri icinde kirpilir; toprak kiyi, oyuk yatak, derin su ve yuzey ayni bileşik poligon geometrisinin farkli genislikleridir.
+- Her kanal kolu hexin ust yuzey sinirinda duz biter ve yan yuzey/golge alanina gecmez. Iki komsu kanal agzi hizalandiginda aradaki mesafe, yerel kanalla ayni dort opak katmana sahip duz uclu bir uzantiyla tamamlanir. Uzanti hex icine az miktarda bindigi icin sinirda bosluk veya sonradan eklenmis parca izi kalmaz.
 - Kum lekeleri, kum taneleri, taslar, cimenler ve yabani cicekler seeded rastgele dagitilir.
 - Dekor sayisi kontrolludur; bazi hexler bos kalabilir, tek bir hexte asiri yigilma olusmaz.
 - Bagli hexlerde cimen miktari hafif artar ve cimenlerin bir kismi ciceklenir.
@@ -142,13 +142,13 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Kaynaktan erisilen her yeni eslesmis kol, puzzle tamamlanmadan anlik olarak akar.
 - Akis yonu BFS derinligine gore kaynaktan disa dogru belirlenir.
 - Esit derinlikli dongu kenarlarinda kararli siralama/anahtar eslemesi kullanilir.
-- Su katmanlari: toprak kiyi, kanal yatagi, derin su, capraz yuzey gradyani,
-  seeded mikro kirinim, hareketli ince kesik izler ve kabarciklar.
-- Ayni durumdaki kanal kollari tek bir compound Canvas path'i olarak katman katman cizilir; hex merkezinde radyal havuz veya gradyan dilimi kullanilmaz. Cok kollu merkezler kanal genisligini asmayan, duz renkli sekizgen birlesim muhruyle bosluksuz kapanir.
+- Su motoru bastan kurulmustur: toprak kiyi, oyuk yatak, derin su ve yuzey katmanlari tek bir duz uclu poligon tanimindan turetilir. Eski stroke tabanli ag, surekli parlama cizgisi ve sekizgen birlesim muhru kaldirilmistir.
+- Ayni hexteki tum kollar her katmanda tek bir bileşik Canvas path'i olarak doldurulur. Kollar merkez noktasinin gerisine kontrollu bindigi icin ayri merkez dugumu, radyal havuz, kapama yamasi veya renk dilimi gerekmez.
+- Komsu hex baglantisi da ayni poligon ve renk katmanlarini kullanir; baglanti govdesi her iki yerel kanal agzina opak olarak bindigi icin durağan ve hareketli durumda ek yeri olusmaz.
 - Su bir hex merkezine ulastiginda o tasin tum kanal oyuklari ayni su govdesiyle dolar; hareketli akis izleri ise yalnizca gercekten eslesmis komsu baglantilarinda ilerler.
 - Akis izleri tek kalin orta cizgi degil; kanal icinde farkli yanal konumlarda birden fazla ince kesik cizgidir.
-- Sabit su yuzeyi yansimasi komsu hexlerde ters yone donmez; kanal ekseni icin ortak bir dunya-isigi normali kullanir ve eslesmis sinir boyunca kesintisiz devam eder.
-- Yari saydam yansima katmanlari ortak kenarda ust uste binmez; iki komsu cizgi sinirda uc uca gelirken opak kanal govdesi alttan ortuserek surekliligi korur.
+- Sakin su dokusu kesintisiz bir orta cizgi yerine seeded, kisa ve seyrek kirinim izlerinden olusur; merkez ve hex siniri ayrica vurgulanmaz.
+- Kaynak ve bitis portallari yeni katman renkleriyle butunlesiktir; diger hex merkezlerinde dairesel su modeli yoktur.
 - Mantiksal rotasyon hamle aninda guncellense de hareketli akis, donus animasyonu komsu kanalla gorsel olarak hizalanmadan baslamaz. Kanal uzamasi genis bir aci araliginda smoothstep gecisiyle baslayarak ani parca belirmesini gizler.
 - Bagli olmayan kanallar acik ve hareketsiz gorunur.
 - Ana menudeki dekoratif akis da kaynak-kanal-bitis fikrini ayni gorsel dille anlatir; tas orgulu kaynak/batis kuyulari, duzensiz kanal yatagi ve coklu ince akis izleri kullanir.
@@ -291,6 +291,7 @@ Liderlik tablosunda her kayit icin `username`, `last_level` ve `best_by_level` b
 
 - [x] Asama 1 - Hex golge, malzeme, ust/yan yuzey ve durum farklari.
 - [x] Asama 2 - Katmanli kanal yatagi, su, parlaklik ve kaynaktan ilerleyen akis.
+- [x] Su motoru yenilemesi - Stroke ve merkez yamasi kaldirildi; kanal, sinir uzantisi, portal ve akis dokusu ortak poligon sistemiyle sifirdan kuruldu.
 - [x] Asama 3 - Hizli yukseltme, donme, oturma ve settle glow animasyonu.
 - [x] Asama 4 - Oyun ici kaplumbaganin geometrik Canvas stilinde yeniden tasarimi.
 - [x] Asama 5 - Yuzgec, idle, kafa sallama, yuzme ve bolum sonu animasyonlari.

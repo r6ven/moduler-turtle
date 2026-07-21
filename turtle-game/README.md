@@ -53,10 +53,13 @@ Render, Netlify veya benzeri servislere `dist` klasörü yayınlanabilir.
   en az `1.75x` backing piksel yoğunluğunda üretilir. Performans düşüşü dokuyu
   bulanıklaştırmak yerine parçacık ve hareketli efekt sayısını azaltır.
 - Kum yüzeyi çok ölçekli tanecik, mineral izi ve ton kırılmaları kullanır.
-- Su; kıyı, kanal yatağı, derinlik, çapraz renk kırılması, mikro yansıma ve kaynaktan
-  ilerleyen ince akış izleri olarak ayrı katmanlarda çizilir.
-- Kanal merkezlerinde ayrı yuvarlak düğüm veya havuz yaması kullanılmaz; su gövdesi
-  kanal genişliğini aşmayan düz renkli bir birleşim mührüyle boşluksuz kapanır.
+- Su motoru çizgi üst üste bindirme kullanmaz. Kıyı, kanal yatağı, derin su ve yüzey;
+  aynı düz uçlu bileşik poligon geometrisinden üretilir.
+- Kanal merkezlerinde ayrı yuvarlak düğüm, havuz veya kapama yaması yoktur. Kollar
+  merkezde kendi geometrileriyle örtüşür; komşu hex uzantıları da aynı dört katmanı
+  kullandığı için sınırda ek parça ve boşluk görünmez.
+- Sakin suda kısa seeded kırınımlar, kaynağa bağlı suda yönlü ve çoklu ince kesik
+  akış izleri bulunur. Yalnız başlangıç ve bitiş hexlerinde portal çizilir.
   Ana menüdeki kaynak ve bitiş kuyuları taş örgü, derinlik
   ve su halkası katmanlarıyla oyun içindeki akış dilini takip eder.
 

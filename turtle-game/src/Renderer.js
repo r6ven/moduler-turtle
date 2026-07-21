@@ -1513,58 +1513,15 @@ export class Renderer {
       });
     }
 
-    const idleChannels = currentConnected ? [] : channels;
-    const filledChannels = currentConnected ? channels : [];
-
-    this.drawChannelNetwork(
-      ctx,
-      channels,
-      20,
-      CONFIG.colors.channelBank
-    );
-
-    this.drawChannelNetwork(
-      ctx,
-      idleChannels,
-      18,
-      CONFIG.colors.channelBedIdle
-    );
-    this.drawChannelNetwork(
-      ctx,
-      filledChannels,
-      18,
-      CONFIG.colors.channelBedShadow
-    );
-
-    this.drawChannelNetwork(
-      ctx,
-      idleChannels,
-      12,
-      CONFIG.colors.idleWaterDeep
-    );
-    this.drawChannelNetwork(
-      ctx,
-      filledChannels,
-      12,
-      CONFIG.colors.matchedWaterDeep
-    );
-
-    this.drawWaterSurfaceNetwork(ctx, idleChannels, false);
-    this.drawWaterSurfaceNetwork(ctx, filledChannels, true);
+    this.drawChannelBody(ctx, channels, currentConnected);
 
     channels.forEach((channel) => {
-      this.drawWaterRefraction(
+      this.drawWaterSurfaceTexture(
         ctx,
         channel.length,
         channel.angle,
-        channel.active,
+        currentConnected,
         channel.flowSeed
-      );
-      this.drawWaterSurfaceSheen(
-        ctx,
-        Math.min(channel.length, faceDistance),
-        channel.angle,
-        channel.active
       );
 
       if (!channel.active) return;
@@ -1591,7 +1548,7 @@ export class Renderer {
       entries.map((entry) => [tileKey(entry.tile.q, entry.tile.r), entry])
     );
     const faceDistance = (radius - 2) * Math.cos(Math.PI / 6);
-    const boundaryOverlap = 11;
+    const boundaryOverlap = 8.5;
 
     entries.forEach((entry) => {
       const tile = entry.tile;
@@ -1708,11 +1665,31 @@ export class Renderer {
           visualConnection.dir === currentFinalDir &&
           PuzzleValidator.isExitMatched(tile, currentFinalDir, grid);
         if (visualConnection.matched && logicalMatch) {
+          const direction = connected
+            ? this.getFlowDirection(
+                currentKey,
+                neighborKey,
+                flowState.depths.get(currentKey),
+                flowState.depths.get(neighborKey),
+                flowState.orders.get(currentKey),
+                flowState.orders.get(neighborKey)
+              )
+            : 0;
+
           this.drawWaterConnectionSpan(
             ctx,
             currentInner,
             neighborInner,
-            connected
+            {
+              wet: connected,
+              flowing: connected,
+              direction,
+              seed: (
+                this.getTileSeed(tile) ^
+                this.getTileSeed(neighbor) ^
+                0x72f36e21
+              ) >>> 0
+            }
           );
           return;
         }
@@ -1721,98 +1698,77 @@ export class Renderer {
           ctx,
           currentInner,
           currentTarget,
-          flowState.keys.has(currentKey)
+          {
+            wet: flowState.keys.has(currentKey),
+            flowing: false,
+            direction: 0,
+            seed: (this.getTileSeed(tile) ^ 0x3a4f21d7) >>> 0
+          }
         );
         this.drawWaterConnectionSpan(
           ctx,
           neighborInner,
           neighborTarget,
-          flowState.keys.has(neighborKey)
+          {
+            wet: flowState.keys.has(neighborKey),
+            flowing: false,
+            direction: 0,
+            seed: (this.getTileSeed(neighbor) ^ 0x41d92b63) >>> 0
+          }
         );
       });
     });
   }
 
-  drawWaterConnectionSpan(ctx, start, end, connected) {
-    const layers = connected
-      ? [
-          [20, CONFIG.colors.channelBank],
-          [18, CONFIG.colors.channelBedShadow],
-          [12, CONFIG.colors.matchedWaterDeep]
-        ]
-      : [
-          [20, CONFIG.colors.channelBank],
-          [18, CONFIG.colors.channelBedIdle],
-          [12, CONFIG.colors.idleWaterDeep]
-        ];
+  drawWaterConnectionSpan(ctx, start, end, state) {
+    const length = Math.hypot(end.x - start.x, end.y - start.y);
+
+    if (length < 0.25) return;
+
+    const layers = this.getWaterLayers(state.wet);
 
     ctx.save();
-    ctx.lineCap = "butt";
-
-    layers.forEach(([width, color]) => {
+    layers.forEach((layer) => {
       ctx.beginPath();
-      ctx.moveTo(start.x, start.y);
-      ctx.lineTo(end.x, end.y);
-      ctx.lineWidth = width;
-      ctx.strokeStyle = color;
-      ctx.stroke();
+      this.appendWaterSegment(
+        ctx,
+        start.x,
+        start.y,
+        end.x,
+        end.y,
+        layer.width,
+        1.6,
+        1.6
+      );
+      ctx.fillStyle = layer.color;
+      ctx.fill();
     });
 
     const angle = Math.atan2(end.y - start.y, end.x - start.x);
-    const length = Math.hypot(end.x - start.x, end.y - start.y);
-    const normalX = -Math.sin(angle);
-    const normalY = Math.cos(angle);
-    const middleX = (start.x + end.x) * 0.5;
-    const middleY = (start.y + end.y) * 0.5;
-    const surfaceGradient = ctx.createLinearGradient(
-      middleX - normalX * 5,
-      middleY - normalY * 5,
-      middleX + normalX * 5,
-      middleY + normalY * 5
+    const center = {
+      x: (start.x + end.x) * 0.5,
+      y: (start.y + end.y) * 0.5
+    };
+
+    ctx.translate(center.x, center.y);
+    this.drawWaterSurfaceTexture(
+      ctx,
+      length,
+      angle,
+      state.wet,
+      state.seed,
+      -length * 0.5
     );
-    const deep = connected
-      ? CONFIG.colors.matchedWaterDeep
-      : CONFIG.colors.idleWaterDeep;
-    const water = connected
-      ? CONFIG.colors.matchedWater
-      : CONFIG.colors.idleWater;
-    const light = connected
-      ? CONFIG.colors.matchedWaterLight
-      : CONFIG.colors.idleWaterLight;
 
-    surfaceGradient.addColorStop(0, deep);
-    surfaceGradient.addColorStop(0.24, water);
-    surfaceGradient.addColorStop(0.58, light);
-    surfaceGradient.addColorStop(0.78, water);
-    surfaceGradient.addColorStop(1, deep);
-
-    ctx.beginPath();
-    ctx.moveTo(start.x, start.y);
-    ctx.lineTo(end.x, end.y);
-    ctx.lineWidth = 10;
-    ctx.strokeStyle = surfaceGradient;
-    ctx.stroke();
-
-    const axisAngle = ((angle % Math.PI) + Math.PI) % Math.PI;
-    const normalAngle = axisAngle - Math.PI / 2;
-    const sheenOffset = connected ? 1.8 : 1.35;
-    const offsetX = Math.cos(normalAngle) * sheenOffset;
-    const offsetY = Math.sin(normalAngle) * sheenOffset;
-
-    if (length > 16) {
-      ctx.beginPath();
-      ctx.moveTo(
-        start.x + 8 * Math.cos(angle) + offsetX,
-        start.y + 8 * Math.sin(angle) + offsetY
+    if (state.flowing) {
+      this.drawFlowDash(
+        ctx,
+        length,
+        angle,
+        state.direction,
+        state.seed,
+        -length * 0.5
       );
-      ctx.lineTo(
-        end.x - 8 * Math.cos(angle) + offsetX,
-        end.y - 8 * Math.sin(angle) + offsetY
-      );
-      ctx.globalAlpha = connected ? 0.34 : 0.21;
-      ctx.lineWidth = connected ? 1.35 : 1.05;
-      ctx.strokeStyle = CONFIG.colors.waterHighlight;
-      ctx.stroke();
     }
     ctx.restore();
   }
@@ -1932,112 +1888,151 @@ export class Renderer {
     return currentKey.localeCompare(neighborKey) < 0 ? 1 : -1;
   }
 
-  drawChannelNetwork(ctx, channels, width, color) {
+  getWaterLayers(wet) {
+    return [
+      {
+        width: 19,
+        color: CONFIG.colors.channelBank
+      },
+      {
+        width: 15.5,
+        color: wet
+          ? CONFIG.colors.channelBedShadow
+          : CONFIG.colors.channelBedIdle
+      },
+      {
+        width: 11.5,
+        color: wet
+          ? CONFIG.colors.matchedWaterDeep
+          : CONFIG.colors.idleWaterDeep
+      },
+      {
+        width: 8.5,
+        color: wet
+          ? CONFIG.colors.matchedWater
+          : CONFIG.colors.idleWater
+      }
+    ];
+  }
+
+  drawChannelBody(ctx, channels, wet) {
     if (channels.length === 0) return;
 
+    this.getWaterLayers(wet).forEach((layer) => {
+      this.drawCompoundChannelLayer(ctx, channels, layer.width, layer.color);
+    });
+  }
+
+  drawCompoundChannelLayer(ctx, channels, width, color) {
+    const centerOverlap = width * 0.68;
+
     ctx.save();
-    ctx.lineWidth = width;
-    ctx.lineCap = "butt";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = color;
     ctx.beginPath();
 
     channels.forEach((channel) => {
-      ctx.moveTo(0, 0);
-      ctx.lineTo(
+      this.appendWaterSegment(
+        ctx,
+        0,
+        0,
         channel.length * Math.cos(channel.angle),
-        channel.length * Math.sin(channel.angle)
+        channel.length * Math.sin(channel.angle),
+        width,
+        centerOverlap,
+        0.8
       );
     });
 
-    ctx.stroke();
-    this.drawChannelJunctionSeal(ctx, channels, width, color);
-    ctx.restore();
-  }
-
-  drawChannelJunctionSeal(ctx, channels, width, color) {
-    if (channels.length < 2) return;
-
-    const radius = width * 0.45;
-
-    ctx.save();
     ctx.fillStyle = color;
-    ctx.beginPath();
-
-    for (let index = 0; index < 8; index += 1) {
-      const angle = Math.PI / 8 + index * Math.PI / 4;
-      const x = Math.cos(angle) * radius;
-      const y = Math.sin(angle) * radius;
-
-      if (index === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-
-    ctx.closePath();
     ctx.fill();
     ctx.restore();
   }
 
-  drawWaterSurfaceNetwork(ctx, channels, active) {
-    if (channels.length === 0) return;
+  appendWaterSegment(
+    ctx,
+    startX,
+    startY,
+    endX,
+    endY,
+    width,
+    startExtension = 0,
+    endExtension = 0
+  ) {
+    const deltaX = endX - startX;
+    const deltaY = endY - startY;
+    const length = Math.hypot(deltaX, deltaY);
 
-    const water = active
-      ? CONFIG.colors.matchedWater
-      : CONFIG.colors.idleWater;
+    if (length < 0.001) return;
 
-    ctx.save();
-    ctx.lineWidth = 10;
-    ctx.lineCap = "butt";
-    ctx.lineJoin = "round";
+    const axisX = deltaX / length;
+    const axisY = deltaY / length;
+    const normalX = -axisY;
+    const normalY = axisX;
+    const halfWidth = width * 0.5;
+    const extendedStartX = startX - axisX * startExtension;
+    const extendedStartY = startY - axisY * startExtension;
+    const extendedEndX = endX + axisX * endExtension;
+    const extendedEndY = endY + axisY * endExtension;
 
-    ctx.strokeStyle = water;
-    ctx.beginPath();
-    channels.forEach((channel) => {
-      ctx.moveTo(0, 0);
-      ctx.lineTo(
-        channel.length * Math.cos(channel.angle),
-        channel.length * Math.sin(channel.angle)
-      );
-    });
-    ctx.stroke();
-    this.drawChannelJunctionSeal(ctx, channels, 10, water);
-    ctx.restore();
+    ctx.moveTo(
+      extendedStartX + normalX * halfWidth,
+      extendedStartY + normalY * halfWidth
+    );
+    ctx.lineTo(
+      extendedEndX + normalX * halfWidth,
+      extendedEndY + normalY * halfWidth
+    );
+    ctx.lineTo(
+      extendedEndX - normalX * halfWidth,
+      extendedEndY - normalY * halfWidth
+    );
+    ctx.lineTo(
+      extendedStartX - normalX * halfWidth,
+      extendedStartY - normalY * halfWidth
+    );
+    ctx.closePath();
   }
 
-  drawWaterRefraction(ctx, channelLength, angle, active, seed) {
+  drawWaterSurfaceTexture(
+    ctx,
+    channelLength,
+    angle,
+    wet,
+    seed,
+    originOffset = 0
+  ) {
     const random = this.createSeededRandom(seed ^ 0x6c8e9cf5);
     const normalAngle = angle + Math.PI / 2;
-    const count = active ? 4 : 3;
+    const count = wet ? 4 : 3;
 
     ctx.save();
     ctx.lineCap = "round";
 
     for (let index = 0; index < count; index += 1) {
-      const base = 0.14 + random() * 0.68;
-      const drift = active
-        ? Math.sin(this.waterFlowPhase * 0.72 + index * 1.8) * 0.025
+      const ratio = 0.2 + random() * 0.62;
+      const drift = wet
+        ? Math.sin(this.waterFlowPhase * 0.64 + index * 1.9) * 0.018
         : 0;
-      const distance = channelLength * Math.min(0.88, Math.max(0.1, base + drift));
-      const lateral = (random() - 0.5) * 5.8;
-      const length = 1.8 + random() * 3.8;
+      const distance = originOffset + channelLength * (ratio + drift);
+      const lateral = (random() - 0.5) * 5.2;
+      const markLength = 1.8 + random() * 3.5;
       const x = distance * Math.cos(angle) + lateral * Math.cos(normalAngle);
       const y = distance * Math.sin(angle) + lateral * Math.sin(normalAngle);
 
-      ctx.globalAlpha = (active ? 0.24 : 0.14) + random() * 0.12;
+      ctx.globalAlpha = (wet ? 0.22 : 0.12) + random() * 0.12;
       ctx.strokeStyle = index % 3 === 0
         ? CONFIG.colors.waterShade
         : CONFIG.colors.waterRefraction;
-      ctx.lineWidth = 0.55 + random() * 0.55;
+      ctx.lineWidth = 0.55 + random() * 0.45;
       ctx.beginPath();
       ctx.moveTo(
-        x - Math.cos(angle) * length * 0.5,
-        y - Math.sin(angle) * length * 0.5
+        x - Math.cos(angle) * markLength * 0.5,
+        y - Math.sin(angle) * markLength * 0.5
       );
       ctx.quadraticCurveTo(
-        x + Math.cos(normalAngle) * 0.8,
-        y + Math.sin(normalAngle) * 0.8,
-        x + Math.cos(angle) * length * 0.5,
-        y + Math.sin(angle) * length * 0.5
+        x + Math.cos(normalAngle) * 0.7,
+        y + Math.sin(normalAngle) * 0.7,
+        x + Math.cos(angle) * markLength * 0.5,
+        y + Math.sin(angle) * markLength * 0.5
       );
       ctx.stroke();
     }
@@ -2050,83 +2045,61 @@ export class Renderer {
 
     ctx.save();
     ctx.beginPath();
-    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+    ctx.arc(0, 0, 9.5, 0, Math.PI * 2);
+    ctx.fillStyle = CONFIG.colors.channelBank;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(0, 0, 7.6, 0, Math.PI * 2);
     ctx.fillStyle = connected
-      ? CONFIG.colors.channelBedActive
+      ? CONFIG.colors.channelBedShadow
       : CONFIG.colors.channelBedIdle;
     ctx.fill();
 
-    const portalGradient = ctx.createRadialGradient(-2, -2.5, 0.8, 0, 0, 7.2);
+    const portalGradient = ctx.createRadialGradient(-2, -2.4, 0.6, 0, 0, 6.3);
 
     if (tile.source) {
       portalGradient.addColorStop(0, CONFIG.colors.sourceCore);
-      portalGradient.addColorStop(
-        1,
-        connected ? CONFIG.colors.matchedWater : CONFIG.colors.idleWater
-      );
+      portalGradient.addColorStop(0.38, CONFIG.colors.matchedWaterLight);
+      portalGradient.addColorStop(1, connected
+        ? CONFIG.colors.matchedWaterDeep
+        : CONFIG.colors.idleWaterDeep);
     } else {
       portalGradient.addColorStop(0, CONFIG.colors.sinkCore);
-      portalGradient.addColorStop(
-        0.55,
-        connected ? CONFIG.colors.matchedWater : CONFIG.colors.idleWater
-      );
-      portalGradient.addColorStop(1, CONFIG.colors.channelBedActive);
+      portalGradient.addColorStop(0.58, connected
+        ? CONFIG.colors.matchedWaterDeep
+        : CONFIG.colors.idleWaterDeep);
+      portalGradient.addColorStop(1, CONFIG.colors.channelBedShadow);
     }
 
     ctx.beginPath();
-    ctx.arc(0, 0, 7.2, 0, Math.PI * 2);
+    ctx.arc(0, 0, 6.3, 0, Math.PI * 2);
     ctx.fillStyle = portalGradient;
     ctx.fill();
 
     const pulse = (this.waterFlowPhase * 0.72) % 1;
 
     ctx.beginPath();
-    ctx.arc(0, 0, tile.source ? 2.2 + pulse * 4.2 : 6.2 - pulse * 3.5, 0, Math.PI * 2);
-    ctx.lineWidth = 1.5;
-    ctx.globalAlpha = connected ? 0.58 * (1 - pulse) : 0.2;
+    ctx.arc(0, 0, tile.source ? 1.8 + pulse * 3.8 : 5.4 - pulse * 3, 0, Math.PI * 2);
+    ctx.lineWidth = 1.15;
+    ctx.globalAlpha = connected ? 0.48 * (1 - pulse) : 0.16;
     ctx.strokeStyle = CONFIG.colors.waterHighlight;
     ctx.stroke();
 
     if (tile.source) {
       ctx.globalAlpha = connected ? 0.9 : 0.5;
       ctx.beginPath();
-      ctx.arc(-2.1, -2.4, 1.45, 0, Math.PI * 2);
+      ctx.arc(-1.8, -2.1, 1.15, 0, Math.PI * 2);
       ctx.fillStyle = CONFIG.colors.waterHighlight;
       ctx.fill();
     } else {
       ctx.globalAlpha = connected ? 0.92 : 0.68;
       ctx.beginPath();
-      ctx.arc(0, 0, 3.1, 0, Math.PI * 2);
+      ctx.arc(0, 0, 2.8, 0, Math.PI * 2);
       ctx.fillStyle = CONFIG.colors.sinkCore;
       ctx.fill();
     }
 
-    ctx.restore();
-  }
-
-  drawWaterSurfaceSheen(ctx, channelLength, angle, active) {
-    ctx.save();
-    ctx.globalAlpha = active ? 0.18 : 0.1;
-    ctx.lineWidth = active ? 0.95 : 0.72;
-    ctx.lineCap = "butt";
-    ctx.strokeStyle = CONFIG.colors.waterHighlight;
-
-    const axisAngle = ((angle % Math.PI) + Math.PI) % Math.PI;
-    const normalAngle = axisAngle - Math.PI / 2;
-    const offset = active ? 1.8 : 1.35;
-    const offsetX = Math.cos(normalAngle) * offset;
-    const offsetY = Math.sin(normalAngle) * offset;
-
-    ctx.beginPath();
-    ctx.moveTo(
-      8 * Math.cos(angle) + offsetX,
-      8 * Math.sin(angle) + offsetY
-    );
-    ctx.lineTo(
-      channelLength * Math.cos(angle) + offsetX,
-      channelLength * Math.sin(angle) + offsetY
-    );
-    ctx.stroke();
     ctx.restore();
   }
 
@@ -2136,23 +2109,30 @@ export class Renderer {
     }
 
     const random = this.createSeededRandom(seed);
-    const streaks = Array.from({ length: 3 }, () => ({
-      lateralOffset: -3.2 + random() * 6.4,
-      startRatio: 0.08 + random() * 0.18,
-      endRatio: 0.7 + random() * 0.25,
-      lineWidth: 0.75 + random() * 0.75,
-      dashLength: 2.2 + random() * 3.2,
-      dashGap: 9 + random() * 9,
+    const streaks = Array.from({ length: 4 }, () => ({
+      lateralOffset: -2.9 + random() * 5.8,
+      startRatio: 0.13 + random() * 0.12,
+      endRatio: 0.72 + random() * 0.14,
+      lineWidth: 0.5 + random() * 0.58,
+      dashLength: 1.4 + random() * 2.5,
+      dashGap: 6.5 + random() * 7.5,
       phaseOffset: random() * 28,
-      speed: 27 + random() * 17,
-      alpha: 0.3 + random() * 0.28
+      speed: 22 + random() * 14,
+      alpha: 0.26 + random() * 0.24
     }));
 
     this.flowStreakCache.set(seed, streaks);
     return streaks;
   }
 
-  drawFlowDash(ctx, channelLength, angle, direction, seed) {
+  drawFlowDash(
+    ctx,
+    channelLength,
+    angle,
+    direction,
+    seed,
+    originOffset = 0
+  ) {
     const normalAngle = angle + Math.PI / 2;
     const streaks = this.getFlowStreaks(seed);
     const streakCount = Math.min(
@@ -2168,8 +2148,8 @@ export class Renderer {
       const streak = streaks[i];
       const offsetX = Math.cos(normalAngle) * streak.lateralOffset;
       const offsetY = Math.sin(normalAngle) * streak.lateralOffset;
-      const startDistance = channelLength * streak.startRatio;
-      const endDistance = channelLength * streak.endRatio;
+      const startDistance = originOffset + channelLength * streak.startRatio;
+      const endDistance = originOffset + channelLength * streak.endRatio;
 
       ctx.globalAlpha = streak.alpha;
       ctx.lineWidth = streak.lineWidth;
@@ -2194,7 +2174,7 @@ export class Renderer {
   }
 
   drawWaterBubbles(ctx, channelLength, angle, direction) {
-    const bubbleCount = this.quality.bubbleCount;
+    const bubbleCount = Math.min(1, this.quality.bubbleCount);
 
     if (bubbleCount <= 0) return;
 
@@ -2209,10 +2189,10 @@ export class Renderer {
       const x = distance * Math.cos(angle) + wobble * Math.cos(normalAngle);
       const y = distance * Math.sin(angle) + wobble * Math.sin(normalAngle);
 
-      ctx.globalAlpha = 0.5 * (1 - travelPhase * 0.25);
-      ctx.fillStyle = "white";
+      ctx.globalAlpha = 0.32 * (1 - travelPhase * 0.25);
+      ctx.fillStyle = CONFIG.colors.waterHighlight;
       ctx.beginPath();
-      ctx.arc(x, y, 1.6 + i * 0.2, 0, Math.PI * 2);
+      ctx.arc(x, y, 1.15 + i * 0.15, 0, Math.PI * 2);
       ctx.fill();
     }
 
