@@ -1,6 +1,6 @@
 # Zen Kaplumbaga - Proje Durumu
 
-Son guncelleme: 20 Temmuz 2026
+Son guncelleme: 21 Temmuz 2026
 Uygulama surumu: `0.1.0`  
 GitHub: `r6ven/moduler-turtle`  
 Uygulama dizini: `turtle-game/`  
@@ -99,7 +99,7 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Guncel sanat yonu sicak keten/kum zemin, petrol mavisi su, hardal-turuncu vurgu, zeytin yesili bitki ve toprak-kahve golge paletidir.
 - Aktif, bagli/cozulmus ve pasif taslar farkli materyal ve renk durumlarina sahiptir.
 - Kanal cizimi hex siniri icinde kirpilir; toprak kiyi, oyuk yatak, derin su ve yuzey ayni bileşik poligon geometrisinin farkli genislikleridir.
-- Her kanal kolu tam dis cerceve cizgisinde duz biter ve hex sinirini gecmez. Iki komsu kanal agzi hizalandiginda aradaki mesafe, yerel kanalla ayni dort opak katmana sahip duz uclu bir uzantiyla tamamlanir.
+- Her kanal kolu tam dis cerceve cizgisinde duz biter ve hex sinirini gecmez. Hex ust yuzeyleri alt-piksel ortusmeyle araliksiz temas eder; komsu kanallar arasinda ayrica cizilen baglanti uzantisi devre disidir.
 - Kum lekeleri, kum taneleri, taslar, cimenler ve yabani cicekler seeded rastgele dagitilir.
 - Dekor sayisi kontrolludur; bazi hexler bos kalabilir, tek bir hexte asiri yigilma olusmaz.
 - Bagli hexlerde cimen miktari hafif artar ve cimenlerin bir kismi ciceklenir.
@@ -140,11 +140,11 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
   egri boyunca tek serit olarak doner. Statik kirinim ve hareketli akis izleri de ayni
   egriyi izler. Tek veya cok kollu merkezlerde kanal genisligini asmayan yumusak oval
   birlesim kullanilir; ayri portal, havuz veya kapama yamasi yoktur.
-- Komsu hex baglantisi da ayni poligon ve renk katmanlarini kullanir; baglanti govdesi her iki yerel kanal agzina opak olarak bindigi icin durağan ve hareketli durumda ek yeri olusmaz.
+- Eslesen komsu kanallar yalniz ortak hex sinirinda bulusur; iki hex arasina ikinci bir su govdesi veya kapama yamasi cizilmez.
 - Su bir hex merkezine ulastiginda o tasin tum kanal oyuklari ayni su govdesiyle dolar; hareketli akis izleri ise yalnizca gercekten eslesmis komsu baglantilarinda ilerler.
 - Akis izleri tek kalin orta cizgi degil; kanal icinde farkli yanal konumlarda birden fazla ince kesik cizgidir.
 - Sakin su dokusu kesintisiz bir orta cizgi yerine seeded, kisa ve seyrek kirinim izlerinden olusur; merkez ve hex siniri ayrica vurgulanmaz.
-- Kaynak ve bitis portallari yeni katman renkleriyle butunlesiktir; diger hex merkezlerinde dairesel su modeli yoktur.
+- Kaynak ve bitis portallari kanal genisligiyle ortusur; kaynak halkasi merkezden disa, bitis halkasi disaridan merkeze hareket eder. Diger hex merkezlerinde dairesel su modeli yoktur.
 - Mantiksal rotasyon hamle aninda guncellense de hareketli akis, donus animasyonu komsu kanalla gorsel olarak hizalanmadan baslamaz. Kanal uzamasi genis bir aci araliginda smoothstep gecisiyle baslayarak ani parca belirmesini gizler.
 - Bagli olmayan kanallar acik ve hareketsiz gorunur.
 - Ana menudeki dekoratif akis da kaynak-kanal-bitis fikrini ayni gorsel dille anlatir; tas orgulu kaynak/batis kuyulari, duzensiz kanal yatagi ve coklu ince akis izleri kullanir.
@@ -478,11 +478,11 @@ Oncelik onerisi:
 - Bu ortamda kullanilan esdeger dogrulama: paketli Node ile `node_modules/vite/bin/vite.js build`
 - Vite: `5.4.21`
 - Sonuc: Basarili; 60 modul donusturuldu.
-- Cikti: `dist/index.html`, `dist/assets/index-EHl06Svc.css`, `dist/assets/index-4SmhtWCv.js`
-- Boyutlar: HTML 10.35 kB, CSS 46.35 kB, JS 300.50 kB.
+- Cikti: `dist/index.html`, `dist/assets/index-EHl06Svc.css`, `dist/assets/index-CbOkYTo0.js`
+- Boyutlar: HTML 10.35 kB, CSS 46.35 kB, JS 300.48 kB.
 - Tarih: 21 Temmuz 2026
-- Guncel gorsel dogrulama: golgesiz ve tek cerceveli hexler, 1-3 tepeden gorunus cali,
-  tek fener, tam dis konturda biten kanal agizlari ve kuadratik merkez donusleri tarayici
-  ekraninda kontrol edildi.
+- Guncel gorsel dogrulama: araliksiz temas eden golgesiz hexler, ortak sinirda biten
+  yerel kanal agizlari, devre disi komsu baglanti seridi ve kaynak-bitis kuyu yonleri
+  tarayici ekraninda kontrol edildi.
 
 Not: Sistem PATH'inde `npm` bulunmadigi icin ayni `build` scriptinin calistirdigi Vite production girisi Codex'in paketli Node runtime'i ile dogrudan yurutuldu. Derleme basariyla tamamlandi.

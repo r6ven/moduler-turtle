@@ -51,6 +51,8 @@ Render, Netlify veya benzeri servislere `dist` klasörü yayınlanabilir.
 - Kum yüzeyi çok ölçekli tanecik, mineral izi ve ton kırılmaları kullanır.
 - Su motoru çizgi üst üste bindirme kullanmaz. Kıyı, kanal yatağı, derin su ve yüzey
   aynı katman geometrisinden üretilir; kanal ağzı tam dış hex konturunda biter.
+- Komşu hexler arasında ayrıca çizilen bağlantı şeridi devre dışıdır. Eşleşen iki
+  kanal yalnızca temas eden ortak hex sınırında buluşur.
 - İki kollu kanallar bir ağızdan diğerine kuadratik, yuvarlatılmış tek şerit olarak
   döner. Çok kollu merkezlerde aynı renkli küçük oval birleşim kullanılır; ayrı
   portal, havuz veya kapama yaması yoktur.

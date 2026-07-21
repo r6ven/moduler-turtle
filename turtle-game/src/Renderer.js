@@ -135,13 +135,6 @@ export class Renderer {
       this.drawHexWaterLayer(ctx, entry, hexRadius, grid, flowState);
     });
 
-    this.drawWaterConnections(
-      ctx,
-      [...stableTiles, ...liftedTiles],
-      hexRadius,
-      grid,
-      flowState
-    );
     this.drawWaterPortals(
       ctx,
       [...stableTiles, ...liftedTiles],
@@ -275,7 +268,9 @@ export class Renderer {
     const liftWave = tile.getLiftWave();
     const lift = tile.active ? liftWave * 10 : 0;
     const actionScale = tile.active ? 1 + liftWave * 0.032 : 1;
-    const surfaceRadius = radius - 2;
+    // A sub-pixel overlap prevents canvas anti-aliasing from opening bright
+    // seams between mathematically adjacent hexes.
+    const surfaceRadius = radius + 0.45;
     const glowRadius = radius + tile.hintGlow * 12;
 
     return {
@@ -325,9 +320,15 @@ export class Renderer {
     ctx.scale(state.actionScale, state.actionScale);
 
     ctx.save();
-    this.drawHexShape(ctx, radius);
+    this.drawHexShape(ctx, state.surfaceRadius);
     ctx.clip();
-    this.drawWaterChannels(ctx, radius, state.tile, grid, flowState);
+    this.drawWaterChannels(
+      ctx,
+      state.surfaceRadius,
+      state.tile,
+      grid,
+      flowState
+    );
     ctx.restore();
     ctx.restore();
   }
