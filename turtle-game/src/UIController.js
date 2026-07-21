@@ -155,10 +155,12 @@ export class UIController {
 
   showMainMenu() {
     this.mainMenuOverlay.classList.add("active");
+    document.body.classList.add("menu-open");
   }
 
   hideMainMenu() {
     this.mainMenuOverlay.classList.remove("active");
+    document.body.classList.remove("menu-open");
   }
 
   showAuthMenu(message = "") {

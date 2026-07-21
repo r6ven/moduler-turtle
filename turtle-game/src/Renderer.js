@@ -1894,6 +1894,7 @@ export class Renderer {
       x: Math.cos(secondChannel.angle) * secondLength,
       y: Math.sin(secondChannel.angle) * secondLength
     };
+    const control = this.getCurvedChannelControl(start, end);
     const halfWidth = width * 0.5;
     const leftPoints = [];
     const rightPoints = [];
@@ -1902,10 +1903,10 @@ export class Renderer {
     for (let index = 0; index <= segmentCount; index += 1) {
       const t = index / segmentCount;
       const inverse = 1 - t;
-      const x = inverse * inverse * start.x + t * t * end.x;
-      const y = inverse * inverse * start.y + t * t * end.y;
-      const tangentX = -2 * inverse * start.x + 2 * t * end.x;
-      const tangentY = -2 * inverse * start.y + 2 * t * end.y;
+      const x = inverse * inverse * start.x + 2 * inverse * t * control.x + t * t * end.x;
+      const y = inverse * inverse * start.y + 2 * inverse * t * control.y + t * t * end.y;
+      const tangentX = 2 * inverse * (control.x - start.x) + 2 * t * (end.x - control.x);
+      const tangentY = 2 * inverse * (control.y - start.y) + 2 * t * (end.y - control.y);
       const tangentLength = Math.max(0.001, Math.hypot(tangentX, tangentY));
       const normalX = -tangentY / tangentLength;
       const normalY = tangentX / tangentLength;
@@ -1926,6 +1927,21 @@ export class Renderer {
     ctx.closePath();
   }
 
+  getCurvedChannelControl(start, end) {
+    const bisectorX = start.x + end.x;
+    const bisectorY = start.y + end.y;
+    const bisectorLength = Math.hypot(bisectorX, bisectorY);
+
+    if (bisectorLength < 0.001) return { x: 0, y: 0 };
+
+    const inwardPull = Math.min(10, Math.max(6, bisectorLength * 0.14));
+
+    return {
+      x: -(bisectorX / bisectorLength) * inwardPull,
+      y: -(bisectorY / bisectorLength) * inwardPull
+    };
+  }
+
   getCurvedChannelPoint(firstChannel, secondChannel, t, lateralOffset = 0) {
     const extension = 0.8;
     const start = {
@@ -1936,11 +1952,12 @@ export class Renderer {
       x: Math.cos(secondChannel.angle) * (secondChannel.length + extension),
       y: Math.sin(secondChannel.angle) * (secondChannel.length + extension)
     };
+    const control = this.getCurvedChannelControl(start, end);
     const inverse = 1 - t;
-    const x = inverse * inverse * start.x + t * t * end.x;
-    const y = inverse * inverse * start.y + t * t * end.y;
-    const tangentX = -2 * inverse * start.x + 2 * t * end.x;
-    const tangentY = -2 * inverse * start.y + 2 * t * end.y;
+    const x = inverse * inverse * start.x + 2 * inverse * t * control.x + t * t * end.x;
+    const y = inverse * inverse * start.y + 2 * inverse * t * control.y + t * t * end.y;
+    const tangentX = 2 * inverse * (control.x - start.x) + 2 * t * (end.x - control.x);
+    const tangentY = 2 * inverse * (control.y - start.y) + 2 * t * (end.y - control.y);
     const tangentLength = Math.max(0.001, Math.hypot(tangentX, tangentY));
 
     return {
@@ -1976,7 +1993,7 @@ export class Renderer {
 
   drawCurvedWaterTexture(ctx, firstChannel, secondChannel, wet, seed) {
     const random = this.createSeededRandom(seed ^ 0x2d187a6f);
-    const count = wet ? 4 : 3;
+    const count = wet ? 7 : 5;
 
     ctx.save();
     ctx.lineCap = "round";
@@ -2001,8 +2018,8 @@ export class Renderer {
         point.x + Math.cos(point.angle) * markLength * 0.5,
         point.y + Math.sin(point.angle) * markLength * 0.5
       );
-      ctx.globalAlpha = (wet ? 0.22 : 0.12) + random() * 0.1;
-      ctx.lineWidth = 0.5 + random() * 0.45;
+      ctx.globalAlpha = (wet ? 0.3 : 0.17) + random() * 0.14;
+      ctx.lineWidth = 0.58 + random() * 0.54;
       ctx.strokeStyle = index % 3 === 0
         ? CONFIG.colors.waterShade
         : CONFIG.colors.waterRefraction;
@@ -2131,7 +2148,7 @@ export class Renderer {
   ) {
     const random = this.createSeededRandom(seed ^ 0x6c8e9cf5);
     const normalAngle = angle + Math.PI / 2;
-    const count = wet ? 4 : 3;
+    const count = wet ? 7 : 5;
 
     ctx.save();
     ctx.lineCap = "round";
@@ -2147,11 +2164,11 @@ export class Renderer {
       const x = distance * Math.cos(angle) + lateral * Math.cos(normalAngle);
       const y = distance * Math.sin(angle) + lateral * Math.sin(normalAngle);
 
-      ctx.globalAlpha = (wet ? 0.22 : 0.12) + random() * 0.12;
+      ctx.globalAlpha = (wet ? 0.3 : 0.17) + random() * 0.14;
       ctx.strokeStyle = index % 3 === 0
         ? CONFIG.colors.waterShade
         : CONFIG.colors.waterRefraction;
-      ctx.lineWidth = 0.55 + random() * 0.45;
+      ctx.lineWidth = 0.62 + random() * 0.54;
       ctx.beginPath();
       ctx.moveTo(
         x - Math.cos(angle) * markLength * 0.5,
@@ -2173,6 +2190,7 @@ export class Renderer {
     if (!tile.source && !tile.sink) return;
 
     ctx.save();
+    this.drawWaterPortalThroat(ctx, tile, connected);
     ctx.beginPath();
     ctx.arc(0, 0, 9.5, 0, Math.PI * 2);
     ctx.fillStyle = CONFIG.colors.channelBank;
@@ -2210,8 +2228,8 @@ export class Renderer {
 
     ctx.beginPath();
     ctx.arc(0, 0, tile.source ? 1.8 + pulse * 3.8 : 5.4 - pulse * 3, 0, Math.PI * 2);
-    ctx.lineWidth = 1.15;
-    ctx.globalAlpha = connected ? 0.48 * (1 - pulse) : 0.16;
+    ctx.lineWidth = 1.45;
+    ctx.globalAlpha = connected ? 0.68 * (1 - pulse) : 0.24;
     ctx.strokeStyle = CONFIG.colors.waterHighlight;
     ctx.stroke();
 
@@ -2232,22 +2250,48 @@ export class Renderer {
     ctx.restore();
   }
 
+  drawWaterPortalThroat(ctx, tile, connected) {
+    const exitIndex = tile.exits.findIndex(Boolean);
+
+    if (exitIndex < 0) return;
+
+    const angle =
+      (exitIndex - 1) * Math.PI / 3 + tile.visualRotation * Math.PI / 3;
+    const throatLength = 15;
+
+    this.getWaterLayers(connected).forEach((layer) => {
+      ctx.beginPath();
+      this.appendWaterSegment(
+        ctx,
+        0,
+        0,
+        Math.cos(angle) * throatLength,
+        Math.sin(angle) * throatLength,
+        layer.width,
+        layer.width * 0.36,
+        1.2
+      );
+      ctx.fillStyle = layer.color;
+      ctx.fill();
+    });
+  }
+
   getFlowStreaks(seed) {
     if (this.flowStreakCache.has(seed)) {
       return this.flowStreakCache.get(seed);
     }
 
     const random = this.createSeededRandom(seed);
-    const streaks = Array.from({ length: 4 }, () => ({
+    const streaks = Array.from({ length: 6 }, () => ({
       lateralOffset: -2.9 + random() * 5.8,
       startRatio: 0.13 + random() * 0.12,
       endRatio: 0.72 + random() * 0.14,
-      lineWidth: 0.5 + random() * 0.58,
-      dashLength: 1.4 + random() * 2.5,
-      dashGap: 6.5 + random() * 7.5,
+      lineWidth: 0.65 + random() * 0.72,
+      dashLength: 1.8 + random() * 3.1,
+      dashGap: 5.4 + random() * 6.2,
       phaseOffset: random() * 28,
       speed: 22 + random() * 14,
-      alpha: 0.26 + random() * 0.24
+      alpha: 0.4 + random() * 0.3
     }));
 
     this.flowStreakCache.set(seed, streaks);

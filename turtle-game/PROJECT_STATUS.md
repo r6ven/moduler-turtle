@@ -137,14 +137,14 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Esit derinlikli dongu kenarlarinda kararli siralama/anahtar eslemesi kullanilir.
 - Su motoru bastan kurulmustur: toprak kiyi, oyuk yatak, derin su ve yuzey katmanlari tek bir duz uclu poligon tanimindan turetilir. Eski stroke tabanli ag, surekli parlama cizgisi ve sekizgen birlesim muhru kaldirilmistir.
 - Iki cikisli hexlerde dort su katmaninin tamami bir sinir agzindan digerine kuadratik
-  egri boyunca tek serit olarak doner. Statik kirinim ve hareketli akis izleri de ayni
+  ve merkezin biraz otesine cekilen kontrol noktali daha keskin bir egri boyunca tek serit olarak doner. Statik kirinim ve hareketli akis izleri de ayni
   egriyi izler. Tek veya cok kollu merkezlerde kanal genisligini asmayan yumusak oval
   birlesim kullanilir; ayri portal, havuz veya kapama yamasi yoktur.
 - Eslesen komsu kanallar yalniz ortak hex sinirinda bulusur; iki hex arasina ikinci bir su govdesi veya kapama yamasi cizilmez.
 - Su bir hex merkezine ulastiginda o tasin tum kanal oyuklari ayni su govdesiyle dolar; hareketli akis izleri ise yalnizca gercekten eslesmis komsu baglantilarinda ilerler.
-- Akis izleri tek kalin orta cizgi degil; kanal icinde farkli yanal konumlarda birden fazla ince kesik cizgidir.
+- Akis izleri tek kalin orta cizgi degil; kanal icinde farkli yanal konumlarda kalite profiline gore 2-5 adet daha parlak ince kesik cizgidir.
 - Sakin su dokusu kesintisiz bir orta cizgi yerine seeded, kisa ve seyrek kirinim izlerinden olusur; merkez ve hex siniri ayrica vurgulanmaz.
-- Kaynak ve bitis portallari kanal genisligiyle ortusur; kaynak halkasi merkezden disa, bitis halkasi disaridan merkeze hareket eder. Diger hex merkezlerinde dairesel su modeli yoktur.
+- Kaynak ve bitis portallari kanal genisligiyle ortusen katmanli bir bogaz gecisine sahiptir; kaynak halkasi merkezden disa, bitis halkasi disaridan merkeze hareket eder. Diger hex merkezlerinde dairesel su modeli yoktur.
 - Mantiksal rotasyon hamle aninda guncellense de hareketli akis, donus animasyonu komsu kanalla gorsel olarak hizalanmadan baslamaz. Kanal uzamasi genis bir aci araliginda smoothstep gecisiyle baslayarak ani parca belirmesini gizler.
 - Bagli olmayan kanallar acik ve hareketsiz gorunur.
 - Ana menudeki dekoratif akis da kaynak-kanal-bitis fikrini ayni gorsel dille anlatir; tas orgulu kaynak/batis kuyulari, duzensiz kanal yatagi ve coklu ince akis izleri kullanir.
@@ -179,6 +179,8 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 ### 4.7 Menu ve UI
 
 - Kayit/giris ekrani ve giris sonrasi ana menu vardir.
+- Ana menu acikken oyun HUD'u ve tam ekran/ipucu kontrolleri gizlenir; giris ekraninin arkasinda silik kontrol kalmaz.
+- Menu marka isaretine sabit dikey alan ayrilir; kaplumbaga dar ekranlarda da baslik metninin ustune binmez.
 - Ana menu kart gorunumunden arindirilmis, sicak keten zeminli, ortalanmis iki satirli baslik ve dokunsal petrol mavisi/hardal dugmeler kullanan sakin bir oyun sahnesidir.
 - Ana menu oyunun kaynak-kanal-bitis fikrini gosteren animasyonlu marka ve akis seridine sahiptir.
 - Marka amblemi kum/cimen hex adasi, kaynak-bitis kanali ve yuzgecli geometrik kaplumbagayi tek simgede birlestirir.
@@ -478,11 +480,11 @@ Oncelik onerisi:
 - Bu ortamda kullanilan esdeger dogrulama: paketli Node ile `node_modules/vite/bin/vite.js build`
 - Vite: `5.4.21`
 - Sonuc: Basarili; 60 modul donusturuldu.
-- Cikti: `dist/index.html`, `dist/assets/index-EHl06Svc.css`, `dist/assets/index-CbOkYTo0.js`
-- Boyutlar: HTML 10.35 kB, CSS 46.35 kB, JS 300.48 kB.
+- Cikti: `dist/index.html`, `dist/assets/index-ivgZlclz.css`, `dist/assets/index-uNvC69TC.js`
+- Boyutlar: HTML 10.35 kB, CSS 47.16 kB, JS 301.22 kB.
 - Tarih: 21 Temmuz 2026
-- Guncel gorsel dogrulama: araliksiz temas eden golgesiz hexler, ortak sinirda biten
-  yerel kanal agizlari, devre disi komsu baglanti seridi ve kaynak-bitis kuyu yonleri
+- Guncel gorsel dogrulama: keskinlestirilmis kanal virajlari, kaynak-bitis portal bogazlari,
+  guclendirilmis beyaz akis izleri, HUD'suz giris overlay'i ve metne tasmayan menu kaplumbagasi
   tarayici ekraninda kontrol edildi.
 
 Not: Sistem PATH'inde `npm` bulunmadigi icin ayni `build` scriptinin calistirdigi Vite production girisi Codex'in paketli Node runtime'i ile dogrudan yurutuldu. Derleme basariyla tamamlandi.

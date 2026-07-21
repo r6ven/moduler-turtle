@@ -2652,6 +2652,58 @@ canvas {
   }
 }
 
+/* Menu layering and brand spacing overrides. */
+#ui-layer {
+  transition: opacity 180ms ease, visibility 180ms ease;
+}
+
+body.menu-open #ui-layer {
+  opacity: 0;
+  visibility: hidden;
+}
+
+#main-menu-overlay .menu-brand,
+#main-menu-overlay .menu-brand.compact-brand {
+  gap: 10px;
+}
+
+#main-menu-overlay .menu-brand-mark,
+#main-menu-overlay .compact-brand .menu-brand-mark {
+  width: 108px;
+  height: 108px;
+  flex-basis: 108px;
+  margin-bottom: 4px;
+}
+
+#main-menu-overlay .menu-brand-copy {
+  position: relative;
+  z-index: 4;
+}
+
+@media (max-width: 520px) {
+  #main-menu-overlay .menu-brand-mark,
+  #main-menu-overlay .compact-brand .menu-brand-mark {
+    width: 92px;
+    height: 92px;
+    flex-basis: 92px;
+  }
+}
+
+@media (max-height: 690px) {
+  #main-menu-overlay .menu-brand,
+  #main-menu-overlay .menu-brand.compact-brand {
+    gap: 6px;
+  }
+
+  #main-menu-overlay .menu-brand-mark,
+  #main-menu-overlay .compact-brand .menu-brand-mark {
+    width: 84px;
+    height: 82px;
+    flex-basis: 82px;
+    margin-bottom: 2px;
+  }
+}
+
 /* Kaynak-kanal-bitis onizlemesi: tek parca su yatagi ve tas orgulu kuyular. */
 .menu-flow-preview {
   isolation: isolate;
