@@ -10,7 +10,6 @@ export class Renderer {
     this.lastFrameTime = performance.now();
     this.tileSurfaceCache = new Map();
     this.flowStreakCache = new Map();
-    this.groundTintCache = new Map();
     this.landmarkImages = this.createLandmarkImages();
     this.quality = CONFIG.performance.profiles.high;
     this.logicalWidth = canvas.width || 1;
@@ -38,14 +37,6 @@ export class Renderer {
     if (typeof Image === "undefined") return {};
 
     const sources = {
-      treeOlive: "/images/hex-tree-olive.webp",
-      treeOliveMask: "/images/hex-tree-olive-ground-mask.webp",
-      treePine: "/images/hex-tree-pine.webp",
-      treePineMask: "/images/hex-tree-pine-ground-mask.webp",
-      treeFlowering: "/images/hex-tree-flowering.webp",
-      treeFloweringMask: "/images/hex-tree-flowering-ground-mask.webp",
-      treeBonsai: "/images/hex-tree-bonsai.webp",
-      treeBonsaiMask: "/images/hex-tree-bonsai-ground-mask.webp",
       lantern: "/images/hex-ancient-lantern.webp"
     };
 
@@ -130,13 +121,6 @@ export class Renderer {
 
     liftedTiles.sort((a, b) => a.liftWave - b.liftWave);
 
-    [...stableTiles, ...liftedTiles].forEach((entry) => {
-      this.drawHexShadowLayer(ctx, entry, hexRadius);
-    });
-
-    stableTiles.forEach((entry) => {
-      this.drawHexSideLayer(ctx, entry, hexRadius);
-    });
     stableTiles.forEach((entry) => {
       this.drawHexSurfaceLayer(ctx, entry, hexRadius, flowState);
     });
@@ -144,9 +128,6 @@ export class Renderer {
       this.drawHexWaterLayer(ctx, entry, hexRadius, grid, flowState);
     });
 
-    liftedTiles.forEach((entry) => {
-      this.drawHexSideLayer(ctx, entry, hexRadius);
-    });
     liftedTiles.forEach((entry) => {
       this.drawHexSurfaceLayer(ctx, entry, hexRadius, flowState);
     });
@@ -309,32 +290,6 @@ export class Renderer {
     };
   }
 
-  drawHexShadowLayer(ctx, entry, radius) {
-    const state = this.getHexRenderState(entry, radius);
-
-    this.drawTileShadow(
-      ctx,
-      state.x,
-      state.y,
-      radius,
-      state.tile,
-      state.liftWave
-    );
-  }
-
-  drawHexSideLayer(ctx, entry, radius) {
-    const state = this.getHexRenderState(entry, radius);
-
-    this.drawTileSide(
-      ctx,
-      state.x,
-      state.y - state.lift,
-      state.surfaceRadius,
-      state.tile,
-      state.liftWave
-    );
-  }
-
   drawHexSurfaceLayer(ctx, entry, radius, flowState) {
     const state = this.getHexRenderState(entry, radius);
     const currentConnected = flowState.keys.has(
@@ -370,7 +325,7 @@ export class Renderer {
     ctx.scale(state.actionScale, state.actionScale);
 
     ctx.save();
-    this.drawHexShape(ctx, radius - 2);
+    this.drawHexShape(ctx, radius);
     ctx.clip();
     this.drawWaterChannels(ctx, radius, state.tile, grid, flowState);
     ctx.restore();
@@ -386,31 +341,8 @@ export class Renderer {
     ctx.translate(state.x, state.y - state.lift);
     ctx.scale(state.actionScale, state.actionScale);
 
-    if (state.tile.landmark === "tree") {
-      const layout = this.getLandmarkLayout(state.tile, radius);
-
-      ctx.save();
-      this.drawHexShape(ctx, radius - 2.4);
-      ctx.clip();
-      this.drawTreeShadow(ctx, layout, radius);
-      this.drawLandmarkSprite(
-        ctx,
-        layout.imageName,
-        layout.size,
-        layout.x,
-        layout.y,
-        layout.anchorRatio
-      );
-      this.drawLandmarkGroundTint(
-        ctx,
-        layout.maskName,
-        this.getLandmarkGroundTone(state.tile),
-        layout.size,
-        layout.x,
-        layout.y,
-        layout.anchorRatio
-      );
-      ctx.restore();
+    if (state.tile.landmark === "shrub") {
+      this.drawShrub(ctx, state.tile, radius);
     } else if (state.tile.landmark === "lantern") {
       const layout = this.getLandmarkLayout(state.tile, radius);
 
@@ -467,29 +399,16 @@ export class Renderer {
   }
 
   getLandmarkLayout(tile, radius) {
-    const seed = this.getTileSeed(tile) ^ (
-      tile.landmark === "tree" ? 0x4f1bbcdc : 0x92d68ca2
-    );
+    const seed = this.getTileSeed(tile) ^ 0x92d68ca2;
     const random = this.createSeededRandom(seed);
-    const isTree = tile.landmark === "tree";
-    const tree = isTree ? this.getTreeDefinition(tile) : null;
-    const slots = isTree
-      ? [
-          [-0.22, 0.25],
-          [0.22, 0.25],
-          [-0.18, 0.18],
-          [0.18, 0.18],
-          [-0.1, 0.29],
-          [0.1, 0.29]
-        ]
-      : [
-          [-0.43, 0.2],
-          [0.43, 0.2],
-          [-0.38, -0.08],
-          [0.38, -0.08],
-          [-0.22, 0.34],
-          [0.22, 0.34]
-        ];
+    const slots = [
+      [-0.43, 0.2],
+      [0.43, 0.2],
+      [-0.38, -0.08],
+      [0.38, -0.08],
+      [-0.22, 0.34],
+      [0.22, 0.34]
+    ];
     const slot = slots[Math.floor(random() * slots.length)];
     const jitterX = (random() - 0.5) * radius * 0.07;
     const jitterY = (random() - 0.5) * radius * 0.05;
@@ -497,69 +416,153 @@ export class Renderer {
     return {
       x: radius * slot[0] + jitterX,
       y: radius * slot[1] + jitterY,
-      size: radius * (isTree ? tree.sizeRatio : 0.82),
-      anchorRatio: isTree ? 0.965 : 0.96,
-      imageName: isTree ? tree.imageName : "lantern",
-      maskName: isTree ? tree.maskName : null,
-      shadowScale: isTree ? tree.shadowScale : 0
+      size: radius * 0.82,
+      anchorRatio: 0.96,
+      imageName: "lantern"
     };
   }
 
-  getTreeDefinition(tile) {
-    const variants = [
-      { imageName: "treeOlive", maskName: "treeOliveMask", sizeRatio: 1.18, shadowScale: 0.78 },
-      { imageName: "treePine", maskName: "treePineMask", sizeRatio: 1.24, shadowScale: 0.82 },
-      { imageName: "treeFlowering", maskName: "treeFloweringMask", sizeRatio: 1.16, shadowScale: 0.74 },
-      { imageName: "treeBonsai", maskName: "treeBonsaiMask", sizeRatio: 1.2, shadowScale: 0.78 }
+  getShrubLayout(tile, radius) {
+    const random = this.createSeededRandom(
+      this.getTileSeed(tile) ^ 0x4f1bbcdc
+    );
+    const slots = [
+      [-0.34, -0.2],
+      [0.34, -0.2],
+      [-0.38, 0.16],
+      [0.38, 0.16],
+      [-0.12, 0.32],
+      [0.14, 0.3]
     ];
-    const index = Number.isInteger(tile.landmarkVariant)
-      ? tile.landmarkVariant
-      : this.getTileSeed(tile) % variants.length;
+    const slot = slots[Math.floor(random() * slots.length)];
 
-    return variants[((index % variants.length) + variants.length) % variants.length];
+    return {
+      x: radius * slot[0] + (random() - 0.5) * radius * 0.06,
+      y: radius * slot[1] + (random() - 0.5) * radius * 0.06,
+      scale: 0.82 + random() * 0.16,
+      rotation: random() * Math.PI * 2
+    };
   }
 
-  drawTreeShadow(ctx, layout, radius) {
-    const scale = layout.shadowScale || 1;
-    const shadowX = layout.x + radius * 0.16;
-    const shadowY = layout.y - layout.size * 0.12;
-    const shadow = ctx.createRadialGradient(
-      shadowX,
-      shadowY,
-      radius * 0.02,
-      shadowX,
-      shadowY,
-      radius * 0.48 * scale
+  drawShrub(ctx, tile, radius) {
+    const layout = this.getShrubLayout(tile, radius);
+    const random = this.createSeededRandom(
+      this.getTileSeed(tile) ^ 0x71e4a95b
     );
-
-    shadow.addColorStop(0, "rgba(47, 55, 30, 0.24)");
-    shadow.addColorStop(0.48, "rgba(47, 55, 30, 0.12)");
-    shadow.addColorStop(1, "rgba(47, 55, 30, 0)");
+    const variant = Number.isInteger(tile.landmarkVariant)
+      ? ((tile.landmarkVariant % 4) + 4) % 4
+      : this.getTileSeed(tile) % 4;
+    const branchCount = variant === 2 ? 9 : 7;
+    const leafCount = variant === 0
+      ? 20
+      : variant === 1
+        ? 10
+        : variant === 2
+          ? 2
+          : 17;
+    const flowering = variant === 3;
+    const size = radius * 0.36 * layout.scale;
+    const branchTips = [];
 
     ctx.save();
-    ctx.translate(shadowX, shadowY);
-    ctx.rotate(-0.38);
-    ctx.scale(1.28, 0.48);
-    ctx.translate(-shadowX, -shadowY);
-    ctx.fillStyle = shadow;
-    ctx.beginPath();
-    ctx.arc(shadowX, shadowY, radius * 0.48 * scale, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    ctx.translate(layout.x, layout.y);
+    ctx.rotate(layout.rotation);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
 
-    ctx.save();
-    ctx.globalAlpha = 0.2;
-    ctx.fillStyle = "#334025";
+    for (let index = 0; index < branchCount; index += 1) {
+      const angle = (index / branchCount) * Math.PI * 2 + (random() - 0.5) * 0.36;
+      const length = size * (0.62 + random() * 0.38);
+      const bend = (random() - 0.5) * size * 0.28;
+      const tip = {
+        x: Math.cos(angle) * length,
+        y: Math.sin(angle) * length
+      };
+
+      branchTips.push(tip);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(
+        Math.cos(angle) * length * 0.48 - Math.sin(angle) * bend,
+        Math.sin(angle) * length * 0.48 + Math.cos(angle) * bend,
+        tip.x,
+        tip.y
+      );
+      ctx.lineWidth = variant === 2 ? 1.35 : 1.05;
+      ctx.strokeStyle = index % 2 === 0 ? "#65523b" : "#7b6243";
+      ctx.stroke();
+
+      if (variant === 2 && index % 2 === 0) {
+        const twigAngle = angle + (index % 4 < 2 ? 0.48 : -0.48);
+        ctx.beginPath();
+        ctx.moveTo(tip.x * 0.68, tip.y * 0.68);
+        ctx.lineTo(
+          tip.x * 0.68 + Math.cos(twigAngle) * size * 0.28,
+          tip.y * 0.68 + Math.sin(twigAngle) * size * 0.28
+        );
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+      }
+    }
+
+    const leafColors = variant === 1
+      ? ["#71843a", "#899b49", "#596f32"]
+      : ["#66843b", "#7f9b43", "#9aaa4f", "#4d6f36"];
+
+    for (let index = 0; index < leafCount; index += 1) {
+      const tip = branchTips[index % branchTips.length];
+      const spread = size * (variant === 1 ? 0.34 : 0.42);
+      const x = tip.x * (0.48 + random() * 0.5) + (random() - 0.5) * spread;
+      const y = tip.y * (0.48 + random() * 0.5) + (random() - 0.5) * spread;
+      const leafAngle = Math.atan2(y, x) + (random() - 0.5) * 0.7;
+      const leafLength = size * (0.2 + random() * 0.1);
+      const leafWidth = leafLength * (0.42 + random() * 0.18);
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(leafAngle);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, leafLength, leafWidth, 0, 0, Math.PI * 2);
+      ctx.fillStyle = leafColors[index % leafColors.length];
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-leafLength * 0.55, 0);
+      ctx.lineTo(leafLength * 0.58, 0);
+      ctx.lineWidth = 0.38;
+      ctx.globalAlpha = 0.46;
+      ctx.strokeStyle = "#d1d276";
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (flowering) {
+      const flowerColors = ["#f4eee1", "#d98992", "#e0ad45"];
+
+      for (let index = 0; index < 6; index += 1) {
+        const tip = branchTips[(index * 2) % branchTips.length];
+        const x = tip.x * (0.72 + random() * 0.2);
+        const y = tip.y * (0.72 + random() * 0.2);
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.fillStyle = flowerColors[index % flowerColors.length];
+        for (let petal = 0; petal < 4; petal += 1) {
+          ctx.rotate(Math.PI / 2);
+          ctx.beginPath();
+          ctx.ellipse(0, -1.8, 1, 1.8, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.beginPath();
+        ctx.arc(0, 0, 0.75, 0, Math.PI * 2);
+        ctx.fillStyle = "#8c6235";
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
     ctx.beginPath();
-    ctx.ellipse(
-      layout.x + radius * 0.04,
-      layout.y + radius * 0.03,
-      radius * 0.17,
-      radius * 0.06,
-      -0.18,
-      0,
-      Math.PI * 2
-    );
+    ctx.arc(0, 0, variant === 2 ? 1.9 : 2.6, 0, Math.PI * 2);
+    ctx.fillStyle = "#66503a";
     ctx.fill();
     ctx.restore();
   }
@@ -580,99 +583,8 @@ export class Renderer {
     ctx.translate(offsetX, offsetY);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
-    ctx.filter = name.startsWith("tree")
-      ? "saturate(0.78) sepia(0.1) hue-rotate(-7deg) contrast(1.025) brightness(1.015)"
-      : "saturate(1.08) contrast(1.045)";
+    ctx.filter = "saturate(1.08) contrast(1.045)";
     ctx.drawImage(image, -size / 2, -size * anchorRatio, size, size);
-    ctx.restore();
-  }
-
-  getLandmarkGroundTone(tile) {
-    if (tile.flowerBloomed) return "#a9cc59";
-    if (tile.active) return "#dfba66";
-    return "#d8c79f";
-  }
-
-  getGroundTintSurface(maskName, color) {
-    const cacheKey = `${maskName}:${color}`;
-
-    if (this.groundTintCache.has(cacheKey)) {
-      return this.groundTintCache.get(cacheKey);
-    }
-
-    const mask = this.landmarkImages[maskName];
-
-    if (!mask?.complete || mask.naturalWidth <= 0) return null;
-
-    const surface = document.createElement("canvas");
-    const surfaceCtx = surface.getContext("2d");
-
-    surface.width = mask.naturalWidth;
-    surface.height = mask.naturalHeight;
-    surfaceCtx.drawImage(mask, 0, 0);
-    surfaceCtx.globalCompositeOperation = "source-in";
-    surfaceCtx.fillStyle = color;
-    surfaceCtx.fillRect(0, 0, surface.width, surface.height);
-    this.groundTintCache.set(cacheKey, surface);
-
-    return surface;
-  }
-
-  drawLandmarkGroundTint(
-    ctx,
-    maskName,
-    color,
-    size,
-    offsetX,
-    offsetY,
-    anchorRatio
-  ) {
-    const tint = this.getGroundTintSurface(maskName, color);
-
-    if (!tint) return;
-
-    ctx.save();
-    ctx.translate(offsetX, offsetY);
-    ctx.globalCompositeOperation = "color";
-    ctx.globalAlpha = 0.78;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(tint, -size / 2, -size * anchorRatio, size, size);
-    ctx.restore();
-  }
-
-  drawTileShadow(ctx, x, y, radius, tile, liftWave) {
-    const shadowOffset = tile.active ? 1.5 + liftWave * 6 : 1;
-    const shadowScale = 1 + liftWave * 0.04;
-
-    ctx.save();
-    ctx.translate(x + 1, y + shadowOffset);
-    ctx.scale(shadowScale, 1 + liftWave * 0.022);
-    this.drawHexShape(ctx, radius - 2);
-    ctx.fillStyle = tile.active
-      ? CONFIG.colors.tileShadow
-      : "rgba(48, 78, 54, 0.07)";
-    ctx.fill();
-    ctx.restore();
-  }
-
-  drawTileSide(ctx, x, y, radius, tile, liftWave) {
-    const sideDepth = tile.active ? 2 + liftWave * 1.5 : 1;
-
-    ctx.save();
-    ctx.translate(x, y + sideDepth);
-    ctx.scale(1 + liftWave * 0.032, 1 + liftWave * 0.032);
-    this.drawHexShape(ctx, radius);
-
-    if (!tile.active) {
-      ctx.fillStyle = CONFIG.colors.inactiveTileBottom;
-    } else if (tile.flowerBloomed) {
-      ctx.fillStyle = CONFIG.colors.solvedTileSide;
-    } else {
-      ctx.fillStyle = CONFIG.colors.tileSide;
-    }
-
-    ctx.fill();
     ctx.restore();
   }
 
@@ -759,21 +671,12 @@ export class Renderer {
     ctx.restore();
 
     this.drawHexShape(ctx, radius);
-    ctx.lineWidth = tile.active ? 2.6 : 1.7;
+    ctx.lineWidth = tile.active ? 1.55 : 1.25;
     ctx.strokeStyle = !tile.active
       ? CONFIG.colors.inactiveStroke
       : tile.flowerBloomed
         ? CONFIG.colors.solvedStroke
         : CONFIG.colors.idleStroke;
-    ctx.stroke();
-
-    const edgeGradient = ctx.createLinearGradient(0, -radius, 0, radius * 0.3);
-    edgeGradient.addColorStop(0, CONFIG.colors.tileHighlight);
-    edgeGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
-
-    this.drawHexShape(ctx, radius - 2);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = edgeGradient;
     ctx.stroke();
   }
 
@@ -840,9 +743,11 @@ export class Renderer {
   drawIslandDecorations(ctx, radius, tile, connected) {
     const seed = this.getTileSeed(tile);
     const random = this.createSeededRandom(seed);
-    const groundLandmark = tile.landmark === "tree" || tile.landmark === "lantern";
+    const groundLandmark = tile.landmark === "shrub" || tile.landmark === "lantern";
     const landmarkLayout = groundLandmark
-      ? this.getLandmarkLayout(tile, radius)
+      ? tile.landmark === "shrub"
+        ? this.getShrubLayout(tile, radius)
+        : this.getLandmarkLayout(tile, radius)
       : null;
 
     if (groundLandmark) {
@@ -963,11 +868,11 @@ export class Renderer {
   }
 
   drawLandmarkGroundDecorations(ctx, radius, tile, random, layout) {
-    const isTree = tile.landmark === "tree";
+    const isShrub = tile.landmark === "shrub";
     const centerDirection = layout.x > 0 ? -1 : 1;
     const clampX = (value) => Math.max(-radius * 0.56, Math.min(radius * 0.56, value));
     const clampY = (value) => Math.max(-radius * 0.38, Math.min(radius * 0.48, value));
-    const companionCount = isTree
+    const companionCount = isShrub
       ? 2 + (random() < 0.55 ? 1 : 0)
       : 1 + (random() < 0.62 ? 1 : 0);
     const companionPoints = [];
@@ -999,7 +904,7 @@ export class Renderer {
       );
     }
 
-    const flowerCount = isTree
+    const flowerCount = isShrub
       ? 1 + (random() < 0.32 ? 1 : 0)
       : random() < 0.58 ? 1 : 0;
 
@@ -1015,8 +920,8 @@ export class Renderer {
       );
     }
 
-    if (random() < (isTree ? 0.48 : 0.68)) {
-      const stoneSide = centerDirection * (isTree ? -1 : 1);
+    if (random() < (isShrub ? 0.48 : 0.68)) {
+      const stoneSide = centerDirection * (isShrub ? -1 : 1);
 
       this.drawStoneCluster(
         ctx,
@@ -1468,7 +1373,7 @@ export class Renderer {
   }
 
   drawWaterChannels(ctx, radius, tile, grid, flowState) {
-    const faceDistance = (radius - 2) * Math.cos(Math.PI / 6);
+    const faceDistance = radius * Math.cos(Math.PI / 6);
     const currentKey = tileKey(tile.q, tile.r);
     const currentConnected = flowState.keys.has(currentKey);
     const currentDepth = flowState.depths.get(currentKey);
@@ -1515,6 +1420,29 @@ export class Renderer {
 
     this.drawChannelBody(ctx, channels, currentConnected);
 
+    if (channels.length === 2) {
+      const curveSeed = (channels[0].flowSeed ^ channels[1].flowSeed) >>> 0;
+
+      this.drawCurvedWaterTexture(
+        ctx,
+        channels[0],
+        channels[1],
+        currentConnected,
+        curveSeed
+      );
+
+      if (channels[0].active && channels[1].active) {
+        this.drawCurvedFlowDash(
+          ctx,
+          channels[0],
+          channels[1],
+          channels[0].direction < 0 ? 1 : -1,
+          curveSeed
+        );
+      }
+      return;
+    }
+
     channels.forEach((channel) => {
       this.drawWaterSurfaceTexture(
         ctx,
@@ -1547,7 +1475,7 @@ export class Renderer {
     const entryByKey = new Map(
       entries.map((entry) => [tileKey(entry.tile.q, entry.tile.r), entry])
     );
-    const faceDistance = (radius - 2) * Math.cos(Math.PI / 6);
+    const faceDistance = radius * Math.cos(Math.PI / 6);
     const boundaryOverlap = 8.5;
 
     entries.forEach((entry) => {
@@ -1924,27 +1852,227 @@ export class Renderer {
   }
 
   drawCompoundChannelLayer(ctx, channels, width, color) {
-    const centerOverlap = width * 0.68;
+    const centerOverlap = width * 0.42;
 
     ctx.save();
     ctx.beginPath();
 
-    channels.forEach((channel) => {
-      this.appendWaterSegment(
-        ctx,
-        0,
-        0,
-        channel.length * Math.cos(channel.angle),
-        channel.length * Math.sin(channel.angle),
-        width,
-        centerOverlap,
-        0.8
-      );
-    });
+    if (channels.length === 2) {
+      this.appendCurvedChannelTurn(ctx, channels[0], channels[1], width);
+    } else {
+      channels.forEach((channel) => {
+        this.appendWaterSegment(
+          ctx,
+          0,
+          0,
+          channel.length * Math.cos(channel.angle),
+          channel.length * Math.sin(channel.angle),
+          width,
+          centerOverlap,
+          0.8
+        );
+      });
+
+      this.appendRoundedChannelJunction(ctx, channels, width);
+    }
 
     ctx.fillStyle = color;
     ctx.fill();
     ctx.restore();
+  }
+
+  appendCurvedChannelTurn(ctx, firstChannel, secondChannel, width) {
+    const extension = 0.8;
+    const firstLength = firstChannel.length + extension;
+    const secondLength = secondChannel.length + extension;
+    const start = {
+      x: Math.cos(firstChannel.angle) * firstLength,
+      y: Math.sin(firstChannel.angle) * firstLength
+    };
+    const end = {
+      x: Math.cos(secondChannel.angle) * secondLength,
+      y: Math.sin(secondChannel.angle) * secondLength
+    };
+    const halfWidth = width * 0.5;
+    const leftPoints = [];
+    const rightPoints = [];
+    const segmentCount = 14;
+
+    for (let index = 0; index <= segmentCount; index += 1) {
+      const t = index / segmentCount;
+      const inverse = 1 - t;
+      const x = inverse * inverse * start.x + t * t * end.x;
+      const y = inverse * inverse * start.y + t * t * end.y;
+      const tangentX = -2 * inverse * start.x + 2 * t * end.x;
+      const tangentY = -2 * inverse * start.y + 2 * t * end.y;
+      const tangentLength = Math.max(0.001, Math.hypot(tangentX, tangentY));
+      const normalX = -tangentY / tangentLength;
+      const normalY = tangentX / tangentLength;
+
+      leftPoints.push({
+        x: x + normalX * halfWidth,
+        y: y + normalY * halfWidth
+      });
+      rightPoints.push({
+        x: x - normalX * halfWidth,
+        y: y - normalY * halfWidth
+      });
+    }
+
+    ctx.moveTo(leftPoints[0].x, leftPoints[0].y);
+    leftPoints.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
+    rightPoints.reverse().forEach((point) => ctx.lineTo(point.x, point.y));
+    ctx.closePath();
+  }
+
+  getCurvedChannelPoint(firstChannel, secondChannel, t, lateralOffset = 0) {
+    const extension = 0.8;
+    const start = {
+      x: Math.cos(firstChannel.angle) * (firstChannel.length + extension),
+      y: Math.sin(firstChannel.angle) * (firstChannel.length + extension)
+    };
+    const end = {
+      x: Math.cos(secondChannel.angle) * (secondChannel.length + extension),
+      y: Math.sin(secondChannel.angle) * (secondChannel.length + extension)
+    };
+    const inverse = 1 - t;
+    const x = inverse * inverse * start.x + t * t * end.x;
+    const y = inverse * inverse * start.y + t * t * end.y;
+    const tangentX = -2 * inverse * start.x + 2 * t * end.x;
+    const tangentY = -2 * inverse * start.y + 2 * t * end.y;
+    const tangentLength = Math.max(0.001, Math.hypot(tangentX, tangentY));
+
+    return {
+      x: x - (tangentY / tangentLength) * lateralOffset,
+      y: y + (tangentX / tangentLength) * lateralOffset,
+      angle: Math.atan2(tangentY, tangentX)
+    };
+  }
+
+  traceCurvedChannel(
+    ctx,
+    firstChannel,
+    secondChannel,
+    lateralOffset = 0,
+    startRatio = 0,
+    endRatio = 1
+  ) {
+    const segmentCount = 18;
+
+    for (let index = 0; index <= segmentCount; index += 1) {
+      const ratio = startRatio + (endRatio - startRatio) * (index / segmentCount);
+      const point = this.getCurvedChannelPoint(
+        firstChannel,
+        secondChannel,
+        ratio,
+        lateralOffset
+      );
+
+      if (index === 0) ctx.moveTo(point.x, point.y);
+      else ctx.lineTo(point.x, point.y);
+    }
+  }
+
+  drawCurvedWaterTexture(ctx, firstChannel, secondChannel, wet, seed) {
+    const random = this.createSeededRandom(seed ^ 0x2d187a6f);
+    const count = wet ? 4 : 3;
+
+    ctx.save();
+    ctx.lineCap = "round";
+
+    for (let index = 0; index < count; index += 1) {
+      const ratio = 0.16 + random() * 0.68;
+      const lateral = (random() - 0.5) * 5;
+      const point = this.getCurvedChannelPoint(
+        firstChannel,
+        secondChannel,
+        ratio,
+        lateral
+      );
+      const markLength = 1.6 + random() * 3.2;
+
+      ctx.beginPath();
+      ctx.moveTo(
+        point.x - Math.cos(point.angle) * markLength * 0.5,
+        point.y - Math.sin(point.angle) * markLength * 0.5
+      );
+      ctx.lineTo(
+        point.x + Math.cos(point.angle) * markLength * 0.5,
+        point.y + Math.sin(point.angle) * markLength * 0.5
+      );
+      ctx.globalAlpha = (wet ? 0.22 : 0.12) + random() * 0.1;
+      ctx.lineWidth = 0.5 + random() * 0.45;
+      ctx.strokeStyle = index % 3 === 0
+        ? CONFIG.colors.waterShade
+        : CONFIG.colors.waterRefraction;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  drawCurvedFlowDash(ctx, firstChannel, secondChannel, direction, seed) {
+    const streaks = this.getFlowStreaks(seed);
+    const streakCount = Math.min(streaks.length, this.quality.flowStreakCount);
+
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.strokeStyle = CONFIG.colors.waterHighlight;
+
+    for (let index = 0; index < streakCount; index += 1) {
+      const streak = streaks[index];
+
+      ctx.beginPath();
+      this.traceCurvedChannel(
+        ctx,
+        firstChannel,
+        secondChannel,
+        streak.lateralOffset,
+        streak.startRatio,
+        streak.endRatio
+      );
+      ctx.globalAlpha = streak.alpha;
+      ctx.lineWidth = streak.lineWidth;
+      ctx.setLineDash([streak.dashLength, streak.dashGap]);
+      ctx.lineDashOffset =
+        streak.phaseOffset - this.waterFlowPhase * streak.speed * direction;
+      ctx.stroke();
+    }
+
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  appendRoundedChannelJunction(ctx, channels, width) {
+    if (channels.length === 0) return;
+
+    let rotation = channels[0].angle;
+
+    if (channels.length === 2) {
+      const vectorX = Math.cos(channels[0].angle) + Math.cos(channels[1].angle);
+      const vectorY = Math.sin(channels[0].angle) + Math.sin(channels[1].angle);
+
+      if (Math.hypot(vectorX, vectorY) > 0.001) {
+        rotation = Math.atan2(vectorY, vectorX);
+      }
+    }
+
+    const majorRadius = width * (channels.length === 2 ? 0.56 : 0.53);
+    const minorRadius = width * 0.5;
+
+    ctx.moveTo(
+      Math.cos(rotation) * majorRadius,
+      Math.sin(rotation) * majorRadius
+    );
+    ctx.ellipse(
+      0,
+      0,
+      majorRadius,
+      minorRadius,
+      rotation,
+      0,
+      Math.PI * 2
+    );
+    ctx.closePath();
   }
 
   appendWaterSegment(

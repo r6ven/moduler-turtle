@@ -30,18 +30,14 @@ Render, Netlify veya benzeri servislere `dist` klasörü yayınlanabilir.
 
 ## Ada Modelleri
 
-- Dört yüksek çözünürlüklü ağaç varyantı ve antik fener pasif kum adalarında,
-  merkez dışındaki kontrollü bölgelere tabanlarından oturtulur. Küçük haritalarda
-  1-2, geniş haritalarda en fazla 3 ağaç bulunur; aynı haritadaki türler tekrar
-  etmez ve mümkün olduğunda komşu hexlere yığılmaz.
-- Ağaçlar zeytin, kıyı çamı, çiçekli ağaç ve low-poly bonsai modelleridir.
-  Modeller 768x768 kayıpsız, şeffaf WebP varlıklarıdır; oyun paletine uyarlanmış
-  zeytin/toprak tonlarıyla, yüksek DPI Canvas üzerinde ve hex sınırı içinde çizilir.
-- Her modelin dip toprağı ayrı bir yumuşak maskeyle seçilir ve Renderer tarafından
-  bulunduğu hexin kum/aktif/yeşermiş yüzey tonuna dinamik olarak uyarlanır. Ağaç,
-  taş, çimen ve çiçek renkleri bu işlemden etkilenmez.
-- Çevrelerindeki taş, kum, çimen ve çiçekler model tabanının çevresinde aynı seeded
-  kompozisyonun parçası olarak kümelenir.
+- Ağaçlar oyun üretiminden ve render zincirinden çıkarılmıştır.
+- Pasif kum adalarında yoğun yapraklı, seyrek yapraklı, yapraksız ve çiçekli olmak
+  üzere dört prosedürel çalı varyantı bulunur. Küçük haritalarda 1-2, geniş
+  haritalarda en fazla 3 çalı üretilir ve mümkün olduğunda komşu hexlere yığılmaz.
+- Çalılar tam 90 derece tepeden görünür; yan yüzey, gövde yüksekliği, perspektif veya
+  zemin gölgesi kullanılmaz. Dallar merkezden radyal yayılır, yaprak ve çiçekler
+  seeded kompozisyonla üst yüzeye yerleşir.
+- Çevrelerindeki taş, kum, çimen ve çiçekler aynı seeded kompozisyonun parçasıdır.
 - Modeller puzzle bağlantı mantığını değiştirmez; yalnız görsel çeşitlilik sağlar.
 - Kaplumbağanın bölüm sonu yüzme turu boyunca antik fenerin sıcak ışığı yumuşak
   biçimde yanıp söner; normal puzzle sırasında sabit kalır.
@@ -53,11 +49,11 @@ Render, Netlify veya benzeri servislere `dist` klasörü yayınlanabilir.
   en az `1.75x` backing piksel yoğunluğunda üretilir. Performans düşüşü dokuyu
   bulanıklaştırmak yerine parçacık ve hareketli efekt sayısını azaltır.
 - Kum yüzeyi çok ölçekli tanecik, mineral izi ve ton kırılmaları kullanır.
-- Su motoru çizgi üst üste bindirme kullanmaz. Kıyı, kanal yatağı, derin su ve yüzey;
-  aynı düz uçlu bileşik poligon geometrisinden üretilir.
-- Kanal merkezlerinde ayrı yuvarlak düğüm, havuz veya kapama yaması yoktur. Kollar
-  merkezde kendi geometrileriyle örtüşür; komşu hex uzantıları da aynı dört katmanı
-  kullandığı için sınırda ek parça ve boşluk görünmez.
+- Su motoru çizgi üst üste bindirme kullanmaz. Kıyı, kanal yatağı, derin su ve yüzey
+  aynı katman geometrisinden üretilir; kanal ağzı tam dış hex konturunda biter.
+- İki kollu kanallar bir ağızdan diğerine kuadratik, yuvarlatılmış tek şerit olarak
+  döner. Çok kollu merkezlerde aynı renkli küçük oval birleşim kullanılır; ayrı
+  portal, havuz veya kapama yaması yoktur.
 - Sakin suda kısa seeded kırınımlar, kaynağa bağlı suda yönlü ve çoklu ince kesik
   akış izleri bulunur. Yalnız başlangıç ve bitiş hexlerinde portal çizilir.
   Ana menüdeki kaynak ve bitiş kuyuları taş örgü, derinlik

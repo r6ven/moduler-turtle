@@ -199,18 +199,18 @@ return {
   static assignLandmarks(grid) {
     const tiles = Object.values(grid);
     const inactiveTiles = shuffled(tiles.filter((tile) => !tile.active));
-    const treeCount = Math.min(
+    const shrubCount = Math.min(
       Math.max(0, inactiveTiles.length - 1),
       inactiveTiles.length >= 12 ? 3 : inactiveTiles.length >= 7 ? 2 : 1
     );
     const firstVariant = inactiveTiles[0]?.decorSeed % 4 || 0;
-    const treeTiles = [];
+    const shrubTiles = [];
 
-    for (let index = 0; index < treeCount; index += 1) {
+    for (let index = 0; index < shrubCount; index += 1) {
       const separatedIndex = inactiveTiles.findIndex((tile) => {
-        return treeTiles.every((treeTile) => {
-          const deltaQ = tile.q - treeTile.q;
-          const deltaR = tile.r - treeTile.r;
+        return shrubTiles.every((shrubTile) => {
+          const deltaQ = tile.q - shrubTile.q;
+          const deltaR = tile.r - shrubTile.r;
           const distance = Math.max(
             Math.abs(deltaQ),
             Math.abs(deltaR),
@@ -220,21 +220,21 @@ return {
           return distance > 1;
         });
       });
-      const treeTile = separatedIndex >= 0
+      const shrubTile = separatedIndex >= 0
         ? inactiveTiles.splice(separatedIndex, 1)[0]
         : inactiveTiles.shift();
 
-      if (!treeTile) break;
+      if (!shrubTile) break;
 
-      treeTile.landmark = "tree";
-      treeTile.landmarkVariant = (firstVariant + index) % 4;
-      treeTiles.push(treeTile);
+      shrubTile.landmark = "shrub";
+      shrubTile.landmarkVariant = (firstVariant + index) % 4;
+      shrubTiles.push(shrubTile);
     }
 
     const lanternIndex = inactiveTiles.findIndex((tile) => {
-      return treeTiles.every((treeTile) => {
-        const deltaQ = tile.q - treeTile.q;
-        const deltaR = tile.r - treeTile.r;
+      return shrubTiles.every((shrubTile) => {
+        const deltaQ = tile.q - shrubTile.q;
+        const deltaR = tile.r - shrubTile.r;
         const distance = Math.max(
           Math.abs(deltaQ),
           Math.abs(deltaR),

@@ -33,11 +33,8 @@ moduler-turtle/                 # Git deposunun koku
    │  └─ images/
    │     ├─ completion-lotus.png # Sonuc basliginin iki yanindaki seffaf nilufer asseti
    │     ├─ hex-ancient-lantern.webp # Pasif adalardaki antik fener modeli
-   │     ├─ hex-tree-olive.webp     # Zeytin agaci, 768 px kayipsiz WebP
-   │     ├─ hex-tree-pine.webp      # Kiyi cami, 768 px kayipsiz WebP
-   │     ├─ hex-tree-flowering.webp # Cicekli agac, 768 px kayipsiz WebP
-   │     ├─ hex-tree-bonsai.webp    # Low-poly bonsai, 768 px kayipsiz WebP
-   │     ├─ hex-tree-*-ground-mask.webp # Agac dip topragi icin dinamik renk maskeleri
+   │     ├─ hex-tree-*.webp         # Kod tarafinda kullanilmayan miras agac varliklari
+   │     ├─ hex-tree-*-ground-mask.webp # Kod tarafinda kullanilmayan miras maskeler
    │     ├─ starfish.png        # Sonuc, bolum ve rekor ekranlarindaki deniz yildizi
    │     ├─ turtle-gameplay.png # Mevcut Canvas kaplumbagasinda kullanilmayan aday asset
    │     └─ turtle-menu.png     # Mevcut CSS marka isaretinde kullanilmayan aday asset
@@ -97,34 +94,30 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 
 ### 4.3 Hex ve cevre cizimi
 
-- Hexler ust yuzey, ince yan yuzey, hafif temas golgesi, parlama ve settle glow katmanlariyla cizilir. Durağan golge tepeden gorunuse uygun olacak kadar kucuktur; belirgin derinlik yalnizca tas yukselip donerken artar.
-- Render sirasi tum harita icin global katmanlidir: once golgeler, sonra yan/ust ada yuzeyleri, ardindan su agi ve detaylar cizilir. Bu nedenle komsu bir hexin golgesi veya konturu daha once cizilmis kanalin ustune cikamaz.
+- Hexlerde temas golgesi, yan yuzey ve ic parlama konturu yoktur. Ust yuzey materyali ile durumu gosteren tek bir ince dis cerceve cizgisi kalir.
+- Render sirasi ust yuzeyler, su agi ve detaylar seklindedir. Hex konturlari su agzinin dis kontura kadar ulasmasina izin verir; kanal hex sinirini asmaz.
 - Guncel sanat yonu sicak keten/kum zemin, petrol mavisi su, hardal-turuncu vurgu, zeytin yesili bitki ve toprak-kahve golge paletidir.
 - Aktif, bagli/cozulmus ve pasif taslar farkli materyal ve renk durumlarina sahiptir.
 - Kanal cizimi hex siniri icinde kirpilir; toprak kiyi, oyuk yatak, derin su ve yuzey ayni bileşik poligon geometrisinin farkli genislikleridir.
-- Her kanal kolu hexin ust yuzey sinirinda duz biter ve yan yuzey/golge alanina gecmez. Iki komsu kanal agzi hizalandiginda aradaki mesafe, yerel kanalla ayni dort opak katmana sahip duz uclu bir uzantiyla tamamlanir. Uzanti hex icine az miktarda bindigi icin sinirda bosluk veya sonradan eklenmis parca izi kalmaz.
+- Her kanal kolu tam dis cerceve cizgisinde duz biter ve hex sinirini gecmez. Iki komsu kanal agzi hizalandiginda aradaki mesafe, yerel kanalla ayni dort opak katmana sahip duz uclu bir uzantiyla tamamlanir.
 - Kum lekeleri, kum taneleri, taslar, cimenler ve yabani cicekler seeded rastgele dagitilir.
 - Dekor sayisi kontrolludur; bazi hexler bos kalabilir, tek bir hexte asiri yigilma olusmaz.
 - Bagli hexlerde cimen miktari hafif artar ve cimenlerin bir kismi ciceklenir.
 - Tas, cimen, yabani cicek ve merkez cicegi icin birden fazla sekil varyanti vardir.
-- Agac ve antik fener, puzzle okunurlugunu korumak icin pasif kum adalarinda
-  merkez disindaki kontrollu yerlesim bolgelerine tabanlarindan oturtulur. Kucuk
-  haritalarda 1-2, genis haritalarda en fazla 3 agac bulunur; ayni haritadaki agac
-  turleri tekrar etmez ve mumkun oldugunda birbirlerine komsu secilmez.
-- Zeytin, kiyi cami, cicekli agac ve low-poly bonsai varyantlari 768x768 kayipsiz,
-  seffaf WebP varliklaridir. Model olcekleri hex oranina gore ayarlanir, zeytin/toprak
-  paletine tonlanir ve agac ile golgesi hex ust yuzey siniri icinde kirpilir.
-- Her agacin dip topragi ayri bir seffaf maskeyle secilir. Renderer bu maskeyi
-  agacin bulundugu hexin pasif kum, aktif kum veya yesermis yuzey tonuna gore
-  dinamik renklendirir; govde, kaya, cimen ve cicek renkleri korunur.
-- Agac ve fener tabanlari, seeded tas, kum, cimen ve cicek dekorlariyla ayni
-  kompozisyonda birlesir. Modeller basit Canvas sembolleri degildir.
+- Agaclar uretim ve render zincirinden kaldirilmistir; miras WebP dosyalari klasor
+  yapisini bozmamak icin repoda pasif olarak kalir ve tarayici tarafindan yuklenmez.
+- Pasif kum adalarinda yogun yaprakli, seyrek yaprakli, yapraksiz ve cicekli dort
+  prosedurel cali varyanti bulunur. Kucuk haritalarda 1-2, genis haritalarda en fazla
+  3 cali uretilir ve mumkun oldugunda birbirlerine komsu secilmez.
+- Calilar tam 90 derece tepeden gorunur. Radyal dallar, ustten gorunen eliptik yapraklar
+  ve cicek kumeleri kullanilir; perspektif, yan yuzey veya zemin golgesi yoktur.
+- Cali ve fener cevresi seeded tas, kum, cimen ve cicek dekorlariyla birlesir.
 - Antik fener normal puzzle sirasinda sabittir; kaplumbaganin bolum sonu kaynak-bitis
   turu boyunca sicak isigi yumusak bir nabiz ve hafif titresimle yanip soner. Fener,
   cevre tas ve cicekleriyle okunacak ancak hex merkezini kapatmayacak orta olcektedir.
 - Kayalar tek tip ve sabit konumlu degildir; bazi hexler bos kalirken digerlerinde sinirli sayida, farkli renk ve bicimlerde kucuk kaya kumeleri olusur.
 - Bagli hexlerde cimen miktari kontrollu artar; cicekler tek sembol yerine farkli renk ve yaprak duzenlerine sahip kucuk yamalar halinde acabilir.
-- Tas yukseltme, 60 derece donus, golge genislemesi ve yerine oturma animasyonu vardir.
+- Tas yukseltme, 60 derece donus ve yerine oturma animasyonu vardir; hex golgesi uretilmez.
 - Ayni tas animasyon bitmeden tekrar dondurulemez; diger taslarla etkilesim devam eder.
 - Cizim ve animasyonlar frame delta ile ilerler; baglanti ve yuzey sonuc cache'leri kullanilir.
 - Ana Canvas ve onbellege alinan hex yuzeyleri kalite profiline gore en az
@@ -143,7 +136,10 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Akis yonu BFS derinligine gore kaynaktan disa dogru belirlenir.
 - Esit derinlikli dongu kenarlarinda kararli siralama/anahtar eslemesi kullanilir.
 - Su motoru bastan kurulmustur: toprak kiyi, oyuk yatak, derin su ve yuzey katmanlari tek bir duz uclu poligon tanimindan turetilir. Eski stroke tabanli ag, surekli parlama cizgisi ve sekizgen birlesim muhru kaldirilmistir.
-- Ayni hexteki tum kollar her katmanda tek bir bileşik Canvas path'i olarak doldurulur. Kollar merkez noktasinin gerisine kontrollu bindigi icin ayri merkez dugumu, radyal havuz, kapama yamasi veya renk dilimi gerekmez.
+- Iki cikisli hexlerde dort su katmaninin tamami bir sinir agzindan digerine kuadratik
+  egri boyunca tek serit olarak doner. Statik kirinim ve hareketli akis izleri de ayni
+  egriyi izler. Tek veya cok kollu merkezlerde kanal genisligini asmayan yumusak oval
+  birlesim kullanilir; ayri portal, havuz veya kapama yamasi yoktur.
 - Komsu hex baglantisi da ayni poligon ve renk katmanlarini kullanir; baglanti govdesi her iki yerel kanal agzina opak olarak bindigi icin durağan ve hareketli durumda ek yeri olusmaz.
 - Su bir hex merkezine ulastiginda o tasin tum kanal oyuklari ayni su govdesiyle dolar; hareketli akis izleri ise yalnizca gercekten eslesmis komsu baglantilarinda ilerler.
 - Akis izleri tek kalin orta cizgi degil; kanal icinde farkli yanal konumlarda birden fazla ince kesik cizgidir.
@@ -289,7 +285,7 @@ Liderlik tablosunda her kayit icin `username`, `last_level` ve `best_by_level` b
 
 ### Tamamlanan gorsel yol haritasi
 
-- [x] Asama 1 - Hex golge, malzeme, ust/yan yuzey ve durum farklari.
+- [x] Asama 1 - Gölgesiz/yan yüzeysiz hex malzemesi, tek dis cerceve ve durum farklari.
 - [x] Asama 2 - Katmanli kanal yatagi, su, parlaklik ve kaynaktan ilerleyen akis.
 - [x] Su motoru yenilemesi - Stroke ve merkez yamasi kaldirildi; kanal, sinir uzantisi, portal ve akis dokusu ortak poligon sistemiyle sifirdan kuruldu.
 - [x] Asama 3 - Hizli yukseltme, donme, oturma ve settle glow animasyonu.
@@ -315,7 +311,7 @@ Liderlik tablosunda her kayit icin `username`, `last_level` ve `best_by_level` b
 - [x] Yenilenmis ana menu ve kaynak-bitis akis motifi.
 - [x] Sicak keten, petrol mavisi, hardal-turuncu ve zeytin yesili guncel oyun paleti.
 - [x] Kontrollu kaya kumeleri ile cesitlendirilmis cimen ve cicek yamalari.
-- [x] Dort HD agac varyanti, kontrollu kenar yerlesimi, komsu-hex golgesi ve antik fener modeli.
+- [x] Dort tepeden gorunus cali varyanti, kontrollu yerlesim ve antik fener modeli.
 - [x] Kaynak ve bitis portallari.
 - [x] Kaynaktan disa dogru tutarli su yonu.
 - [x] Kaplumbaganin kaynak-bitis zafer turu.
@@ -460,8 +456,8 @@ Her buyuk degisiklikten sonra en az su akislari elle kontrol edilmelidir:
 10. Reset onayi, vazgecme ve onay sonrasi yalniz aktif kullanici ilerlemesinin silinmesi.
 11. Masaustu ve mobil boyutlarda HUD/canvas cakismamasi.
 12. Tam ekrana girme ve cikma.
-13. Agac/fener modellerinin pasif hexlerde kontrollu rastgele konumlanmasi,
-    cevre dekoruyla cakismamasi ve zafer turunda fener isiginin calismasi.
+13. Cali/fener modellerinin pasif hexlerde kontrollu rastgele konumlanmasi,
+    calilarin tam tepeden gorunmesi ve zafer turunda fener isiginin calismasi.
 14. `npm run build` production derlemesinin basarili olmasi.
 
 ## 12. Sonraki Mantikli Isler
@@ -482,11 +478,11 @@ Oncelik onerisi:
 - Bu ortamda kullanilan esdeger dogrulama: paketli Node ile `node_modules/vite/bin/vite.js build`
 - Vite: `5.4.21`
 - Sonuc: Basarili; 60 modul donusturuldu.
-- Cikti: `dist/index.html`, `dist/assets/index-CsHyja38.css`, `dist/assets/index-BuvnMo9V.js`
-- Boyutlar: HTML 10.35 kB, CSS 42.99 kB, JS 300.72 kB.
-- Tarih: 20 Temmuz 2026
-- Ek algoritma dogrulamasi: 100 prosedurel seviyede 1-3 agac, tek fener, pasif tile,
-  ayni haritada tekrarsiz agac varyanti ve cozulmus rotasyon denetlendi. Dort agac
-  turunun tamami uretildi ve tum seviyeler gecti.
+- Cikti: `dist/index.html`, `dist/assets/index-EHl06Svc.css`, `dist/assets/index-4SmhtWCv.js`
+- Boyutlar: HTML 10.35 kB, CSS 46.35 kB, JS 300.50 kB.
+- Tarih: 21 Temmuz 2026
+- Guncel gorsel dogrulama: golgesiz ve tek cerceveli hexler, 1-3 tepeden gorunus cali,
+  tek fener, tam dis konturda biten kanal agizlari ve kuadratik merkez donusleri tarayici
+  ekraninda kontrol edildi.
 
 Not: Sistem PATH'inde `npm` bulunmadigi icin ayni `build` scriptinin calistirdigi Vite production girisi Codex'in paketli Node runtime'i ile dogrudan yurutuldu. Derleme basariyla tamamlandi.
