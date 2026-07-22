@@ -66,6 +66,7 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - Backend/veri: Supabase RPC fonksiyonlari ve Supabase veritabani.
 - Ses: Harici ses dosyasi olmadan Web Audio API.
 - Depolama: Giris yapmis kullanicida Supabase; eski/kimliksiz akis icin `localStorage` fallback kodu.
+- Cihaz oturumu: yalniz `seydayilmaz` icin IndexedDB'deki disari aktarilamaz AES-GCM anahtariyla sifrelenmis yerel kimlik kaydi ve acilista sunucu dogrulamasi.
 - Render modeli: Oyun Canvas'ta; menu, HUD, secim, rekor, onay ve sonuc ekranlari DOM'da.
 - Koordinat sistemi: Pointy-top axial hex (`q`, `r`), alti komsu yonu.
 - Mobil: Pointer Events, responsive hex yaricapi, safe-area bosluklari ve Fullscreen API.
@@ -179,6 +180,8 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 ### 4.7 Menu ve UI
 
 - Kayit/giris ekrani ve giris sonrasi ana menu vardir.
+- `seydayilmaz` hesabi basarili giristen sonra ayni telefon/tarayicida hatirlanir; Render yeniden deploy edilse de origin depolamasi silinmedigi surece acilista otomatik dogrulanir.
+- Diger kullanicilar icin kalici oturum yazilmaz. Cikis, bozuk kayit veya basarisiz sunucu dogrulamasi cihaz oturumunu siler.
 - Ana menu acikken oyun HUD'u ve tam ekran/ipucu kontrolleri gizlenir; giris ekraninin arkasinda silik kontrol kalmaz.
 - Menu marka isaretine sabit dikey alan ayrilir; kaplumbaga dar ekranlarda da baslik metninin ustune binmez.
 - Ana menu kart gorunumunden arindirilmis, sicak keten zeminli, ortalanmis iki satirli baslik ve dokunsal petrol mavisi/hardal dugmeler kullanan sakin bir oyun sahnesidir.
@@ -373,7 +376,7 @@ Simdilik yildiz ve skor hesabina etkisi yoktur.
 ### Dogrulanmis sinirlamalar
 
 - iOS/Safari Fullscreen API'yi sinirlayabilir; dugme tarayici sekme/cubugunu her cihazda tamamen gizleyemez.
-- Sayfa yenilendiginde ozel Supabase oturumu korunmaz; kullanici tekrar giris yapar. Ilerleme kaybolmaz.
+- `seydayilmaz` disindaki hesaplarda sayfa yenilendiginde ozel Supabase oturumu korunmaz; kullanici tekrar giris yapar. Ilerleme kaybolmaz.
 - Supabase erisilemezse normal giris gerektiren oyun akisi baslatilamaz.
 - Sure saniye hassasiyetindedir ve menude durur; arka plan sekmesi davranisi tarayicinin `performance.now()` zamanlamasina baglidir.
 - Oyun prosedureldir ve seviye ust siniri yoktur; yuksek seviyelerde zorluk esas olarak ayni boyuttaki daha yogun/loop'lu aglara dayanir.
@@ -382,7 +385,7 @@ Simdilik yildiz ve skor hesabina etkisi yoktur.
 ### Teknik riskler
 
 - Supabase SQL migration, tablo semasi, RLS ve RPC kaynaklari repoda yoktur. Backend tekrar kurulabilir degildir.
-- Ozel auth sistemi kullanici sifresini aktif sayfa omru boyunca JS bellekte tutar ve her kayit RPC'sine yollar. Supabase Auth veya token tabanli oturuma gecis guvenligi iyilestirir.
+- Ozel auth sistemi kullanici sifresini aktif sayfa omru boyunca JS bellekte tutar ve her kayit RPC'sine yollar. `seydayilmaz` cihaz oturumunda sifre diskte AES-GCM ile sifreli olsa da ayni origin'de calisan bir XSS uygulama kodu uzerinden cozme islemini tetikleyebilir. Supabase Auth veya token tabanli oturuma gecis guvenligi iyilestirir.
 - Supabase URL/anon key kaynak koda gomuludur. Anon key public olsa da ortam yonetimi icin `VITE_SUPABASE_URL` ve `VITE_SUPABASE_ANON_KEY` tercih edilmelidir.
 - `ProgressSystem` bazi uzak kayitlari `void this.save()` ile beklemeden baslatir. Kullanici istek tamamlanmadan sekmeyi kapatirsa son ilerleme yazimi yarista kalabilir.
 - Otomatik unit, integration, E2E ve gorsel regresyon testi yoktur.
@@ -480,11 +483,14 @@ Oncelik onerisi:
 - Bu ortamda kullanilan esdeger dogrulama: paketli Node ile `node_modules/vite/bin/vite.js build`
 - Vite: `5.4.21`
 - Sonuc: Basarili; 60 modul donusturuldu.
-- Cikti: `dist/index.html`, `dist/assets/index-ivgZlclz.css`, `dist/assets/index-uNvC69TC.js`
-- Boyutlar: HTML 10.35 kB, CSS 47.16 kB, JS 301.22 kB.
+- Cikti: `dist/index.html`, `dist/assets/index-ivgZlclz.css`, `dist/assets/index-30bd3KC2.js`
+- Boyutlar: HTML 10.35 kB, CSS 47.16 kB, JS 304.81 kB.
 - Tarih: 21 Temmuz 2026
 - Guncel gorsel dogrulama: keskinlestirilmis kanal virajlari, kaynak-bitis portal bogazlari,
   guclendirilmis beyaz akis izleri, HUD'suz giris overlay'i ve metne tasmayan menu kaplumbagasi
   tarayici ekraninda kontrol edildi.
+- Cihaz oturumu dogrulamasi: kayitsiz acilisin normal giris ekranina hatasiz dustugu,
+  yalniz `seydayilmaz` kullanicisinin sifreli cihaz kaydina uygun oldugu ve production
+  derlemesinin basarili oldugu kontrol edildi.
 
 Not: Sistem PATH'inde `npm` bulunmadigi icin ayni `build` scriptinin calistirdigi Vite production girisi Codex'in paketli Node runtime'i ile dogrudan yurutuldu. Derleme basariyla tamamlandi.

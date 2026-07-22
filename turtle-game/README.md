@@ -85,3 +85,14 @@ Render, Netlify veya benzeri servislere `dist` klasörü yayınlanabilir.
   migration gerekiyorsa durum belgelenir ve uygulama adımı ayrıca planlanır.
 - Bu sürekli kontrol, yayın öncesi bağımsız güvenlik incelemesi ve bağımlılık
   taramasının yerine geçmez.
+
+## Cihaz Oturumu
+
+- Kalıcı cihaz oturumu geçici olarak yalnız `seydayilmaz` kullanıcı adına açıktır.
+- Kimlik bilgisi düz metin olarak saklanmaz; IndexedDB'deki dışarı aktarılamaz AES-GCM
+  anahtarıyla şifrelenmiş veri `localStorage` içinde tutulur.
+- Uygulama her açıldığında kayıt Supabase RPC üzerinden yeniden doğrulanır. Hatalı,
+  bozulmuş veya geçersiz kayıt silinir; `Çıkış Yap` cihaz oturumunu da kaldırır.
+- Render deploy'u aynı origin altında tarayıcı depolamasını silmediği için oturum korunur.
+- Bu geçici çözüm XSS çalıştırabilen zararlı kodlara karşı Supabase Auth oturum belirteci
+  kadar güçlü değildir; uzun vadeli hedef Supabase Auth'a geçmektir.

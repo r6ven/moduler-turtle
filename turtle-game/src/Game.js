@@ -105,6 +105,10 @@ export class Game {
     this.ui.updateFullscreen(Boolean(document.fullscreenElement));
     this.ui.showAuthMenu();
 
+    if (!this.debugPerformanceMode) {
+      void this.restoreDeviceSession();
+    }
+
     if (this.debugPerformanceMode) {
       this.menuOpen = false;
       this.ui.hideMainMenu();
@@ -412,6 +416,18 @@ export class Game {
     }
 
     this.afterAuthSuccess("Giriş başarılı.");
+  }
+
+  async restoreDeviceSession() {
+    this.ui.setAuthMessage("Oturum kontrol ediliyor...");
+    const result = await this.auth.restoreDeviceSession();
+
+    if (!result.ok) {
+      this.ui.setAuthMessage("");
+      return;
+    }
+
+    this.afterAuthSuccess("Tekrar hoş geldin.");
   }
 
   async register() {
