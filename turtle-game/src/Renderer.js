@@ -374,6 +374,10 @@ export class Renderer {
       this.drawSettleGlow(ctx, radius, state.tile);
     }
 
+    if (state.tile.locked) {
+      this.drawTileLock(ctx, radius);
+    }
+
     ctx.restore();
   }
 
@@ -1377,6 +1381,58 @@ export class Renderer {
       ? tile.settleGlow
       : Math.min(1, tile.settleGlow * 0.75);
     ctx.stroke();
+    ctx.restore();
+  }
+
+  drawTileLock(ctx, radius) {
+    const scale = Math.max(0.74, Math.min(1, radius / 46));
+
+    ctx.save();
+    ctx.translate(radius * 0.4, -radius * 0.36);
+    ctx.scale(scale, scale);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    ctx.fillStyle = "rgba(79, 57, 44, 0.18)";
+    ctx.beginPath();
+    ctx.ellipse(1, 3.8, 7.2, 5.7, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = CONFIG.colors.lockStroke;
+    ctx.lineWidth = 2.1;
+    ctx.beginPath();
+    ctx.moveTo(-3.2, -1.8);
+    ctx.quadraticCurveTo(-3.2, -7, 0, -7);
+    ctx.quadraticCurveTo(3.2, -7, 3.2, -1.8);
+    ctx.stroke();
+
+    ctx.fillStyle = CONFIG.colors.lockFill;
+    ctx.strokeStyle = CONFIG.colors.lockStroke;
+    ctx.lineWidth = 1.35;
+    ctx.beginPath();
+    ctx.moveTo(-5.4, -2.2);
+    ctx.quadraticCurveTo(-6.2, -2.2, -6.2, -1.3);
+    ctx.lineTo(-6.2, 5.1);
+    ctx.quadraticCurveTo(-6.2, 6, -5.3, 6);
+    ctx.lineTo(5.3, 6);
+    ctx.quadraticCurveTo(6.2, 6, 6.2, 5.1);
+    ctx.lineTo(6.2, -1.3);
+    ctx.quadraticCurveTo(6.2, -2.2, 5.4, -2.2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = CONFIG.colors.lockKeyhole;
+    ctx.beginPath();
+    ctx.arc(0, 1.1, 1.25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-0.7, 1.8);
+    ctx.lineTo(-1.1, 4);
+    ctx.lineTo(1.1, 4);
+    ctx.lineTo(0.7, 1.8);
+    ctx.closePath();
+    ctx.fill();
     ctx.restore();
   }
 

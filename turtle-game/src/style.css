@@ -200,6 +200,59 @@ canvas {
   pointer-events: none;
 }
 
+.tutorial-callout {
+  position: absolute;
+  top: clamp(104px, 17vh, 146px);
+  left: 50%;
+  width: min(360px, calc(100% - 32px));
+  display: grid;
+  gap: 3px;
+  padding: 11px 15px 12px;
+  border: 1px solid rgba(36, 111, 120, 0.4);
+  border-radius: 10px;
+  background: rgba(255, 248, 232, 0.95);
+  box-shadow: 0 5px 0 rgba(36, 111, 120, 0.22), 0 12px 28px rgba(79, 57, 44, 0.18);
+  color: var(--ink);
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -8px) scale(0.98);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.tutorial-callout.active {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+}
+
+.tutorial-callout.nudge {
+  animation: tutorial-nudge 420ms ease;
+}
+
+.tutorial-callout strong {
+  font-size: 15px;
+}
+
+.tutorial-callout > span:last-child {
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.tutorial-eyebrow {
+  color: var(--forest-deep);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+@keyframes tutorial-nudge {
+  0%, 100% { transform: translate(-50%, 0) scale(1); }
+  35% { transform: translate(-50%, 2px) scale(1.025); }
+  68% { transform: translate(-50%, -1px) scale(0.995); }
+}
+
 .fullscreen-btn {
   position: absolute;
   left: calc(16px + env(safe-area-inset-left));

@@ -74,13 +74,22 @@ export const CONFIG = {
         return Math.min(10 + level, 13, totalTileCount);
       }
 
-      return Math.min(14 + level, 24, totalTileCount);
+      return Math.min(14 + level, 32, totalTileCount);
     },
 
     getExtraLoopChance(level) {
       if (level < 6) return 0.00;
-      if (level < 12) return 0.05;
-      return 0.08;
+      if (level < 12) return 0.10;
+      return Math.min(0.14, 0.12 + (level - 12) * 0.002);
+    },
+
+    getLockedTileCount(level, activeTileCount) {
+      if (level < 8) return 0;
+
+      const progressionCount = 1 + Math.floor((level - 8) / 8);
+      const safeMaximum = Math.max(0, activeTileCount - 3);
+
+      return Math.min(3, progressionCount, safeMaximum);
     },
 
     getTargetMoves(activeTileCount, level) {
@@ -146,6 +155,9 @@ export const CONFIG = {
     turtleShellLight: "#4a9c8f",
     turtleShellDark: "#18565a",
     turtleShellSeam: "#d7a33f",
+    lockFill: "#f4d77e",
+    lockStroke: "#71483f",
+    lockKeyhole: "#71483f",
     flowerPetal: "#d98d91",
     flowerCenter: "#d8a13b",
     endpointCenter: "#d28b3d"

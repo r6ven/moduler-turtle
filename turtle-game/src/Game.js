@@ -52,6 +52,10 @@ export class Game {
       result: null,
       revealAt: 0
     };
+    this.tutorial = {
+      active: false,
+      targetKey: null
+    };
 
     this.audio = new AudioSystem();
     this.particles = new ParticleSystem();
@@ -114,6 +118,7 @@ export class Game {
       this.ui.hideMainMenu();
       this.progress.startTimer();
       this.resumeAnimationClock();
+      this.showTutorialIfNeeded();
     }
 
     if (this.debugPerformanceMode) {
@@ -396,6 +401,7 @@ export class Game {
       generated.activeTileCount,
       generated.minimumMoves
     );
+    this.configureTutorial(generated.tutorialKey);
 
     this.ui.updateStats(this.progress);
     this.ui.updateTimer(0);
@@ -477,6 +483,7 @@ export class Game {
     this.menuOpen = true;
     this.progress.pauseTimer();
     this.resetPerformanceSamples();
+    this.ui.hideTutorial();
 
     if (this.auth.hasCurrentUser()) {
       this.ui.showGameMenu(
@@ -502,6 +509,7 @@ export class Game {
     this.ui.hideMainMenu();
     this.progress.startTimer();
     this.resumeAnimationClock();
+    this.showTutorialIfNeeded();
   }
 
   openLevels() {
@@ -553,6 +561,7 @@ export class Game {
     this.ui.hideMainMenu();
     this.progress.startTimer();
     this.resumeAnimationClock();
+    this.showTutorialIfNeeded();
   }
 
   requestReset() {
@@ -578,12 +587,72 @@ export class Game {
     );
   }
 
+  configureTutorial(targetKey) {
+    this.ui.hideTutorial();
+
+    const eligible =
+      this.level === 1 &&
+      !this.progress.hasCompletedLevel(1) &&
+      Boolean(targetKey) &&
+      Boolean(this.grid[targetKey]);
+
+    this.tutorial.active = eligible;
+    this.tutorial.targetKey = eligible ? targetKey : null;
+  }
+
+  showTutorialIfNeeded() {
+    if (!this.tutorial.active || this.menuOpen) return;
+
+    const tile = this.grid[this.tutorial.targetKey];
+
+    if (!tile) {
+      this.completeTutorial();
+      return;
+    }
+
+    tile.hintGlow = 1;
+    this.ui.showTutorial();
+  }
+
+  reinforceTutorial() {
+    if (!this.tutorial.active) return;
+
+    const tile = this.grid[this.tutorial.targetKey];
+
+    if (tile) tile.hintGlow = 1;
+    this.ui.pulseTutorial();
+  }
+
+  updateTutorialHighlight() {
+    if (!this.tutorial.active || this.menuOpen) return;
+
+    const tile = this.grid[this.tutorial.targetKey];
+
+    if (tile) tile.hintGlow = Math.max(tile.hintGlow, 0.96);
+  }
+
+  completeTutorial() {
+    const tile = this.grid[this.tutorial.targetKey];
+
+    if (tile) tile.tutorialTarget = false;
+
+    this.tutorial.active = false;
+    this.tutorial.targetKey = null;
+    this.ui.hideTutorial();
+  }
+
   handleTilePress(hex) {
     if (this.menuOpen || this.levelCompleted || !this.hasPlayableSession()) return;
 
     this.audio.init();
 
     const key = tileKey(hex.q, hex.r);
+
+    if (this.tutorial.active && key !== this.tutorial.targetKey) {
+      this.reinforceTutorial();
+      return;
+    }
+
     const tile = this.grid[key];
 
     if (!tile || !tile.active) return;
@@ -598,6 +667,10 @@ export class Game {
 
     this.progress.addMove();
     this.ui.updateStats(this.progress);
+
+    if (this.tutorial.active && key === this.tutorial.targetKey) {
+      this.completeTutorial();
+    }
 
     const status = this.checkConnections();
 
@@ -622,6 +695,7 @@ export class Game {
   }
 
   completeLevel() {
+    this.completeTutorial();
     this.levelCompleted = true;
 
     this.audio.play("success");
@@ -711,10 +785,19 @@ export class Game {
   useHint() {
     if (this.menuOpen || this.levelCompleted || !this.hasPlayableSession()) return;
 
+    if (this.tutorial.active) {
+      this.reinforceTutorial();
+      return;
+    }
+
     this.audio.init();
 
     const candidates = Object.values(this.grid)
-      .filter((tile) => tile.active && !tile.isSolvedOrientation());
+      .filter((tile) => (
+        tile.active &&
+        !tile.locked &&
+        !tile.isSolvedOrientation()
+      ));
 
     if (candidates.length === 0) {
       const status = this.checkConnections();
@@ -840,6 +923,7 @@ export class Game {
 
     this.turtle.update();
     this.particles.update(deltaMs);
+    this.updateTutorialHighlight();
 
     this.renderer.render({
       grid: this.grid,

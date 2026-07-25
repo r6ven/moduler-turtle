@@ -12,6 +12,7 @@ export class Tile {
     this.sink = false;
     this.victoryIndex = -1;
     this.locked = false;
+    this.tutorialTarget = false;
     this.landmark = null;
     this.landmarkVariant = null;
 

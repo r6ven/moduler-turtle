@@ -36,16 +36,19 @@ export class PuzzleGenerator {
     PuzzleGenerator.addExtraLoops(grid, level);
     PuzzleGenerator.assignLandmarks(grid);
     PuzzleGenerator.shuffleLevelRotations(grid);
+    PuzzleGenerator.assignLockedTiles(grid, level);
+    const tutorialKey = PuzzleGenerator.prepareTutorialTile(grid, level);
 
     const activeTiles = Object.values(grid).filter((tile) => tile.active);
-const minimumMoves = PuzzleGenerator.calculateMinimumMoves(grid);
+    const minimumMoves = PuzzleGenerator.calculateMinimumMoves(grid);
 
-return {
-  grid,
-  mapRadius,
-  activeTileCount: activeTiles.length,
-  minimumMoves
-};
+    return {
+      grid,
+      mapRadius,
+      activeTileCount: activeTiles.length,
+      minimumMoves,
+      tutorialKey
+    };
   }
 
   static createCleanSolvedMap(coords, level, mapRadius) {
@@ -168,10 +171,11 @@ return {
       if (!tile.active || tile.source || tile.sink) return;
 
       DIR_NEIGHBORS.forEach((dir, index) => {
-        if (Math.random() > chance) return;
         if (tile.exits[index]) return;
 
-        const neighbor = grid[tileKey(tile.q + dir.q, tile.r + dir.r)];
+        const currentKey = tileKey(tile.q, tile.r);
+        const neighborKey = tileKey(tile.q + dir.q, tile.r + dir.r);
+        const neighbor = grid[neighborKey];
 
         if (
           !neighbor ||
@@ -181,6 +185,9 @@ return {
         ) {
           return;
         }
+
+        if (currentKey.localeCompare(neighborKey) >= 0) return;
+        if (Math.random() > chance) return;
 
         tile.exits[index] = true;
         neighbor.exits[oppositeDir(index)] = true;
@@ -254,13 +261,87 @@ return {
 
   }
 
-static calculateMinimumMoves(grid) {
-  return Object.values(grid)
-    .filter((tile) => tile.active)
-    .reduce((total, tile) => {
-      return total + PuzzleGenerator.getMinimumMovesForTile(tile);
-    }, 0);
-}
+  static assignLockedTiles(grid, level) {
+    const activeTiles = Object.values(grid).filter((tile) => tile.active);
+    const requestedCount = CONFIG.difficulty.getLockedTileCount(
+      level,
+      activeTiles.length
+    );
+
+    if (requestedCount <= 0) return [];
+
+    const candidates = shuffled(
+      activeTiles.filter((tile) => (
+        !tile.source &&
+        !tile.sink &&
+        tile.degree() === 2
+      ))
+    );
+    const lockedTiles = [];
+
+    for (const tile of candidates) {
+      const separated = lockedTiles.every((lockedTile) => {
+        const deltaQ = tile.q - lockedTile.q;
+        const deltaR = tile.r - lockedTile.r;
+        const distance = Math.max(
+          Math.abs(deltaQ),
+          Math.abs(deltaR),
+          Math.abs(deltaQ + deltaR)
+        );
+
+        return distance > 1;
+      });
+
+      if (!separated && candidates.length > requestedCount) continue;
+
+      tile.setRotation(0, { animate: false });
+      tile.locked = true;
+      lockedTiles.push(tile);
+
+      if (lockedTiles.length >= requestedCount) break;
+    }
+
+    if (lockedTiles.length < requestedCount) {
+      candidates
+        .filter((tile) => !tile.locked)
+        .slice(0, requestedCount - lockedTiles.length)
+        .forEach((tile) => {
+          tile.setRotation(0, { animate: false });
+          tile.locked = true;
+          lockedTiles.push(tile);
+        });
+    }
+
+    return lockedTiles.map((tile) => tileKey(tile.q, tile.r));
+  }
+
+  static prepareTutorialTile(grid, level) {
+    if (level !== 1) return null;
+
+    const tile = Object.values(grid)
+      .filter((candidate) => (
+        candidate.active &&
+        !candidate.source &&
+        !candidate.sink &&
+        !candidate.locked
+      ))
+      .sort((a, b) => a.victoryIndex - b.victoryIndex)[0];
+
+    if (!tile) return null;
+
+    tile.setRotation(5, { animate: false });
+    tile.tutorialTarget = true;
+
+    return tileKey(tile.q, tile.r);
+  }
+
+  static calculateMinimumMoves(grid) {
+    return Object.values(grid)
+      .filter((tile) => tile.active && !tile.locked)
+      .reduce((total, tile) => {
+        return total + PuzzleGenerator.getMinimumMovesForTile(tile);
+      }, 0);
+  }
 
 static getMinimumMovesForTile(tile) {
   const exits = tile.exits;
@@ -299,7 +380,9 @@ static hasSameExitShape(exits, rotation) {
 }
 
   static shuffleLevelRotations(grid) {
-    const tiles = Object.values(grid).filter((tile) => tile.active);
+    const tiles = Object.values(grid).filter(
+      (tile) => tile.active && !tile.locked
+    );
 
     tiles.forEach((tile) => {
       tile.setRotation(Math.floor(Math.random() * 6), { animate: false });

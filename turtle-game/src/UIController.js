@@ -22,6 +22,7 @@ export class UIController {
     this.soundToggle = document.getElementById("sound-toggle");
     this.menuButton = document.getElementById("menu-btn");
     this.fullscreenButton = document.getElementById("fullscreen-btn");
+    this.tutorialCallout = document.getElementById("tutorial-callout");
     this.mainMenuOverlay = document.getElementById("main-menu-overlay");
     this.authCard = document.getElementById("auth-card");
     this.gameMenuCard = document.getElementById("game-menu-card");
@@ -151,6 +152,25 @@ export class UIController {
       "aria-label",
       isFullscreen ? "Tam ekrandan çık" : "Tam ekran"
     );
+  }
+
+  showTutorial() {
+    this.tutorialCallout.classList.add("active");
+  }
+
+  hideTutorial() {
+    this.tutorialCallout.classList.remove("active", "nudge");
+  }
+
+  pulseTutorial() {
+    this.showTutorial();
+    this.tutorialCallout.classList.remove("nudge");
+
+    window.requestAnimationFrame(() => {
+      if (this.tutorialCallout.classList.contains("active")) {
+        this.tutorialCallout.classList.add("nudge");
+      }
+    });
   }
 
   showMainMenu() {
