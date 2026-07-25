@@ -1,5 +1,5 @@
 import { CONFIG } from "./config.js";
-import { DIR_NEIGHBORS, hexToPixel, tileKey } from "./HexMath.js";
+import { DIR_NEIGHBORS, hexToPixel, pixelToHex, tileKey } from "./HexMath.js";
 import { PuzzleValidator } from "./PuzzleValidator.js";
 
 export class Renderer {
@@ -10,6 +10,9 @@ export class Renderer {
     this.lastFrameTime = performance.now();
     this.tileSurfaceCache = new Map();
     this.flowStreakCache = new Map();
+    this.surfaceTextureCache = new Map();
+    this.curvedTextureCache = new Map();
+    this.waterLayerSets = null;
     this.landmarkImages = this.createLandmarkImages();
     this.quality = CONFIG.performance.profiles.high;
     this.logicalWidth = canvas.width || 1;
@@ -78,6 +81,8 @@ export class Renderer {
     this.connectionCache.dirty = true;
     this.tileSurfaceCache.clear();
     this.flowStreakCache.clear();
+    this.surfaceTextureCache.clear();
+    this.curvedTextureCache.clear();
   }
 
   render({
@@ -157,7 +162,7 @@ export class Renderer {
         this.drawHexDetailLayer(ctx, entry, hexRadius, victoryTourActive);
       });
 
-    this.drawTurtle(ctx, turtle, hexRadius);
+    this.drawTurtle(ctx, turtle, hexRadius, flowState);
     particleSystem.draw(ctx);
 
     ctx.restore();
@@ -204,6 +209,8 @@ export class Renderer {
     if (this.connectionCache.grid !== grid) {
       this.tileSurfaceCache.clear();
       this.flowStreakCache.clear();
+      this.surfaceTextureCache.clear();
+      this.curvedTextureCache.clear();
     }
 
     const keys = PuzzleValidator.calculateConnectedKeys(grid);
@@ -1373,6 +1380,27 @@ export class Renderer {
     ctx.restore();
   }
 
+  // Bir kanalın "active" (tam akıyor) mu yoksa "emergence" (hizalanmaya
+  // yaklaşıyor, henüz akmıyor) durumunda mı olduğunu belirleyen saf
+  // mantık. Canvas'a ihtiyaç duymadan doğrudan test edilebilir.
+  //
+  // Kritik kural: emergence yalnızca görsel açı GERÇEKTEN bu finalDir'e
+  // yaklaşırken (visualConnection.dir === finalDir) hesaplanır. Aksi
+  // halde karo dönerken görsel açı geçici olarak başka -ama o an güçlü
+  // hizalı- bir komşuya yaklaştığında, strength=1 değeri yanlış kenarda
+  // tam parlaklıkla görünürdü (ör. finalDir=2 iken visualDir=0 için
+  // strength=1 üretilmesi).
+  getChannelActivationState(finalDir, logicallyReady, visualConnection) {
+    const approachingFinalDir =
+      logicallyReady && visualConnection.dir === finalDir;
+    const active = approachingFinalDir && visualConnection.matched;
+    const emergence = !active && approachingFinalDir
+      ? visualConnection.strength
+      : 0;
+
+    return { active, emergence };
+  }
+
   drawWaterChannels(ctx, radius, tile, grid, flowState) {
     const faceDistance = radius * Math.cos(Math.PI / 6);
     const currentKey = tileKey(tile.q, tile.r);
@@ -1392,20 +1420,32 @@ export class Renderer {
       const neighborDepth = flowState.depths.get(neighborKey);
       const neighborOrder = flowState.orders.get(neighborKey);
       const visualConnection = this.getVisualConnection(tile, i, grid);
-      const active =
-        currentConnected &&
-        neighborConnected &&
-        matched &&
-        visualConnection.matched &&
-        visualConnection.dir === finalDir;
+      const logicallyReady = currentConnected && neighborConnected && matched;
+      const { active, emergence } = this.getChannelActivationState(
+        finalDir,
+        logicallyReady,
+        visualConnection
+      );
 
       channels.push({
         angle: (i - 1) * Math.PI / 3 + tile.visualRotation * Math.PI / 3,
         active,
+        emergence,
         length: faceDistance,
+        // Yerel kanal dokusu: yalnızca bu fiziksel çıkışa (karo + yerel
+        // index) bağlı, tile.rotation'dan etkilenmez. tile.rotation
+        // tıklama anında ANINDA değişirken visualRotation animasyonla
+        // yavaşça takip eder; seed buna bağlı olsaydı yüzey dokusu
+        // (parıltı noktaları) animasyon başlamadan aniden sıçrardı.
         flowSeed: (
           this.getTileSeed(tile) ^ Math.imul(i + 1, 0x9e3779b1)
         ) >>> 0,
+        // Paylaşılan kenar seed'i: yalnızca TAM AKTİF akış çizgisi (flow
+        // dash) çiziminde kullanılır — o noktada tile.rotation zaten
+        // ayarlanmış/sabit olur (bir sonraki tıklamaya kadar değişmez),
+        // bu yüzden ani sıçrama riski taşımadan hex sınırında aynı fazı
+        // paylaşabilir.
+        edgeFlowSeed: this.getChannelFlowSeed(tile, finalDir),
         direction: active
           ? this.getFlowDirection(
               currentKey,
@@ -1433,14 +1473,19 @@ export class Renderer {
       );
 
       if (channels[0].active && channels[1].active) {
+        const edgeCurveSeed =
+          (channels[0].edgeFlowSeed ^ channels[1].edgeFlowSeed) >>> 0;
+
         this.drawCurvedFlowDash(
           ctx,
           channels[0],
           channels[1],
           channels[0].direction < 0 ? 1 : -1,
-          curveSeed
+          edgeCurveSeed
         );
       }
+
+      channels.forEach((channel) => this.drawChannelEmergenceGlow(ctx, channel));
       return;
     }
 
@@ -1453,252 +1498,74 @@ export class Renderer {
         channel.flowSeed
       );
 
-      if (!channel.active) return;
-
-      this.drawFlowDash(
-        ctx,
-        channel.length,
-        channel.angle,
-        channel.direction,
-        channel.flowSeed
-      );
-      this.drawWaterBubbles(
-        ctx,
-        channel.length,
-        channel.angle,
-        channel.direction
-      );
+      if (channel.active) {
+        this.drawFlowDash(
+          ctx,
+          channel.length,
+          channel.angle,
+          channel.direction,
+          channel.edgeFlowSeed
+        );
+        this.drawWaterBubbles(
+          ctx,
+          channel.length,
+          channel.angle,
+          channel.direction
+        );
+      } else {
+        this.drawChannelEmergenceGlow(ctx, channel);
+      }
     });
 
   }
 
-  drawWaterConnections(ctx, entries, radius, grid, flowState) {
-    const entryByKey = new Map(
-      entries.map((entry) => [tileKey(entry.tile.q, entry.tile.r), entry])
+  // Paylaşılan bir hex kenarının iki tarafı için de aynı seed'i üretir:
+  // hangi karodan bakıldığından bağımsız olarak (q,r) çiftini kanonik
+  // sıraya koyup karıştırır. Bu, iki komşu hexin bağımsız çizdiği aynı
+  // fiziksel su bağlantısının akış deseninin (kesik çizgi vb.) sınırda
+  // aynı fazda buluşmasını sağlar.
+  getChannelFlowSeed(tile, finalDir) {
+    const offset = DIR_NEIGHBORS[finalDir];
+    const neighborQ = tile.q + offset.q;
+    const neighborR = tile.r + offset.r;
+    const ordered =
+      tile.q < neighborQ || (tile.q === neighborQ && tile.r <= neighborR);
+    const [aq, ar, bq, br] = ordered
+      ? [tile.q, tile.r, neighborQ, neighborR]
+      : [neighborQ, neighborR, tile.q, tile.r];
+
+    return (
+      (Math.imul(aq + 4327, 0x9e3779b1) ^
+        Math.imul(ar + 977, 0x85ebca6b) ^
+        Math.imul(bq + 5011, 0xc2b2ae35) ^
+        Math.imul(br + 613, 0x27d4eb2f)) >>>
+      0
     );
-    const faceDistance = radius * Math.cos(Math.PI / 6);
-    const boundaryOverlap = 8.5;
-
-    entries.forEach((entry) => {
-      const tile = entry.tile;
-
-      if (!tile.active) return;
-
-      const currentKey = tileKey(tile.q, tile.r);
-
-      tile.exits.forEach((hasExit, exitIndex) => {
-        if (!hasExit) return;
-
-        const visualConnection = this.getVisualConnection(
-          tile,
-          exitIndex,
-          grid
-        );
-
-        if (visualConnection.strength <= 0) return;
-
-        const offset = DIR_NEIGHBORS[visualConnection.dir];
-        const neighborKey = tileKey(tile.q + offset.q, tile.r + offset.r);
-
-        if (currentKey.localeCompare(neighborKey) >= 0) return;
-
-        const neighborEntry = entryByKey.get(neighborKey);
-        const neighbor = neighborEntry?.tile;
-
-        if (!neighbor || visualConnection.neighborExitIndex == null) return;
-
-        const currentState = this.getHexRenderState(entry, radius);
-        const neighborState = this.getHexRenderState(neighborEntry, radius);
-        const currentAngle =
-          (exitIndex - 1) * Math.PI / 3 +
-          tile.visualRotation * Math.PI / 3;
-        const neighborAngle =
-          (visualConnection.neighborExitIndex - 1) * Math.PI / 3 +
-          neighbor.visualRotation * Math.PI / 3;
-
-        const start = {
-          x:
-            currentState.x +
-            currentState.actionScale * faceDistance * Math.cos(currentAngle),
-          y:
-            currentState.y -
-            currentState.lift +
-            currentState.actionScale * faceDistance * Math.sin(currentAngle)
-        };
-        const end = {
-          x:
-            neighborState.x +
-            neighborState.actionScale * faceDistance * Math.cos(neighborAngle),
-          y:
-            neighborState.y -
-            neighborState.lift +
-            neighborState.actionScale * faceDistance * Math.sin(neighborAngle)
-        };
-        const connected =
-          flowState.keys.has(currentKey) && flowState.keys.has(neighborKey);
-        const currentCenter = {
-          x: currentState.x,
-          y: currentState.y - currentState.lift
-        };
-        const neighborCenter = {
-          x: neighborState.x,
-          y: neighborState.y - neighborState.lift
-        };
-        const currentInner = {
-          x:
-            currentCenter.x +
-            currentState.actionScale *
-              (faceDistance - boundaryOverlap) *
-              Math.cos(currentAngle),
-          y:
-            currentCenter.y +
-            currentState.actionScale *
-              (faceDistance - boundaryOverlap) *
-              Math.sin(currentAngle)
-        };
-        const neighborInner = {
-          x:
-            neighborCenter.x +
-            neighborState.actionScale *
-              (faceDistance - boundaryOverlap) *
-              Math.cos(neighborAngle),
-          y:
-            neighborCenter.y +
-            neighborState.actionScale *
-              (faceDistance - boundaryOverlap) *
-              Math.sin(neighborAngle)
-        };
-        const midpoint = {
-          x: (start.x + end.x) * 0.5,
-          y: (start.y + end.y) * 0.5
-        };
-        const currentTarget = {
-          x:
-            start.x +
-            (midpoint.x - start.x) * visualConnection.strength,
-          y:
-            start.y +
-            (midpoint.y - start.y) * visualConnection.strength
-        };
-        const neighborTarget = {
-          x:
-            end.x +
-            (midpoint.x - end.x) * visualConnection.strength,
-          y:
-            end.y +
-            (midpoint.y - end.y) * visualConnection.strength
-        };
-        const currentFinalDir = (exitIndex + tile.rotation) % 6;
-        const logicalMatch =
-          visualConnection.matched &&
-          visualConnection.dir === currentFinalDir &&
-          PuzzleValidator.isExitMatched(tile, currentFinalDir, grid);
-        if (visualConnection.matched && logicalMatch) {
-          const direction = connected
-            ? this.getFlowDirection(
-                currentKey,
-                neighborKey,
-                flowState.depths.get(currentKey),
-                flowState.depths.get(neighborKey),
-                flowState.orders.get(currentKey),
-                flowState.orders.get(neighborKey)
-              )
-            : 0;
-
-          this.drawWaterConnectionSpan(
-            ctx,
-            currentInner,
-            neighborInner,
-            {
-              wet: connected,
-              flowing: connected,
-              direction,
-              seed: (
-                this.getTileSeed(tile) ^
-                this.getTileSeed(neighbor) ^
-                0x72f36e21
-              ) >>> 0
-            }
-          );
-          return;
-        }
-
-        this.drawWaterConnectionSpan(
-          ctx,
-          currentInner,
-          currentTarget,
-          {
-            wet: flowState.keys.has(currentKey),
-            flowing: false,
-            direction: 0,
-            seed: (this.getTileSeed(tile) ^ 0x3a4f21d7) >>> 0
-          }
-        );
-        this.drawWaterConnectionSpan(
-          ctx,
-          neighborInner,
-          neighborTarget,
-          {
-            wet: flowState.keys.has(neighborKey),
-            flowing: false,
-            direction: 0,
-            seed: (this.getTileSeed(neighbor) ^ 0x41d92b63) >>> 0
-          }
-        );
-      });
-    });
   }
 
-  drawWaterConnectionSpan(ctx, start, end, state) {
-    const length = Math.hypot(end.x - start.x, end.y - start.y);
+  // Bir kanal henüz tam aktif değilse ama mantıksal olarak doğru komşuya
+  // rotasyonla yaklaşıyorsa (emergence > 0), ucunda yumuşak bir ışık
+  // patlaması belirir ve hizalanma arttıkça büyür/parlaklaşır. Karo tam
+  // oturduğunda normal akan-su efekti (drawFlowDash/drawWaterBubbles)
+  // devralır.
+  drawChannelEmergenceGlow(ctx, channel) {
+    if (channel.emergence <= 0.02) return;
 
-    if (length < 0.25) return;
+    const tipDistance = channel.length * 0.88;
+    const x = tipDistance * Math.cos(channel.angle);
+    const y = tipDistance * Math.sin(channel.angle);
+    const glowRadius = 3 + channel.emergence * 5.5;
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, glowRadius);
 
-    const layers = this.getWaterLayers(state.wet);
+    glow.addColorStop(0, CONFIG.colors.waterHighlight);
+    glow.addColorStop(1, "rgba(255, 253, 232, 0)");
 
     ctx.save();
-    layers.forEach((layer) => {
-      ctx.beginPath();
-      this.appendWaterSegment(
-        ctx,
-        start.x,
-        start.y,
-        end.x,
-        end.y,
-        layer.width,
-        1.6,
-        1.6
-      );
-      ctx.fillStyle = layer.color;
-      ctx.fill();
-    });
-
-    const angle = Math.atan2(end.y - start.y, end.x - start.x);
-    const center = {
-      x: (start.x + end.x) * 0.5,
-      y: (start.y + end.y) * 0.5
-    };
-
-    ctx.translate(center.x, center.y);
-    this.drawWaterSurfaceTexture(
-      ctx,
-      length,
-      angle,
-      state.wet,
-      state.seed,
-      -length * 0.5
-    );
-
-    if (state.flowing) {
-      this.drawFlowDash(
-        ctx,
-        length,
-        angle,
-        state.direction,
-        state.seed,
-        -length * 0.5
-      );
-    }
+    ctx.globalAlpha = channel.emergence * 0.75;
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 
@@ -1818,30 +1685,38 @@ export class Renderer {
   }
 
   getWaterLayers(wet) {
-    return [
-      {
-        width: 19,
-        color: CONFIG.colors.channelBank
-      },
-      {
-        width: 15.5,
-        color: wet
-          ? CONFIG.colors.channelBedShadow
-          : CONFIG.colors.channelBedIdle
-      },
-      {
-        width: 11.5,
-        color: wet
-          ? CONFIG.colors.matchedWaterDeep
-          : CONFIG.colors.idleWaterDeep
-      },
-      {
-        width: 8.5,
-        color: wet
-          ? CONFIG.colors.matchedWater
-          : CONFIG.colors.idleWater
-      }
-    ];
+    if (!this.waterLayerSets) {
+      const buildLayers = (isWet) => [
+        { width: 19, color: CONFIG.colors.channelBank },
+        {
+          width: 15.5,
+          color: isWet
+            ? CONFIG.colors.channelBedShadow
+            : CONFIG.colors.channelBedIdle
+        },
+        {
+          width: 11.5,
+          color: isWet
+            ? CONFIG.colors.matchedWaterDeep
+            : CONFIG.colors.idleWaterDeep
+        },
+        {
+          width: 8.5,
+          color: isWet ? CONFIG.colors.matchedWater : CONFIG.colors.idleWater
+        }
+      ];
+
+      // Renkler CONFIG'den geldiği ve çalışma zamanında değişmediği için
+      // bu iki sabit dizi bir kez kurulup tekrar kullanılır; önceden her
+      // çağrıda (her hex, her katman, her karede) 4 yeni obje + dizi
+      // ayrılıyordu.
+      this.waterLayerSets = {
+        wet: buildLayers(true),
+        dry: buildLayers(false)
+      };
+    }
+
+    return wet ? this.waterLayerSets.wet : this.waterLayerSets.dry;
   }
 
   drawChannelBody(ctx, channels, wet) {
@@ -1991,36 +1866,56 @@ export class Renderer {
     }
   }
 
-  drawCurvedWaterTexture(ctx, firstChannel, secondChannel, wet, seed) {
+  // Aynı seed için her zaman aynı 7 işaret üretilir (ratio/lateral/uzunluk/
+  // jitter/renk); bu değerler karo dönmediği sürece frame'den frame'e
+  // değişmez, bu yüzden bir kere hesaplanıp önbelleğe alınır. Eskiden
+  // her çare her karede (60fps) baştan üretiliyordu.
+  getCurvedTextureMarks(seed) {
+    if (this.curvedTextureCache.has(seed)) {
+      return this.curvedTextureCache.get(seed);
+    }
+
     const random = this.createSeededRandom(seed ^ 0x2d187a6f);
+    const marks = Array.from({ length: 7 }, () => ({
+      ratio: 0.16 + random() * 0.68,
+      lateral: (random() - 0.5) * 5,
+      markLength: 1.6 + random() * 3.2,
+      alphaJitter: random() * 0.14,
+      lineWidthJitter: random() * 0.54
+    })).map((mark, index) => ({ ...mark, shaded: index % 3 === 0 }));
+
+    this.curvedTextureCache.set(seed, marks);
+    return marks;
+  }
+
+  drawCurvedWaterTexture(ctx, firstChannel, secondChannel, wet, seed) {
+    const marks = this.getCurvedTextureMarks(seed);
     const count = wet ? 7 : 5;
 
     ctx.save();
     ctx.lineCap = "round";
 
     for (let index = 0; index < count; index += 1) {
-      const ratio = 0.16 + random() * 0.68;
-      const lateral = (random() - 0.5) * 5;
+      const mark = marks[index];
       const point = this.getCurvedChannelPoint(
         firstChannel,
         secondChannel,
-        ratio,
-        lateral
+        mark.ratio,
+        mark.lateral
       );
-      const markLength = 1.6 + random() * 3.2;
 
       ctx.beginPath();
       ctx.moveTo(
-        point.x - Math.cos(point.angle) * markLength * 0.5,
-        point.y - Math.sin(point.angle) * markLength * 0.5
+        point.x - Math.cos(point.angle) * mark.markLength * 0.5,
+        point.y - Math.sin(point.angle) * mark.markLength * 0.5
       );
       ctx.lineTo(
-        point.x + Math.cos(point.angle) * markLength * 0.5,
-        point.y + Math.sin(point.angle) * markLength * 0.5
+        point.x + Math.cos(point.angle) * mark.markLength * 0.5,
+        point.y + Math.sin(point.angle) * mark.markLength * 0.5
       );
-      ctx.globalAlpha = (wet ? 0.3 : 0.17) + random() * 0.14;
-      ctx.lineWidth = 0.58 + random() * 0.54;
-      ctx.strokeStyle = index % 3 === 0
+      ctx.globalAlpha = (wet ? 0.3 : 0.17) + mark.alphaJitter;
+      ctx.lineWidth = 0.58 + mark.lineWidthJitter;
+      ctx.strokeStyle = mark.shaded
         ? CONFIG.colors.waterShade
         : CONFIG.colors.waterRefraction;
       ctx.stroke();
@@ -2138,6 +2033,27 @@ export class Renderer {
     ctx.closePath();
   }
 
+  // getCurvedTextureMarks ile aynı mantık: sadece "drift" animasyonlu
+  // terimi frame'e bağlı, geri kalan her şey seed'e bağlı olduğundan bir
+  // kere üretilip saklanır.
+  getSurfaceTextureMarks(seed) {
+    if (this.surfaceTextureCache.has(seed)) {
+      return this.surfaceTextureCache.get(seed);
+    }
+
+    const random = this.createSeededRandom(seed ^ 0x6c8e9cf5);
+    const marks = Array.from({ length: 7 }, () => ({
+      ratio: 0.2 + random() * 0.62,
+      lateral: (random() - 0.5) * 5.2,
+      markLength: 1.8 + random() * 3.5,
+      alphaJitter: random() * 0.14,
+      lineWidthJitter: random() * 0.54
+    })).map((mark, index) => ({ ...mark, shaded: index % 3 === 0 }));
+
+    this.surfaceTextureCache.set(seed, marks);
+    return marks;
+  }
+
   drawWaterSurfaceTexture(
     ctx,
     channelLength,
@@ -2146,7 +2062,7 @@ export class Renderer {
     seed,
     originOffset = 0
   ) {
-    const random = this.createSeededRandom(seed ^ 0x6c8e9cf5);
+    const marks = this.getSurfaceTextureMarks(seed);
     const normalAngle = angle + Math.PI / 2;
     const count = wet ? 7 : 5;
 
@@ -2154,31 +2070,31 @@ export class Renderer {
     ctx.lineCap = "round";
 
     for (let index = 0; index < count; index += 1) {
-      const ratio = 0.2 + random() * 0.62;
+      const mark = marks[index];
       const drift = wet
         ? Math.sin(this.waterFlowPhase * 0.64 + index * 1.9) * 0.018
         : 0;
-      const distance = originOffset + channelLength * (ratio + drift);
-      const lateral = (random() - 0.5) * 5.2;
-      const markLength = 1.8 + random() * 3.5;
-      const x = distance * Math.cos(angle) + lateral * Math.cos(normalAngle);
-      const y = distance * Math.sin(angle) + lateral * Math.sin(normalAngle);
+      const distance = originOffset + channelLength * (mark.ratio + drift);
+      const x =
+        distance * Math.cos(angle) + mark.lateral * Math.cos(normalAngle);
+      const y =
+        distance * Math.sin(angle) + mark.lateral * Math.sin(normalAngle);
 
-      ctx.globalAlpha = (wet ? 0.3 : 0.17) + random() * 0.14;
-      ctx.strokeStyle = index % 3 === 0
+      ctx.globalAlpha = (wet ? 0.3 : 0.17) + mark.alphaJitter;
+      ctx.strokeStyle = mark.shaded
         ? CONFIG.colors.waterShade
         : CONFIG.colors.waterRefraction;
-      ctx.lineWidth = 0.62 + random() * 0.54;
+      ctx.lineWidth = 0.62 + mark.lineWidthJitter;
       ctx.beginPath();
       ctx.moveTo(
-        x - Math.cos(angle) * markLength * 0.5,
-        y - Math.sin(angle) * markLength * 0.5
+        x - Math.cos(angle) * mark.markLength * 0.5,
+        y - Math.sin(angle) * mark.markLength * 0.5
       );
       ctx.quadraticCurveTo(
         x + Math.cos(normalAngle) * 0.7,
         y + Math.sin(normalAngle) * 0.7,
-        x + Math.cos(angle) * markLength * 0.5,
-        y + Math.sin(angle) * markLength * 0.5
+        x + Math.cos(angle) * mark.markLength * 0.5,
+        y + Math.sin(angle) * mark.markLength * 0.5
       );
       ctx.stroke();
     }
@@ -2469,7 +2385,21 @@ export class Renderer {
     ctx.fill();
   }
 
-  drawTurtle(ctx, turtle, hexRadius) {
+  // turtle.q/r, Turtle.moveTo() içinde hareket BAŞLAMADAN hedefe atlıyor;
+  // x/y ise oraya doğru animasyonla ilerliyor. Bu yüzden gerçek
+  // "altındaki" hex, mevcut x/y konumundan pixelToHex ile hesaplanır —
+  // yoksa yüzerken efekt kaplumbağanın fiziksel konumuna değil, henüz
+  // varmadığı hedefe göre değişirdi. flowState verilmediyse (ör. ileride
+  // başka bir çağrı noktası) güvenli varsayılan olarak "evet" kabul
+  // edilir, mevcut davranış hiç bozulmaz.
+  getTurtleFlowStatus(turtle, hexRadius, flowState) {
+    if (!flowState) return true;
+
+    const currentHex = pixelToHex(turtle.x, turtle.y, hexRadius);
+    return flowState.keys.has(tileKey(currentHex.q, currentHex.r));
+  }
+
+  drawTurtle(ctx, turtle, hexRadius, flowState = null) {
     const motion = turtle.motionBlend;
     const celebrating = turtle.isCelebrating();
     const idleWave = Math.sin(turtle.animTime * 2.1);
@@ -2488,6 +2418,10 @@ export class Renderer {
       CONFIG.turtle.maxScale,
       hexRadius / CONFIG.turtle.scaleReference
     );
+    // Kaplumbağa şu an gerçekten akan/bağlı bir hex üzerinde mi? Ayrı bir
+    // metotta tutulması, canvas'a hiç ihtiyaç duymadan doğrudan test
+    // edilebilmesini sağlar.
+    const onFlowingWater = this.getTurtleFlowStatus(turtle, hexRadius, flowState);
 
     this.drawTurtleWakeTrail(
       ctx,
@@ -2501,7 +2435,8 @@ export class Renderer {
       turtle,
       visualOffsetX,
       visualOffsetY,
-      turtleScale
+      turtleScale,
+      onFlowingWater
     );
 
     ctx.save();
@@ -2556,16 +2491,21 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawTurtleWater(ctx, turtle, offsetX, offsetY, turtleScale) {
+  drawTurtleWater(ctx, turtle, offsetX, offsetY, turtleScale, onFlowingWater = true) {
     const motion = turtle.motionBlend;
     const celebrating = turtle.isCelebrating();
+    // Kaplumbağa çözülmemiş/kopuk bir hücrenin üzerindeyken etraf suyu
+    // (gölge, dalgacık, iz pulsu) daha soluk görünür; gerçekten akan bir
+    // yola girince tam yoğunluğa döner. Kutlama efekti buna dahil değil,
+    // o zaten yalnızca bulmaca çözüldüğünde (dolayısıyla akan suda) tetiklenir.
+    const ambientIntensity = onFlowingWater ? 1 : 0.45;
 
     ctx.save();
     ctx.translate(turtle.x + offsetX, turtle.y + offsetY + 6);
     ctx.rotate(turtle.angle + Math.PI / 2);
     ctx.scale(turtleScale, turtleScale);
 
-    ctx.globalAlpha = 0.15 + motion * 0.08;
+    ctx.globalAlpha = (0.15 + motion * 0.08) * ambientIntensity;
     ctx.fillStyle = CONFIG.colors.turtleWaterShadow;
     ctx.beginPath();
     ctx.ellipse(0, 2.5, 14.5, 5.8, 0, 0, Math.PI * 2);
@@ -2577,7 +2517,8 @@ export class Renderer {
     if (motion < 0.12 && !celebrating) {
       const idleRipplePhase = (turtle.animTime * 0.34) % 1;
 
-      ctx.globalAlpha = (1 - motion) * 0.24 * (1 - idleRipplePhase);
+      ctx.globalAlpha =
+        (1 - motion) * 0.24 * (1 - idleRipplePhase) * ambientIntensity;
       ctx.beginPath();
       ctx.ellipse(
         0,
@@ -2594,7 +2535,7 @@ export class Renderer {
     if (motion > 0.03) {
       const wakePulse = 0.78 + Math.sin(turtle.animTime * 9.5) * 0.12;
 
-      ctx.globalAlpha = 0.16 + motion * 0.32;
+      ctx.globalAlpha = (0.16 + motion * 0.32) * ambientIntensity;
 
       [18, 25].forEach((y, index) => {
         ctx.beginPath();
