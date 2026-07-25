@@ -1459,7 +1459,12 @@ export class Renderer {
       });
     }
 
-    this.drawChannelBody(ctx, channels, currentConnected);
+    this.drawChannelBody(
+      ctx,
+      channels,
+      currentConnected,
+      tile.source || tile.sink
+    );
 
     if (channels.length === 2) {
       const curveSeed = (channels[0].flowSeed ^ channels[1].flowSeed) >>> 0;
@@ -1719,16 +1724,28 @@ export class Renderer {
     return wet ? this.waterLayerSets.wet : this.waterLayerSets.dry;
   }
 
-  drawChannelBody(ctx, channels, wet) {
+  drawChannelBody(ctx, channels, wet, portalCentered = false) {
     if (channels.length === 0) return;
 
     this.getWaterLayers(wet).forEach((layer) => {
-      this.drawCompoundChannelLayer(ctx, channels, layer.width, layer.color);
+      this.drawCompoundChannelLayer(
+        ctx,
+        channels,
+        layer.width,
+        layer.color,
+        portalCentered
+      );
     });
   }
 
-  drawCompoundChannelLayer(ctx, channels, width, color) {
-    const centerOverlap = width * 0.42;
+  drawCompoundChannelLayer(
+    ctx,
+    channels,
+    width,
+    color,
+    portalCentered = false
+  ) {
+    const centerOverlap = portalCentered ? 0 : width * 0.42;
 
     ctx.save();
     ctx.beginPath();
@@ -2216,7 +2233,7 @@ export class Renderer {
         Math.cos(angle) * throatLength,
         Math.sin(angle) * throatLength,
         layer.width,
-        layer.width * 0.36,
+        0,
         1.2
       );
       ctx.fillStyle = layer.color;
