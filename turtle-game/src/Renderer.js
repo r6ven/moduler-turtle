@@ -1758,41 +1758,28 @@ export class Renderer {
   }
 
   appendCurvedChannelTurn(ctx, firstChannel, secondChannel, width) {
-    const extension = 0.8;
-    const firstLength = firstChannel.length + extension;
-    const secondLength = secondChannel.length + extension;
-    const start = {
-      x: Math.cos(firstChannel.angle) * firstLength,
-      y: Math.sin(firstChannel.angle) * firstLength
-    };
-    const end = {
-      x: Math.cos(secondChannel.angle) * secondLength,
-      y: Math.sin(secondChannel.angle) * secondLength
-    };
-    const control = this.getCurvedChannelControl(start, end);
+    const geometry = this.getCurvedChannelGeometry(
+      firstChannel,
+      secondChannel
+    );
     const halfWidth = width * 0.5;
     const leftPoints = [];
     const rightPoints = [];
-    const segmentCount = 14;
+    const segmentCount = 18;
 
     for (let index = 0; index <= segmentCount; index += 1) {
       const t = index / segmentCount;
-      const inverse = 1 - t;
-      const x = inverse * inverse * start.x + 2 * inverse * t * control.x + t * t * end.x;
-      const y = inverse * inverse * start.y + 2 * inverse * t * control.y + t * t * end.y;
-      const tangentX = 2 * inverse * (control.x - start.x) + 2 * t * (end.x - control.x);
-      const tangentY = 2 * inverse * (control.y - start.y) + 2 * t * (end.y - control.y);
-      const tangentLength = Math.max(0.001, Math.hypot(tangentX, tangentY));
-      const normalX = -tangentY / tangentLength;
-      const normalY = tangentX / tangentLength;
+      const point = this.getCubicChannelSample(geometry, t);
+      const normalX = -point.tangentY;
+      const normalY = point.tangentX;
 
       leftPoints.push({
-        x: x + normalX * halfWidth,
-        y: y + normalY * halfWidth
+        x: point.x + normalX * halfWidth,
+        y: point.y + normalY * halfWidth
       });
       rightPoints.push({
-        x: x - normalX * halfWidth,
-        y: y - normalY * halfWidth
+        x: point.x - normalX * halfWidth,
+        y: point.y - normalY * halfWidth
       });
     }
 
@@ -1802,46 +1789,91 @@ export class Renderer {
     ctx.closePath();
   }
 
-  getCurvedChannelControl(start, end) {
-    const bisectorX = start.x + end.x;
-    const bisectorY = start.y + end.y;
-    const bisectorLength = Math.hypot(bisectorX, bisectorY);
-
-    if (bisectorLength < 0.001) return { x: 0, y: 0 };
-
-    const inwardPull = Math.min(10, Math.max(6, bisectorLength * 0.14));
+  getCurvedChannelGeometry(firstChannel, secondChannel) {
+    // Extend past the clipping edge and force radial endpoint tangents.
+    // Neighboring hexes therefore expose identical rectangular mouths.
+    const boundaryOverlap = 1.4;
+    const firstLength = firstChannel.length + boundaryOverlap;
+    const secondLength = secondChannel.length + boundaryOverlap;
+    const firstAxis = {
+      x: Math.cos(firstChannel.angle),
+      y: Math.sin(firstChannel.angle)
+    };
+    const secondAxis = {
+      x: Math.cos(secondChannel.angle),
+      y: Math.sin(secondChannel.angle)
+    };
+    const handleLength =
+      Math.min(firstChannel.length, secondChannel.length) * 0.82;
+    const start = {
+      x: firstAxis.x * firstLength,
+      y: firstAxis.y * firstLength
+    };
+    const end = {
+      x: secondAxis.x * secondLength,
+      y: secondAxis.y * secondLength
+    };
 
     return {
-      x: -(bisectorX / bisectorLength) * inwardPull,
-      y: -(bisectorY / bisectorLength) * inwardPull
+      start,
+      end,
+      firstControl: {
+        x: start.x - firstAxis.x * handleLength,
+        y: start.y - firstAxis.y * handleLength
+      },
+      secondControl: {
+        x: end.x - secondAxis.x * handleLength,
+        y: end.y - secondAxis.y * handleLength
+      }
+    };
+  }
+
+  getCubicChannelSample(geometry, t) {
+    const inverse = 1 - t;
+    const inverseSquared = inverse * inverse;
+    const tSquared = t * t;
+    const { start, end, firstControl, secondControl } = geometry;
+    const x =
+      inverseSquared * inverse * start.x +
+      3 * inverseSquared * t * firstControl.x +
+      3 * inverse * tSquared * secondControl.x +
+      tSquared * t * end.x;
+    const y =
+      inverseSquared * inverse * start.y +
+      3 * inverseSquared * t * firstControl.y +
+      3 * inverse * tSquared * secondControl.y +
+      tSquared * t * end.y;
+    const tangentX =
+      3 * inverseSquared * (firstControl.x - start.x) +
+      6 * inverse * t * (secondControl.x - firstControl.x) +
+      3 * tSquared * (end.x - secondControl.x);
+    const tangentY =
+      3 * inverseSquared * (firstControl.y - start.y) +
+      6 * inverse * t * (secondControl.y - firstControl.y) +
+      3 * tSquared * (end.y - secondControl.y);
+    const tangentLength = Math.max(0.001, Math.hypot(tangentX, tangentY));
+
+    return {
+      x,
+      y,
+      tangentX: tangentX / tangentLength,
+      tangentY: tangentY / tangentLength
     };
   }
 
   getCurvedChannelPoint(firstChannel, secondChannel, t, lateralOffset = 0) {
-    const extension = 0.8;
-    const start = {
-      x: Math.cos(firstChannel.angle) * (firstChannel.length + extension),
-      y: Math.sin(firstChannel.angle) * (firstChannel.length + extension)
-    };
-    const end = {
-      x: Math.cos(secondChannel.angle) * (secondChannel.length + extension),
-      y: Math.sin(secondChannel.angle) * (secondChannel.length + extension)
-    };
-    const control = this.getCurvedChannelControl(start, end);
-    const inverse = 1 - t;
-    const x = inverse * inverse * start.x + 2 * inverse * t * control.x + t * t * end.x;
-    const y = inverse * inverse * start.y + 2 * inverse * t * control.y + t * t * end.y;
-    const tangentX = 2 * inverse * (control.x - start.x) + 2 * t * (end.x - control.x);
-    const tangentY = 2 * inverse * (control.y - start.y) + 2 * t * (end.y - control.y);
-    const tangentLength = Math.max(0.001, Math.hypot(tangentX, tangentY));
+    const geometry = this.getCurvedChannelGeometry(
+      firstChannel,
+      secondChannel
+    );
+    const point = this.getCubicChannelSample(geometry, t);
 
     return {
-      x: x - (tangentY / tangentLength) * lateralOffset,
-      y: y + (tangentX / tangentLength) * lateralOffset,
-      angle: Math.atan2(tangentY, tangentX)
+      x: point.x - point.tangentY * lateralOffset,
+      y: point.y + point.tangentX * lateralOffset,
+      angle: Math.atan2(point.tangentY, point.tangentX)
     };
   }
-
   traceCurvedChannel(
     ctx,
     firstChannel,
