@@ -343,41 +343,46 @@ export class PuzzleGenerator {
       }, 0);
   }
 
-static getMinimumMovesForTile(tile) {
-  const exits = tile.exits;
+  static getClosestSolvedRotation(tile) {
+    let bestRotation = 0;
+    let bestMoves = Number.POSITIVE_INFINITY;
 
-  let bestMoves = Infinity;
+    for (let targetRotation = 0; targetRotation < 6; targetRotation += 1) {
+      if (!PuzzleGenerator.hasSameExitShape(tile.exits, targetRotation)) {
+        continue;
+      }
 
-  for (let targetRotation = 0; targetRotation < 6; targetRotation += 1) {
-    if (!PuzzleGenerator.hasSameExitShape(exits, targetRotation)) {
-      continue;
+      const moves = (targetRotation - tile.rotation + 6) % 6;
+
+      if (moves < bestMoves) {
+        bestRotation = targetRotation;
+        bestMoves = moves;
+      }
     }
 
-    const moves = (targetRotation - tile.rotation + 6) % 6;
+    return {
+      rotation: bestRotation,
+      moves: Number.isFinite(bestMoves)
+        ? bestMoves
+        : (6 - tile.rotation) % 6
+    };
+  }
 
-    if (moves < bestMoves) {
-      bestMoves = moves;
+  static getMinimumMovesForTile(tile) {
+    return PuzzleGenerator.getClosestSolvedRotation(tile).moves;
+  }
+
+  static hasSameExitShape(exits, rotation) {
+    for (let i = 0; i < 6; i += 1) {
+      const rotatedIndex = (i + rotation) % 6;
+
+      if (exits[i] !== exits[rotatedIndex]) {
+        return false;
+      }
     }
+
+    return true;
   }
-
-  if (!Number.isFinite(bestMoves)) {
-    return (6 - tile.rotation) % 6;
-  }
-
-  return bestMoves;
-}
-
-static hasSameExitShape(exits, rotation) {
-  for (let i = 0; i < 6; i += 1) {
-    const rotatedIndex = (i + rotation) % 6;
-
-    if (exits[i] !== exits[rotatedIndex]) {
-      return false;
-    }
-  }
-
-  return true;
-}
 
   static shuffleLevelRotations(grid) {
     const tiles = Object.values(grid).filter(

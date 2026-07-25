@@ -1,5 +1,7 @@
 import { CONFIG } from "./config.js";
 
+const PENDING_SAVE_KEY = `${CONFIG.saveKey}-pending-v1`;
+
 export class ProgressSystem {
   constructor(authSystem = null) {
     this.authSystem = authSystem;
@@ -17,6 +19,11 @@ export class ProgressSystem {
     this.bestByLevel = {};
     this.lastLevel = 1;
 
+    this.saveQueue = Promise.resolve({ ok: true });
+    this.saveSequence = 0;
+    this.restoredPendingRevision = null;
+    this.lastSaveError = null;
+
     this.loadForCurrentUser();
   }
 
@@ -29,9 +36,28 @@ export class ProgressSystem {
     const saved = this.authSystem?.hasCurrentUser()
       ? this.authSystem.loadProgressForCurrentUser()
       : this.loadLegacy();
+    const owner = this.getSaveOwner();
+    const pending = this.readPendingSave(owner);
+    const hasMatchingPending = pending?.owner === owner;
+    const merged = hasMatchingPending
+      ? this.mergeProgress(saved, pending.progress)
+      : saved;
 
-    this.bestByLevel = saved.bestByLevel || {};
-    this.lastLevel = Number(saved.lastLevel) || 1;
+    this.bestByLevel = merged.bestByLevel || {};
+    this.lastLevel = Number(merged.lastLevel) || 1;
+
+    if (
+      hasMatchingPending &&
+      this.authSystem?.hasCurrentUser() &&
+      this.restoredPendingRevision !== pending.revision
+    ) {
+      this.restoredPendingRevision = pending.revision;
+      void this.enqueueSnapshot(
+        this.createProgressSnapshot(),
+        pending.revision,
+        { storePending: false }
+      );
+    }
   }
 
   startLevel(level, activeTileCount, minimumMoves = null) {
@@ -48,7 +74,6 @@ export class ProgressSystem {
       : CONFIG.difficulty.getTargetMoves(activeTileCount, level);
 
     this.targetMoves = this.calculateThreeStarTarget(this.minimumMoves, level);
-
     this.lastLevel = Math.max(Number(this.lastLevel) || 1, level);
 
     void this.save();
@@ -97,10 +122,7 @@ export class ProgressSystem {
   getSavedLevel() {
     const level = Number(this.lastLevel);
 
-    if (!Number.isFinite(level) || level < 1) {
-      return 1;
-    }
-
+    if (!Number.isFinite(level) || level < 1) return 1;
     return Math.floor(level);
   }
 
@@ -110,7 +132,8 @@ export class ProgressSystem {
       .filter((level) => Number.isFinite(level) && level >= 1)
       .sort((a, b) => a - b)
       .map((level) => {
-        const record = this.bestByLevel[level] || this.bestByLevel[String(level)] || {};
+        const record = this.bestByLevel[level] ||
+          this.bestByLevel[String(level)] || {};
 
         return {
           level,
@@ -122,7 +145,9 @@ export class ProgressSystem {
   }
 
   hasCompletedLevel(level) {
-    return this.getCompletedLevels().some((item) => item.level === Number(level));
+    return this.getCompletedLevels().some(
+      (item) => item.level === Number(level)
+    );
   }
 
   addMove() {
@@ -139,14 +164,8 @@ export class ProgressSystem {
     const threeStarTarget = this.targetMoves;
     const twoStarTarget = this.calculateTwoStarTarget();
 
-    if (this.moves <= threeStarTarget && this.hintsUsed === 0) {
-      return 3;
-    }
-
-    if (this.moves <= twoStarTarget) {
-      return 2;
-    }
-
+    if (this.moves <= threeStarTarget && this.hintsUsed === 0) return 3;
+    if (this.moves <= twoStarTarget) return 2;
     return 1;
   }
 
@@ -155,7 +174,6 @@ export class ProgressSystem {
 
     const stars = this.calculateStars();
     const timeSeconds = this.getElapsedSeconds();
-
     const existing = this.bestByLevel[this.level] || {
       stars: 0,
       bestMoves: null,
@@ -164,16 +182,12 @@ export class ProgressSystem {
 
     this.bestByLevel[this.level] = {
       stars: Math.max(existing.stars || 0, stars),
-      bestMoves:
-        existing.bestMoves == null
-          ? this.moves
-          : Math.min(existing.bestMoves, this.moves),
-      bestTimeSeconds:
-        existing.bestTimeSeconds == null
-          ? timeSeconds
-          : Math.min(existing.bestTimeSeconds, timeSeconds)
+      bestMoves: this.minimumNullable(existing.bestMoves, this.moves),
+      bestTimeSeconds: this.minimumNullable(
+        existing.bestTimeSeconds,
+        timeSeconds
+      )
     };
-
     this.lastLevel = Math.max(Number(this.lastLevel) || 1, this.level + 1);
 
     void this.save();
@@ -190,6 +204,20 @@ export class ProgressSystem {
   }
 
   async resetAll() {
+    await this.waitForPendingSaves();
+
+    if (this.authSystem?.hasCurrentUser()) {
+      const result = await this.authSystem.clearProgressForCurrentUser();
+
+      if (!result?.ok) return result;
+    } else {
+      try {
+        localStorage.removeItem(CONFIG.saveKey);
+      } catch {
+        // Storage may be unavailable in restricted browser modes.
+      }
+    }
+
     this.bestByLevel = {};
     this.lastLevel = 1;
     this.moves = 0;
@@ -199,17 +227,9 @@ export class ProgressSystem {
     this.elapsedMs = 0;
     this.timerStartMs = 0;
     this.timerRunning = false;
+    this.clearPendingSave();
 
-    if (this.authSystem?.hasCurrentUser()) {
-      await this.authSystem.clearProgressForCurrentUser();
-      return;
-    }
-
-    try {
-      localStorage.removeItem(CONFIG.saveKey);
-    } catch {
-      // Kayıt silinemezse oyunu bozmuyoruz.
-    }
+    return { ok: true };
   }
 
   loadLegacy() {
@@ -217,10 +237,7 @@ export class ProgressSystem {
       const raw = localStorage.getItem(CONFIG.saveKey);
 
       if (!raw) {
-        return {
-          lastLevel: 1,
-          bestByLevel: {}
-        };
+        return { lastLevel: 1, bestByLevel: {} };
       }
 
       const parsed = JSON.parse(raw);
@@ -237,39 +254,192 @@ export class ProgressSystem {
       }
 
       if (parsed && typeof parsed === "object") {
-        return {
-          lastLevel: 1,
-          bestByLevel: parsed
-        };
+        return { lastLevel: 1, bestByLevel: parsed };
       }
+    } catch {
+      // Fall through to a clean local state.
+    }
 
+    return { lastLevel: 1, bestByLevel: {} };
+  }
+
+  save() {
+    return this.enqueueSnapshot(this.createProgressSnapshot());
+  }
+
+  createProgressSnapshot() {
+    return {
+      lastLevel: Number(this.lastLevel) || 1,
+      bestByLevel: JSON.parse(JSON.stringify(this.bestByLevel || {}))
+    };
+  }
+
+  nextSaveRevision() {
+    const clockRevision = Date.now() * 1000;
+    this.saveSequence = (this.saveSequence + 1) % 1000;
+
+    return clockRevision + this.saveSequence;
+  }
+
+  enqueueSnapshot(
+    progress,
+    revision = this.nextSaveRevision(),
+    { storePending = true } = {}
+  ) {
+    const record = {
+      version: 1,
+      owner: this.getSaveOwner(),
+      revision,
+      progress: this.mergeProgress(
+        { lastLevel: 1, bestByLevel: {} },
+        progress
+      )
+    };
+
+    if (storePending) this.writePendingSave(record);
+
+    this.saveQueue = this.saveQueue
+      .catch(() => ({ ok: false }))
+      .then(() => this.persistSnapshot(record))
+      .catch((error) => ({
+        ok: false,
+        error: error?.message || "Kayıt isteği tamamlanamadı."
+      }))
+      .then((result) => {
+        if (result?.ok) {
+          this.clearPendingSave(record.revision, record.owner);
+          this.lastSaveError = null;
+        } else {
+          this.lastSaveError = result?.error || "Kayıt tamamlanamadı.";
+        }
+
+        return result;
+      });
+
+    return this.saveQueue;
+  }
+
+  async persistSnapshot(record) {
+    if (record.owner !== this.getSaveOwner()) {
       return {
-        lastLevel: 1,
-        bestByLevel: {}
+        ok: false,
+        error: "Kayıt sahibi oturum sırasında değişti."
       };
+    }
+
+    if (this.authSystem?.hasCurrentUser()) {
+      return this.authSystem.saveProgressForCurrentUser(record.progress);
+    }
+
+    try {
+      localStorage.setItem(CONFIG.saveKey, JSON.stringify(record.progress));
+      return { ok: true, progress: record.progress };
     } catch {
       return {
-        lastLevel: 1,
-        bestByLevel: {}
+        ok: false,
+        error: "Yerel kayıt yazılamadı."
       };
     }
   }
 
-  async save() {
-    const progress = {
-      lastLevel: this.lastLevel,
-      bestByLevel: this.bestByLevel
+  waitForPendingSaves() {
+    return this.saveQueue.catch(() => ({ ok: false }));
+  }
+
+  getSaveOwner() {
+    if (this.authSystem?.hasCurrentUser()) {
+      return `user:${this.authSystem.getCurrentUsername()}`;
+    }
+
+    return "legacy";
+  }
+
+  getPendingSaveKey(owner = this.getSaveOwner()) {
+    return `${PENDING_SAVE_KEY}:${encodeURIComponent(owner)}`;
+  }
+
+  writePendingSave(record) {
+    try {
+      localStorage.setItem(
+        this.getPendingSaveKey(record.owner),
+        JSON.stringify(record)
+      );
+    } catch {
+      // Remote saving still proceeds when local storage is unavailable.
+    }
+  }
+
+  readPendingSave(owner = this.getSaveOwner()) {
+    try {
+      const raw = localStorage.getItem(this.getPendingSaveKey(owner));
+      const record = raw ? JSON.parse(raw) : null;
+
+      if (
+        record?.version === 1 &&
+        record.owner === owner &&
+        Number.isFinite(record.revision) &&
+        record.progress &&
+        typeof record.progress === "object"
+      ) {
+        return record;
+      }
+    } catch {
+      // Invalid pending data is ignored.
+    }
+
+    return null;
+  }
+
+  clearPendingSave(revision = null, owner = this.getSaveOwner()) {
+    try {
+      if (revision != null) {
+        const pending = this.readPendingSave(owner);
+
+        if (pending && pending.revision !== revision) return;
+      }
+
+      localStorage.removeItem(this.getPendingSaveKey(owner));
+    } catch {
+      // Storage may be unavailable in restricted browser modes.
+    }
+  }
+
+  mergeProgress(base, incoming) {
+    const merged = {
+      lastLevel: Math.max(
+        Number(base?.lastLevel) || 1,
+        Number(incoming?.lastLevel) || 1
+      ),
+      bestByLevel: JSON.parse(JSON.stringify(base?.bestByLevel || {}))
     };
 
-    if (this.authSystem?.hasCurrentUser()) {
-      await this.authSystem.saveProgressForCurrentUser(progress);
-      return;
-    }
+    Object.entries(incoming?.bestByLevel || {}).forEach(([level, record]) => {
+      const existing = merged.bestByLevel[level] || {};
 
-    try {
-      localStorage.setItem(CONFIG.saveKey, JSON.stringify(progress));
-    } catch {
-      // Kayıt başarısız olursa oyunu bozmuyoruz.
-    }
+      merged.bestByLevel[level] = {
+        stars: Math.max(
+          Number(existing.stars) || 0,
+          Number(record?.stars) || 0
+        ),
+        bestMoves: this.minimumNullable(
+          existing.bestMoves,
+          record?.bestMoves
+        ),
+        bestTimeSeconds: this.minimumNullable(
+          existing.bestTimeSeconds,
+          record?.bestTimeSeconds
+        )
+      };
+    });
+
+    return merged;
+  }
+
+  minimumNullable(first, second) {
+    const values = [first, second]
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value >= 0);
+
+    return values.length > 0 ? Math.min(...values) : null;
   }
 }

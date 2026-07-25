@@ -99,7 +99,17 @@ export class Tile {
   }
 
   isSolvedOrientation() {
-    return !this.active || this.rotation === 0;
+    if (!this.active) return true;
+
+    for (let index = 0; index < 6; index += 1) {
+      const rotatedIndex = (index + this.rotation) % 6;
+
+      if (this.exits[index] !== this.exits[rotatedIndex]) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   degree() {

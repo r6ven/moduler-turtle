@@ -239,8 +239,8 @@ Yerel ortamda `node_modules/`, `dist/`, `pnpm-lock.yaml` ve `pnpm-workspace.yaml
 - `UserAuthSystem`, `@supabase/supabase-js` ile istemci olusturur.
 - Supabase URL ve anon key su anda `src/config.js` icinde bulunur.
 - Anon key istemci uygulamalarinda gizli anahtar degildir; yine de yetki guvenligi mutlaka RLS ve RPC fonksiyonlarinda saglanmalidir.
-- Uygulama Supabase Auth yerine proje icin yazilmis ozel kullanici adi/sifre RPC akisini kullanir.
-- Aktif kullanici adi ve sifre yalnizca sayfa calisirken JavaScript bellekte tutulur; yenilemede tekrar giris gerekir.
+- Uygulama mevcut kullanici adi/sifre RPC akisini yalnizca ilk dogrulama icin kullanir; session migration kuruluysa sonraki islemler sureli token RPC'leriyle yapilir.
+- Session migration sonrasinda parola basarili giristen hemen sonra bellekten silinir. Migration kurulana kadar eski RPC'lere geriye uyumlu gecici fallback vardir.
 
 ### 5.2 Kullanilan RPC fonksiyonlari
 
@@ -250,6 +250,13 @@ login_player(p_username, p_password)
 save_player_progress(p_username, p_password, p_last_level, p_best_by_level)
 reset_player_progress(p_username, p_password)
 get_leaderboard()
+
+login_player_session(p_username, p_password)
+register_player_session(p_username, p_password)
+restore_player_session(p_session_token)
+save_player_progress_session(p_session_token, p_last_level, p_best_by_level)
+reset_player_progress_session(p_session_token)
+logout_player_session(p_session_token)
 ```
 
 ### 5.3 Beklenen veri bicimi
@@ -269,7 +276,7 @@ Istemci RPC cevaplarindan asagidaki alanlari bekler:
 }
 ```
 
-Liderlik tablosunda her kayit icin `username`, `last_level` ve `best_by_level` beklenir. Konusmalarda kullanilan SQL tasarimi `public.players` tablosuna isaret eder; fakat tablo DDL'i, RLS politikalari ve RPC fonksiyon SQL'leri repoda bulunmamaktadir. Bu nedenle backend sifirdan yalnizca bu repo ile yeniden kurulamamakta ve parola hashleme/yetkilendirme uygulamasi kaynak koddan denetlenememektedir.
+Liderlik tablosunda her kayit icin `username`, `last_level` ve `best_by_level` beklenir. Bos proje kurulumu `supabase/bootstrap/fresh_project.sql`, mevcut production sisteminin veri-korumali token gecisi ise `supabase/migrations/202607260001_add_player_sessions.sql` ile repoda tutulur. Ayrintili uygulama ve dogrulama adimlari `SUPABASE_SETUP.md` icindedir.
 
 ### 5.4 Kayit davranisi
 
@@ -384,14 +391,11 @@ Simdilik yildiz ve skor hesabina etkisi yoktur.
 
 ### Teknik riskler
 
-- Supabase SQL migration, tablo semasi, RLS ve RPC kaynaklari repoda yoktur. Backend tekrar kurulabilir degildir.
-- Ozel auth sistemi kullanici sifresini aktif sayfa omru boyunca JS bellekte tutar ve her kayit RPC'sine yollar. `seydayilmaz` cihaz oturumunda sifre diskte AES-GCM ile sifreli olsa da ayni origin'de calisan bir XSS uygulama kodu uzerinden cozme islemini tetikleyebilir. Supabase Auth veya token tabanli oturuma gecis guvenligi iyilestirir.
-- Supabase URL/anon key kaynak koda gomuludur. Anon key public olsa da ortam yonetimi icin `VITE_SUPABASE_URL` ve `VITE_SUPABASE_ANON_KEY` tercih edilmelidir.
-- `ProgressSystem` bazi uzak kayitlari `void this.save()` ile beklemeden baslatir. Kullanici istek tamamlanmadan sekmeyi kapatirsa son ilerleme yazimi yarista kalabilir.
-- Otomatik unit, integration, E2E ve gorsel regresyon testi yoktur.
-- `npm test` ve CI kontrolu yoktur; kalite kapisi su an production build ve manuel tarayici testidir.
-- `.gitignore` yoktur; `dist/` ve `node_modules/` yanlislikla commit edilebilir.
-- Kilit dosyasi Git tarafindan izlenmedigi icin `npm install` farkli zamanlarda farkli alt bagimliliklar cozebilir.
+- Token migration production Supabase projesinde uygulanana kadar frontend geriye uyumlu eski RPC moduna duser ve parola aktif oturum boyunca bellekte kalir.
+- Mevcut production `players` semasi ve legacy RPC'lerin `SECURITY DEFINER` durumu migration preflight'i tarafindan kontrol edilir; kontrol gecmezse migration veri degistirmeden durur.
+- Supabase URL/anon key icin Vite ortam degiskenleri desteklenir; geriye uyumlu kaynak kod fallback'i Render ortam degiskenleri tanimlandiktan sonra kaldirilmalidir.
+- Uzak ilerleme kayitlari sirali kuyruk, degismez snapshot ve kullaniciya ozel yerel pending kaydi kullanir; backend token RPC'si kayitlari atomik ve monoton birlestirir.
+- Node testleri auth fallback/token, kayit sirasi, pending recovery, puzzle uretimi ve renderer regresyonlarini kapsar; fiziksel cihaz E2E testi halen manueldir.
 - `@vitejs/plugin-legacy` bagimliligi vardir fakat `vite.config.js` yoktur; plugin etkin degildir ve su an gereksiz bagimlilik gibi durur.
 - `turtle-gameplay.png` ve `turtle-menu.png` mevcut render akisinda kullanilmamaktadir.
 - Leaderboard ve bolum listesi HTML'i olusturulmadan once uzak kullanici adlari escape edilir; oyuncu/bolum satirlari sinirlanir ve seviye, yildiz, hamle, sure alanlari sayisal olarak normalize edilir.

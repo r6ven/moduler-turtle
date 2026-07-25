@@ -4,6 +4,7 @@ import test from "node:test";
 import { CONFIG } from "../src/config.js";
 import { PuzzleGenerator } from "../src/PuzzleGenerator.js";
 import { PuzzleValidator } from "../src/PuzzleValidator.js";
+import { Tile } from "../src/Tile.js";
 
 test("difficulty keeps growing within the radius-3 board", () => {
   assert.equal(CONFIG.difficulty.getMapRadius(1), 2);
@@ -43,6 +44,28 @@ test("level 1 exposes a one-turn, non-scoring tutorial target", () => {
   );
 });
 
+test("symmetric channels use the nearest equivalent solved rotation", () => {
+  const straight = new Tile(
+    0,
+    0,
+    [true, false, false, true, false, false],
+    true
+  );
+
+  straight.setRotation(3, { animate: false });
+  assert.equal(straight.isSolvedOrientation(), true);
+  assert.deepEqual(
+    PuzzleGenerator.getClosestSolvedRotation(straight),
+    { rotation: 3, moves: 0 }
+  );
+
+  straight.setRotation(2, { animate: false });
+  assert.equal(straight.isSolvedOrientation(), false);
+  assert.deepEqual(
+    PuzzleGenerator.getClosestSolvedRotation(straight),
+    { rotation: 3, moves: 1 }
+  );
+});
 test("locked tiles are solved, immutable clues", () => {
   for (const level of [8, 16, 24, 40]) {
     const generated = PuzzleGenerator.generate(level);

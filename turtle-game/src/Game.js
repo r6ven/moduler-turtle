@@ -809,15 +809,15 @@ export class Game {
       return;
     }
 
-    let bestTile = candidates[0];
-    let bestScore = Number.NEGATIVE_INFINITY;
+    let bestChoice = null;
 
     candidates.forEach((tile) => {
+      const target = PuzzleGenerator.getClosestSolvedRotation(tile);
       const oldRotation = tile.rotation;
       const oldVisualRotation = tile.visualRotation;
       const oldTargetVisualRotation = tile.targetVisualRotation;
 
-      tile.rotation = 0;
+      tile.rotation = target.rotation;
 
       const status = PuzzleValidator.inspectGrid(this.grid);
       const score = status.connectedCount * 10 - status.danglingExitCount;
@@ -826,13 +826,25 @@ export class Game {
       tile.visualRotation = oldVisualRotation;
       tile.targetVisualRotation = oldTargetVisualRotation;
 
-      if (score > bestScore) {
-        bestScore = score;
-        bestTile = tile;
+      if (
+        !bestChoice ||
+        score > bestChoice.score ||
+        (score === bestChoice.score && target.moves < bestChoice.moves)
+      ) {
+        bestChoice = {
+          tile,
+          rotation: target.rotation,
+          moves: target.moves,
+          score
+        };
       }
     });
 
-    bestTile.setRotation(0, { animate: true });
+    if (!bestChoice) return;
+
+    const bestTile = bestChoice.tile;
+
+    bestTile.setRotation(bestChoice.rotation, { animate: true });
     bestTile.hintGlow = 1;
     this.renderer.invalidateConnections();
 

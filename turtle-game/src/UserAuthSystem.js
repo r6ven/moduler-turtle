@@ -9,12 +9,16 @@ const DEVICE_SESSION_AAD = "zen-kaplumbaga-auth-v1";
 const PERSISTENT_SESSION_USERS = new Set(["seydayilmaz"]);
 
 export class UserAuthSystem {
-  constructor() {
-    this.supabase = createClient(CONFIG.supabase.url, CONFIG.supabase.anonKey);
+  constructor({ supabase = null } = {}) {
+    this.supabase = supabase || createClient(
+      CONFIG.supabase.url,
+      CONFIG.supabase.anonKey
+    );
 
     this.currentUsername = null;
     this.currentPassword = null;
-
+    this.currentSessionToken = null;
+    this.currentSessionExpiresAt = null;
     this.currentProgress = {
       lastLevel: 1,
       bestByLevel: {}
@@ -22,7 +26,14 @@ export class UserAuthSystem {
   }
 
   hasCurrentUser() {
-    return Boolean(this.currentUsername && this.currentPassword);
+    return Boolean(
+      this.currentUsername &&
+      (this.currentSessionToken || this.currentPassword)
+    );
+  }
+
+  usesSessionToken() {
+    return Boolean(this.currentSessionToken);
   }
 
   getCurrentUsername() {
@@ -42,8 +53,26 @@ export class UserAuthSystem {
     const normalizedUsername = this.normalizeUsername(username);
     const validation = this.validateCredentials(normalizedUsername, password);
 
-    if (!validation.ok) {
-      return validation;
+    if (!validation.ok) return validation;
+
+    const sessionAttempt = await this.authenticateWithSessionRpc(
+      "register_player_session",
+      normalizedUsername,
+      password
+    );
+
+    if (sessionAttempt.available) {
+      if (!sessionAttempt.ok) {
+        return {
+          ok: false,
+          error: sessionAttempt.error || "Kayıt oluşturulamadı."
+        };
+      }
+
+      this.setTokenSession(normalizedUsername, sessionAttempt.result);
+      await this.rememberDeviceSession(normalizedUsername);
+
+      return { ok: true, user: this.getCurrentUser() };
     }
 
     const { data, error } = await this.supabase.rpc("register_player", {
@@ -67,21 +96,39 @@ export class UserAuthSystem {
       };
     }
 
-    this.setSession(normalizedUsername, password, result);
+    this.setLegacySession(normalizedUsername, password, result);
     await this.rememberDeviceSession(normalizedUsername, password);
 
-    return {
-      ok: true,
-      user: this.getCurrentUser()
-    };
+    return { ok: true, user: this.getCurrentUser() };
   }
 
   async login(username, password, { remember = true } = {}) {
     const normalizedUsername = this.normalizeUsername(username);
     const validation = this.validateCredentials(normalizedUsername, password);
 
-    if (!validation.ok) {
-      return validation;
+    if (!validation.ok) return validation;
+
+    const sessionAttempt = await this.authenticateWithSessionRpc(
+      "login_player_session",
+      normalizedUsername,
+      password
+    );
+
+    if (sessionAttempt.available) {
+      if (!sessionAttempt.ok) {
+        return {
+          ok: false,
+          error: sessionAttempt.error || "Kullanıcı adı veya şifre hatalı."
+        };
+      }
+
+      this.setTokenSession(normalizedUsername, sessionAttempt.result);
+
+      if (remember) {
+        await this.rememberDeviceSession(normalizedUsername);
+      }
+
+      return { ok: true, user: this.getCurrentUser() };
     }
 
     const { data, error } = await this.supabase.rpc("login_player", {
@@ -105,16 +152,53 @@ export class UserAuthSystem {
       };
     }
 
-    this.setSession(normalizedUsername, password, result);
+    this.setLegacySession(normalizedUsername, password, result);
 
     if (remember) {
       await this.rememberDeviceSession(normalizedUsername, password);
     }
 
+    return { ok: true, user: this.getCurrentUser() };
+  }
+
+  async authenticateWithSessionRpc(rpcName, username, password) {
+    const { data, error } = await this.supabase.rpc(rpcName, {
+      p_username: username,
+      p_password: password
+    });
+
+    if (error && this.isMissingRpcError(error)) {
+      return { available: false, ok: false };
+    }
+
+    if (error) {
+      return {
+        available: true,
+        ok: false,
+        error: error.message
+      };
+    }
+
+    const result = this.normalizeRpcResponse(data);
+
     return {
-      ok: true,
-      user: this.getCurrentUser()
+      available: true,
+      ok: Boolean(result.ok && result.session_token),
+      error: result.error,
+      result
     };
+  }
+
+  isMissingRpcError(error) {
+    const code = String(error?.code || "");
+    const message = String(error?.message || "").toLowerCase();
+
+    return (
+      code === "PGRST202" ||
+      code === "42883" ||
+      message.includes("could not find the function") ||
+      message.includes("does not exist")
+    );
   }
 
   async getLeaderboard() {
@@ -130,27 +214,42 @@ export class UserAuthSystem {
 
     const result = this.normalizeRpcResponse(data);
 
-    if (!Array.isArray(result)) {
-      return {
-        ok: true,
-        records: []
-      };
-    }
-
     return {
       ok: true,
-      records: result
+      records: Array.isArray(result) ? result : []
     };
   }
 
   logout() {
+    const sessionToken = this.currentSessionToken;
+
+    this.clearSession();
+    void this.forgetDeviceSession();
+
+    if (sessionToken) {
+      void this.revokeSessionToken(sessionToken);
+    }
+  }
+
+  async revokeSessionToken(sessionToken) {
+    try {
+      await this.supabase.rpc("logout_player_session", {
+        p_session_token: sessionToken
+      });
+    } catch {
+      // The server-side expiry still limits an unreached logout request.
+    }
+  }
+
+  clearSession() {
     this.currentUsername = null;
     this.currentPassword = null;
+    this.currentSessionToken = null;
+    this.currentSessionExpiresAt = null;
     this.currentProgress = {
       lastLevel: 1,
       bestByLevel: {}
     };
-    void this.forgetDeviceSession();
   }
 
   async restoreDeviceSession() {
@@ -158,6 +257,36 @@ export class UserAuthSystem {
 
     if (!credentials) {
       return { ok: false, restored: false };
+    }
+
+    if (credentials.sessionToken) {
+      const { data, error } = await this.supabase.rpc(
+        "restore_player_session",
+        { p_session_token: credentials.sessionToken }
+      );
+
+      if (error) {
+        await this.forgetDeviceSession();
+        return { ok: false, restored: false };
+      }
+
+      const result = this.normalizeRpcResponse(data);
+
+      if (!result.ok) {
+        await this.forgetDeviceSession();
+        return { ok: false, restored: false };
+      }
+
+      this.setTokenSession(credentials.username, {
+        ...result,
+        session_token: credentials.sessionToken
+      });
+
+      return {
+        ok: true,
+        restored: true,
+        user: this.getCurrentUser()
+      };
     }
 
     const result = await this.login(
@@ -171,10 +300,15 @@ export class UserAuthSystem {
       return { ok: false, restored: false };
     }
 
+    await this.rememberDeviceSession(
+      credentials.username,
+      credentials.password
+    );
+
     return { ...result, restored: true };
   }
 
-  async rememberDeviceSession(username, password) {
+  async rememberDeviceSession(username, password = null) {
     if (!PERSISTENT_SESSION_USERS.has(this.normalizeUsername(username))) {
       await this.forgetDeviceSession();
       return false;
@@ -182,13 +316,25 @@ export class UserAuthSystem {
 
     if (!this.supportsSecureDeviceSession()) return false;
 
+    const credentials = this.currentSessionToken
+      ? {
+          version: 2,
+          username,
+          sessionToken: this.currentSessionToken,
+          expiresAt: this.currentSessionExpiresAt
+        }
+      : {
+          version: 1,
+          username,
+          password
+        };
+
+    if (!credentials.sessionToken && !credentials.password) return false;
+
     try {
       const key = await this.getOrCreateDeviceKey();
       const iv = crypto.getRandomValues(new Uint8Array(12));
-      const payload = new TextEncoder().encode(JSON.stringify({
-        username,
-        password
-      }));
+      const payload = new TextEncoder().encode(JSON.stringify(credentials));
       const encrypted = await crypto.subtle.encrypt(
         {
           name: "AES-GCM",
@@ -200,7 +346,7 @@ export class UserAuthSystem {
       );
 
       localStorage.setItem(DEVICE_SESSION_KEY, JSON.stringify({
-        version: 1,
+        version: 2,
         iv: this.bytesToBase64(iv),
         ciphertext: this.bytesToBase64(new Uint8Array(encrypted))
       }));
@@ -223,7 +369,7 @@ export class UserAuthSystem {
       const stored = JSON.parse(raw);
 
       if (
-        stored?.version !== 1 ||
+        ![1, 2].includes(stored?.version) ||
         typeof stored.iv !== "string" ||
         typeof stored.ciphertext !== "string"
       ) {
@@ -242,16 +388,29 @@ export class UserAuthSystem {
       );
       const credentials = JSON.parse(new TextDecoder().decode(decrypted));
       const username = this.normalizeUsername(credentials?.username);
+
+      if (!PERSISTENT_SESSION_USERS.has(username)) {
+        throw new Error("Persistent session not enabled for this user");
+      }
+
+      if (
+        credentials?.version === 2 &&
+        typeof credentials.sessionToken === "string" &&
+        credentials.sessionToken.length >= 32
+      ) {
+        return {
+          username,
+          sessionToken: credentials.sessionToken,
+          expiresAt: credentials.expiresAt || null
+        };
+      }
+
       const password = typeof credentials?.password === "string"
         ? credentials.password
         : "";
 
       if (!this.validateCredentials(username, password).ok) {
         throw new Error("Invalid credentials");
-      }
-
-      if (!PERSISTENT_SESSION_USERS.has(username)) {
-        throw new Error("Persistent session not enabled for this user");
       }
 
       return { username, password };
@@ -375,38 +534,43 @@ export class UserAuthSystem {
       lastLevel: Number(progress.lastLevel) || 1,
       bestByLevel: progress.bestByLevel || {}
     };
-
-    const { data, error } = await this.supabase.rpc("save_player_progress", {
-      p_username: this.currentUsername,
-      p_password: this.currentPassword,
-      p_last_level: safeProgress.lastLevel,
-      p_best_by_level: safeProgress.bestByLevel
-    });
+    const tokenMode = this.usesSessionToken();
+    const rpcName = tokenMode
+      ? "save_player_progress_session"
+      : "save_player_progress";
+    const rpcArgs = tokenMode
+      ? {
+          p_session_token: this.currentSessionToken,
+          p_last_level: safeProgress.lastLevel,
+          p_best_by_level: safeProgress.bestByLevel
+        }
+      : {
+          p_username: this.currentUsername,
+          p_password: this.currentPassword,
+          p_last_level: safeProgress.lastLevel,
+          p_best_by_level: safeProgress.bestByLevel
+        };
+    const { data, error } = await this.supabase.rpc(rpcName, rpcArgs);
 
     if (error) {
       console.warn("Supabase kayıt hatası:", error.message);
-
-      return {
-        ok: false,
-        error: error.message
-      };
+      return { ok: false, error: error.message };
     }
 
     const result = this.normalizeRpcResponse(data);
 
     if (!result.ok) {
       console.warn("Supabase kayıt reddedildi:", result.error);
-
       return {
         ok: false,
         error: result.error || "Kayıt güncellenemedi."
       };
     }
 
-    this.currentProgress = {
-      lastLevel: Number(result.last_level) || safeProgress.lastLevel,
-      bestByLevel: result.best_by_level || safeProgress.bestByLevel
-    };
+    this.applyProgressFromRpc({
+      last_level: Number(result.last_level) || safeProgress.lastLevel,
+      best_by_level: result.best_by_level || safeProgress.bestByLevel
+    });
 
     return {
       ok: true,
@@ -422,18 +586,21 @@ export class UserAuthSystem {
       };
     }
 
-    const { data, error } = await this.supabase.rpc("reset_player_progress", {
-      p_username: this.currentUsername,
-      p_password: this.currentPassword
-    });
+    const tokenMode = this.usesSessionToken();
+    const rpcName = tokenMode
+      ? "reset_player_progress_session"
+      : "reset_player_progress";
+    const rpcArgs = tokenMode
+      ? { p_session_token: this.currentSessionToken }
+      : {
+          p_username: this.currentUsername,
+          p_password: this.currentPassword
+        };
+    const { data, error } = await this.supabase.rpc(rpcName, rpcArgs);
 
     if (error) {
       console.warn("Supabase reset hatası:", error.message);
-
-      return {
-        ok: false,
-        error: error.message
-      };
+      return { ok: false, error: error.message };
     }
 
     const result = this.normalizeRpcResponse(data);
@@ -457,9 +624,26 @@ export class UserAuthSystem {
   }
 
   setSession(username, password, rpcResult) {
+    this.setLegacySession(username, password, rpcResult);
+  }
+
+  setLegacySession(username, password, rpcResult) {
     this.currentUsername = username;
     this.currentPassword = password;
+    this.currentSessionToken = null;
+    this.currentSessionExpiresAt = null;
+    this.applyProgressFromRpc(rpcResult);
+  }
 
+  setTokenSession(username, rpcResult) {
+    this.currentUsername = username;
+    this.currentPassword = null;
+    this.currentSessionToken = rpcResult.session_token;
+    this.currentSessionExpiresAt = rpcResult.session_expires_at || null;
+    this.applyProgressFromRpc(rpcResult);
+  }
+
+  applyProgressFromRpc(rpcResult) {
     this.currentProgress = {
       lastLevel: Number(rpcResult.last_level) || 1,
       bestByLevel: rpcResult.best_by_level || {}
@@ -488,9 +672,7 @@ export class UserAuthSystem {
       };
     }
 
-    return {
-      ok: true
-    };
+    return { ok: true };
   }
 
   normalizeUsername(username) {
