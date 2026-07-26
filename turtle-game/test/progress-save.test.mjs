@@ -96,3 +96,18 @@ test("a failed remote save is recovered from the local pending snapshot", async 
   assert.equal(recoveredCalls[0].lastLevel, 6);
   assert.equal(localStorage.values.size, 0);
 });
+
+test("three-star move tolerance follows the requested level bands", () => {
+  globalThis.localStorage = createStorage();
+
+  const progress = new ProgressSystem();
+  const minimumMoves = 20;
+
+  assert.equal(progress.calculateThreeStarTarget(minimumMoves, 0), 23);
+  assert.equal(progress.calculateThreeStarTarget(minimumMoves, 49), 23);
+  assert.equal(progress.calculateThreeStarTarget(minimumMoves, 50), 25);
+  assert.equal(progress.calculateThreeStarTarget(minimumMoves, 99), 25);
+  assert.equal(progress.calculateThreeStarTarget(minimumMoves, 100), 30);
+  assert.equal(progress.calculateThreeStarTarget(minimumMoves, 200), 30);
+  assert.equal(progress.calculateThreeStarTarget(minimumMoves, 201), 26);
+});

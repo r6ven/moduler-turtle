@@ -103,11 +103,14 @@ export class ProgressSystem {
   }
 
   calculateThreeStarTarget(minimumMoves, level) {
-    const tolerance = Math.max(
-      3,
-      Math.ceil(minimumMoves * 0.12),
-      Math.floor(level / 4)
-    );
+    const safeLevel = Math.max(0, Math.floor(Number(level) || 0));
+    const tolerance = safeLevel < 50
+      ? 3
+      : safeLevel < 100
+        ? 5
+        : safeLevel <= 200
+          ? 10
+          : 6;
 
     return minimumMoves + tolerance;
   }

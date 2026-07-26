@@ -80,7 +80,7 @@ export class Game {
       onLogin: () => this.login(),
       onRegister: () => this.register(),
       onStartGame: () => this.closeMenu(),
-      onContinueGame: () => this.closeMenu(),
+      onContinueGame: () => this.continueGame(),
       onOpenLevels: () => this.openLevels(),
       onOpenRecords: () => this.openRecords(),
       onSelectLevel: (level) => this.selectLevel(level),
@@ -510,6 +510,22 @@ export class Game {
     this.progress.startTimer();
     this.resumeAnimationClock();
     this.showTutorialIfNeeded();
+  }
+
+  continueGame() {
+    if (!this.auth.hasCurrentUser()) {
+      this.closeMenu();
+      return;
+    }
+
+    const savedLevel = this.progress.getSavedLevel();
+
+    if (this.level !== savedLevel || this.levelCompleted) {
+      this.level = savedLevel;
+      this.generateLevel();
+    }
+
+    this.closeMenu();
   }
 
   openLevels() {
@@ -947,4 +963,4 @@ export class Game {
 
     requestAnimationFrame((nextTimestamp) => this.loop(nextTimestamp));
   }
-} 
+}

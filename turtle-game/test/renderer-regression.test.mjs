@@ -104,6 +104,23 @@ test("portal channels never extend behind the well center", () => {
   assert.ok(extensions.every((value) => value === 0));
 });
 
+test("flow follows the generated source-to-sink path across shortcuts", () => {
+  const renderer = new Renderer({ width: 1, height: 1 }, {});
+
+  assert.equal(
+    renderer.getFlowDirection("later", "earlier", 1, 2, 9, 8),
+    -1
+  );
+  assert.equal(
+    renderer.getFlowDirection("earlier", "later", 4, 1, 8, 9),
+    1
+  );
+  assert.equal(
+    renderer.getFlowDirection("near", "far", 2, 3),
+    1
+  );
+});
+
 test("all representative levels render without throwing", () => {
   const canvas = makeCanvas();
   const renderer = new Renderer(canvas, canvas.getContext("2d"));

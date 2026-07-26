@@ -215,8 +215,18 @@ export class Renderer {
 
     const keys = PuzzleValidator.calculateConnectedKeys(grid);
     const depths = this.calculateFlowDepths(grid, keys);
-    const orders = new Map(
+    const traversalOrders = new Map(
       Array.from(depths.keys()).map((key, index) => [key, index])
+    );
+    const orders = new Map(
+      Array.from(keys).map((key) => {
+        const victoryIndex = Number(grid[key]?.victoryIndex);
+        const order = Number.isFinite(victoryIndex) && victoryIndex >= 0
+          ? victoryIndex
+          : traversalOrders.get(key);
+
+        return [key, order];
+      })
     );
 
     this.connectionCache = {
@@ -1733,14 +1743,19 @@ export class Renderer {
     neighborKey,
     currentDepth,
     neighborDepth,
-    currentOrder = 0,
-    neighborOrder = 0
+    currentOrder = null,
+    neighborOrder = null
   ) {
+    if (
+      Number.isFinite(currentOrder) &&
+      Number.isFinite(neighborOrder) &&
+      currentOrder !== neighborOrder
+    ) {
+      return neighborOrder > currentOrder ? 1 : -1;
+    }
+
     if (neighborDepth > currentDepth) return 1;
     if (neighborDepth < currentDepth) return -1;
-
-    if (neighborOrder > currentOrder) return 1;
-    if (neighborOrder < currentOrder) return -1;
 
     return currentKey.localeCompare(neighborKey) < 0 ? 1 : -1;
   }
