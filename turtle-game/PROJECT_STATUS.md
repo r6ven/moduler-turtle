@@ -391,11 +391,11 @@ Simdilik yildiz ve skor hesabina etkisi yoktur.
 
 ### Teknik riskler
 
-- Token migration production Supabase projesinde uygulanana kadar frontend geriye uyumlu eski RPC moduna duser ve parola aktif oturum boyunca bellekte kalir.
-- Mevcut production `players` semasi ve legacy RPC'lerin `SECURITY DEFINER` durumu migration preflight'i tarafindan kontrol edilir; kontrol gecmezse migration veri degistirmeden durur.
+- Token migration production Supabase projesinde uygulanmis ve aktif token kaydi ile dogrulanmistir. Kullanici-adi bazli login rate-limit migration'i repo icinde hazirdir; production'a uygulanmasi beklenmektedir.
+- Rate-limit migration'i once session/legacy RPC kontratini kontrol eder, transaction icinde calisir ve legacy parola RPC'lerinin anonim erisimini kapatarak bypass'i engeller. IP bazli bot korumasi/CAPTCHA icin ileride Edge Function katmani gerekir.
 - Supabase URL/anon key icin Vite ortam degiskenleri desteklenir; geriye uyumlu kaynak kod fallback'i Render ortam degiskenleri tanimlandiktan sonra kaldirilmalidir.
 - Uzak ilerleme kayitlari sirali kuyruk, degismez snapshot ve kullaniciya ozel yerel pending kaydi kullanir; backend token RPC'si kayitlari atomik ve monoton birlestirir.
-- Node testleri auth fallback/token, kayit sirasi, pending recovery, puzzle uretimi ve renderer regresyonlarini kapsar; fiziksel cihaz E2E testi halen manueldir.
+- Node testleri auth fallback/token/rate-limit, kayit sirasi, pending recovery, responsive board, puzzle uretimi ve renderer regresyonlarini kapsar; fiziksel cihaz E2E testi halen manueldir.
 - `@vitejs/plugin-legacy` bagimliligi vardir fakat `vite.config.js` yoktur; plugin etkin degildir ve su an gereksiz bagimlilik gibi durur.
 - `turtle-gameplay.png` ve `turtle-menu.png` mevcut render akisinda kullanilmamaktadir.
 - Leaderboard ve bolum listesi HTML'i olusturulmadan once uzak kullanici adlari escape edilir; oyuncu/bolum satirlari sinirlanir ve seviye, yildiz, hamle, sure alanlari sayisal olarak normalize edilir.
@@ -473,13 +473,14 @@ Her buyuk degisiklikten sonra en az su akislari elle kontrol edilmelidir:
 
 Oncelik onerisi:
 
-1. Supabase SQL migration/RLS/RPC kaynaklarini repoya eklemek ve ozel auth guvenligini gozden gecirmek.
-2. `.gitignore` ve izlenen tek bir lockfile ekleyerek build tekrar edilebilirligini saglamak.
-3. PuzzleGenerator/PuzzleValidator/ProgressSystem icin unit testler yazmak.
-4. Playwright ile giris, puzzle tamamlama, sonuc ve mobil layout smoke testleri kurmak.
-5. Kaplumbaganin dogru baglanti ziyaretini odullendirme kararini vermek.
-6. Kilitli tas ve ozel cicek tasi ile ilk yeni oynanis paketini tasarlamak.
-7. Dusuk donanimli Android ve iOS Safari'de FPS/fullscreen/manual test matrisi cikarmak.
+1. Login rate-limit migration'ini production Supabase projesinde uygulayip yetki ve kilit davranisini dogrulamak.
+2. Login'i Supabase Edge Function arkasina alip IP bazli rate-limit ve Turnstile/CAPTCHA korumasi eklemek.
+3. `.gitignore` ve izlenen tek bir lockfile ekleyerek build tekrar edilebilirligini saglamak.
+4. PuzzleGenerator/PuzzleValidator/ProgressSystem icin unit testler yazmak.
+5. Playwright ile giris, puzzle tamamlama, sonuc ve mobil layout smoke testleri kurmak.
+6. Kaplumbaganin dogru baglanti ziyaretini odullendirme kararini vermek.
+7. Kilitli tas ve ozel cicek tasi ile ilk yeni oynanis paketini tasarlamak.
+8. Dusuk donanimli Android ve iOS Safari'de FPS/fullscreen/manual test matrisi cikarmak.
 
 ## 13. Production Build Kaydi
 

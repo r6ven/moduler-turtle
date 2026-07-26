@@ -111,3 +111,31 @@ test("missing session RPCs fall back without deleting existing users", async () 
     ["login_player_session", "login_player"]
   );
 });
+test("rate-limited login never falls back to the legacy password RPC", async () => {
+  const fake = createRpcClient(async (name) => {
+    if (name !== "login_player_session") {
+      throw new Error(`Unexpected RPC: ${name}`);
+    }
+
+    return {
+      data: {
+        ok: false,
+        error: "Çok fazla giriş denemesi. 900 saniye sonra tekrar deneyin.",
+        retry_after_seconds: 900
+      },
+      error: null
+    };
+  });
+  const auth = new UserAuthSystem({ supabase: fake.client });
+  const result = await auth.login("existing.user", "wrong-password", {
+    remember: false
+  });
+
+  assert.equal(result.ok, false);
+  assert.match(result.error, /900 saniye/);
+  assert.equal(auth.currentPassword, null);
+  assert.deepEqual(
+    fake.calls.map((call) => call.name),
+    ["login_player_session"]
+  );
+});

@@ -3,7 +3,8 @@
 > Durum: Production session migration uygulandı ve doğrulandı.
 > `public.player_sessions` tablosu ile token tabanlı RPC'ler production
 > projesinde mevcut. 26 Temmuz 2026 tarihli kontrolde normal girişten sonra
-> bir aktif session kaydı oluştuğu görüldü.
+> bir aktif session kaydı oluştuğu görüldü. Login rate-limit migration'ı repo
+> içinde hazırdır; production'a uygulanması beklenmektedir.
 
 ## Production durumu
 
@@ -32,6 +33,59 @@ token süresi dolduğunda yeniden sıfıra düşmesi normaldir.
 Migration'ı tekrar çalıştırmaya gerek yoktur. Mevcut kullanıcıları korumak için
 `turtle-game/supabase/bootstrap/fresh_project.sql` dosyasını production üzerinde
 çalıştırmayın. Bu dosya yalnızca yeni ve boş Supabase projeleri içindir.
+
+## Login rate-limit / brute-force koruması
+
+Aşağıdaki ikinci additive migration repo içinde hazırdır ancak production
+Supabase projesinde ayrıca çalıştırılmalıdır:
+
+```text
+turtle-game/supabase/migrations/202607260002_add_login_rate_limits.sql
+```
+
+Bu migration:
+
+- kullanıcı adı başına 15 dakikada beş giriş denemesine izin verir;
+- altıncı ve sonraki denemeleri 15 dakika engeller;
+- başarılı girişten sonra sayacı temizler;
+- kullanıcı adını açık metin yerine SHA-256 özet anahtarıyla takip eder;
+- eski parola RPC'lerinin `anon` ve `authenticated` tarafından doğrudan
+  çağrılmasını engelleyerek rate-limit bypass'ını kapatır;
+- `public.players` veya mevcut `player_sessions` satırlarını silmez.
+
+Migration bir transaction içinde çalışır; ön kontroller başarısız olursa hiçbir
+kısmi yetki değişikliği uygulanmaz. Uygulamadan önce yine de `public.players`
+yedeği alın ve kullanıcı sayısını not edin. Bu koruma kullanıcı-adı bazlıdır;
+IP tabanlı global bot koruması veya CAPTCHA istenirse özel auth RPC'lerinin bir
+Edge Function/Turnstile katmanının arkasına taşınması gerekir.
+
+### Gelecekte yapılacaklar
+
+- IP bazlı rate-limit ekleyin. İstemci IP'si güvenilir biçimde yalnızca sunucu
+  katmanında okunacağı için login çağrısını bir Supabase Edge Function üzerinden
+  geçirin ve kullanıcı-adı limitine ek olarak IP başına pencere/engel uygulayın.
+- Edge Function devreye alınırken Turnstile/CAPTCHA doğrulamasını ekleyin ve
+  istemcinin Postgres login RPC'sini doğrudan çağırmasını kapatın.
+
+Rate-limit migration sonrasında yetki sınırını doğrulamak için:
+
+```sql
+select
+  to_regclass('public.player_login_attempts') as attempts_table,
+  has_function_privilege(
+    'anon',
+    'public.login_player(text,text)',
+    'execute'
+  ) as legacy_login_exposed,
+  has_function_privilege(
+    'anon',
+    'public.login_player_session(text,text)',
+    'execute'
+  ) as protected_login_exposed;
+```
+
+Beklenen sonuç: `attempts_table` dolu, `legacy_login_exposed = false` ve
+`protected_login_exposed = true`.
 
 ## Production doğrulama sorguları
 
@@ -107,9 +161,11 @@ zorunlu değildir. Eklenirse Vite değerleri build sırasında kullandığı iç
 1. `turtle-game/supabase/bootstrap/fresh_project.sql` dosyasını çalıştırın.
 2. Ardından `turtle-game/supabase/migrations/202607260001_add_player_sessions.sql`
    dosyasını çalıştırın.
-3. Project Settings → API bölümünden URL ve anon/publishable key değerlerini
+3. `turtle-game/supabase/migrations/202607260002_add_login_rate_limits.sql`
+   dosyasını çalıştırın.
+4. Project Settings → API bölümünden URL ve anon/publishable key değerlerini
    alın.
-4. Render ortam değişkenlerine `VITE_SUPABASE_URL` ve
+5. Render ortam değişkenlerine `VITE_SUPABASE_URL` ve
    `VITE_SUPABASE_ANON_KEY` değerlerini ekleyin.
 
 Yerel geliştirme için `turtle-game/.env.example` dosyasını `.env` olarak
