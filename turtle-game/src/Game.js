@@ -20,7 +20,10 @@ export class Game {
     this.progress = new ProgressSystem(this.auth);
 
     this.level = 1;
+    this.mapRadius = CONFIG.difficulty.getMapRadius(this.level);
     this.hexRadius = CONFIG.desktopHexRadius;
+    this.boardOffsetY = 0;
+    this.boardLayout = null;
     this.displaySize = 1;
     this.pixelRatio = 1;
     this.grid = {};
@@ -68,7 +71,8 @@ export class Game {
     this.input = new InputManager(
       this.canvas,
       () => this.hexRadius,
-      (hex) => this.handleTilePress(hex)
+      (hex) => this.handleTilePress(hex),
+      () => ({ x: 0, y: this.boardOffsetY })
     );
   }
 
@@ -288,6 +292,10 @@ export class Game {
       canvasWidth: this.canvas.width,
       canvasHeight: this.canvas.height,
       cssWidth: this.canvas.getBoundingClientRect().width,
+      mapRadius: this.mapRadius,
+      hexRadius: Number(this.hexRadius.toFixed(3)),
+      boardOffsetY: Number(this.boardOffsetY.toFixed(3)),
+      boardLayout: this.boardLayout,
       pageHidden: this.pageHidden,
       menuOpen: this.menuOpen
     };
@@ -360,8 +368,26 @@ export class Game {
     const baseHexRadius = window.innerWidth < CONFIG.mobileBreakpoint
       ? CONFIG.mobileHexRadius
       : CONFIG.desktopHexRadius;
+    const hudInsets = this.measureBoardHudInsets();
+    const boardLayout = this.calculateBoardLayout(
+      this.mapRadius,
+      displaySize,
+      baseHexRadius,
+      hudInsets
+    );
 
-    this.hexRadius = baseHexRadius;
+    this.hexRadius = boardLayout.hexRadius;
+    this.boardOffsetY = boardLayout.offsetY;
+    this.boardLayout = boardLayout;
+    this.canvas.dataset.mapRadius = String(boardLayout.mapRadius);
+    this.canvas.dataset.hexRadius = boardLayout.hexRadius.toFixed(3);
+    this.canvas.dataset.boardOffsetY = boardLayout.offsetY.toFixed(3);
+    this.canvas.dataset.minimumTapTarget = boardLayout.meetsMinimumTapTarget
+      ? "met"
+      : "below";
+    this.canvas.dataset.tutorialOverlay = boardLayout.tutorialOverlaysBoard
+      ? "allowed"
+      : "clear";
 
     if (previousHexRadius > 0 && previousHexRadius !== this.hexRadius) {
       const coordinateScale = this.hexRadius / previousHexRadius;
@@ -371,9 +397,111 @@ export class Game {
     }
 
     this.turtle.syncToTile(this.hexRadius, false);
-    this.renderer.setViewport(displaySize, displaySize, pixelRatio);
+    this.renderer.setViewport(
+      displaySize,
+      displaySize,
+      pixelRatio,
+      this.boardOffsetY
+    );
     this.renderer.invalidateGrid();
     this.renderer.resetClock();
+  }
+
+  measureBoardHudInsets() {
+    const canvasRect = this.canvas.getBoundingClientRect();
+    const hudGap = CONFIG.boardLayout.hudGap;
+    const topRect = document.querySelector(".top-cluster")
+      ?.getBoundingClientRect();
+    const tutorialRect = this.ui?.tutorialCallout?.classList.contains("active")
+      ? this.ui.tutorialCallout.getBoundingClientRect()
+      : null;
+    const bottomRect = document.querySelector(".bottom-bar")
+      ?.getBoundingClientRect();
+    const overlapsCanvas = (rect) => (
+      rect &&
+      rect.right > canvasRect.left &&
+      rect.left < canvasRect.right &&
+      rect.bottom > canvasRect.top &&
+      rect.top < canvasRect.bottom
+    );
+    const topInsetFor = (rect) => overlapsCanvas(rect)
+      ? Math.max(0, rect.bottom - canvasRect.top + hudGap)
+      : 0;
+    const stableTopInset = topInsetFor(topRect);
+    const tutorialTopInset = topInsetFor(tutorialRect);
+    const bottomInset = overlapsCanvas(bottomRect)
+      ? Math.max(0, canvasRect.bottom - bottomRect.top + hudGap)
+      : 0;
+
+    return {
+      top: Math.min(
+        canvasRect.height / 2,
+        Math.max(stableTopInset, tutorialTopInset)
+      ),
+      stableTop: Math.min(canvasRect.height / 2, stableTopInset),
+      tutorialTop: Math.min(canvasRect.height / 2, tutorialTopInset),
+      bottom: Math.min(canvasRect.height / 2, bottomInset)
+    };
+  }
+
+  calculateBoardLayout(
+    mapRadius,
+    displaySize,
+    baseHexRadius,
+    hudInsets = { top: 0, bottom: 0 }
+  ) {
+    const safeMapRadius = Math.max(1, Math.floor(Number(mapRadius) || 1));
+    const edgePadding = CONFIG.boardLayout.edgePadding;
+    const requestedTopInset = Math.max(0, Number(hudInsets.top) || 0);
+    const stableTopInset = Math.max(
+      0,
+      Number(hudInsets.stableTop) || 0
+    );
+    const bottomInset = Math.max(0, Number(hudInsets.bottom) || 0);
+    const availableWidth = Math.max(1, displaySize - edgePadding * 2);
+    const fitWidth = availableWidth / (
+      Math.sqrt(3) * (safeMapRadius * 2 + 1)
+    );
+    const fitForTopInset = (topInset) => {
+      const availableHeight = Math.max(
+        1,
+        displaySize - topInset - bottomInset - edgePadding * 2
+      );
+      const fitHeight = availableHeight / (safeMapRadius * 3 + 2);
+      const hexRadius = Math.max(
+        1,
+        Math.min(baseHexRadius, fitWidth, fitHeight)
+      );
+
+      return { availableHeight, fitHeight, hexRadius };
+    };
+    let topInset = requestedTopInset;
+    let verticalFit = fitForTopInset(topInset);
+    let tutorialOverlaysBoard = false;
+
+    if (
+      topInset > stableTopInset &&
+      verticalFit.hexRadius < CONFIG.boardLayout.minTapRadius
+    ) {
+      topInset = stableTopInset;
+      verticalFit = fitForTopInset(topInset);
+      tutorialOverlaysBoard = true;
+    }
+
+    return {
+      mapRadius: safeMapRadius,
+      hexRadius: verticalFit.hexRadius,
+      fitWidth,
+      fitHeight: verticalFit.fitHeight,
+      availableWidth,
+      availableHeight: verticalFit.availableHeight,
+      topInset,
+      bottomInset,
+      offsetY: (topInset - bottomInset) / 2,
+      meetsMinimumTapTarget:
+        verticalFit.hexRadius >= CONFIG.boardLayout.minTapRadius,
+      tutorialOverlaysBoard
+    };
   }
 
   generateLevel() {
@@ -392,8 +520,15 @@ export class Game {
     this.ui.updateLevel(this.level);
 
     const generated = PuzzleGenerator.generate(this.level);
+    const mapRadiusChanged = this.mapRadius !== generated.mapRadius;
 
+    this.mapRadius = generated.mapRadius;
     this.grid = generated.grid;
+
+    if (mapRadiusChanged) {
+      this.resizeCanvas();
+    }
+
     this.renderer.invalidateGrid();
 
     this.progress.startLevel(
@@ -628,6 +763,7 @@ export class Game {
 
     tile.hintGlow = 1;
     this.ui.showTutorial();
+    this.resizeCanvas();
   }
 
   reinforceTutorial() {
@@ -648,6 +784,7 @@ export class Game {
   }
 
   completeTutorial() {
+    const wasActive = this.tutorial.active;
     const tile = this.grid[this.tutorial.targetKey];
 
     if (tile) tile.tutorialTarget = false;
@@ -655,6 +792,10 @@ export class Game {
     this.tutorial.active = false;
     this.tutorial.targetKey = null;
     this.ui.hideTutorial();
+
+    if (wasActive && !this.menuOpen) {
+      this.resizeCanvas();
+    }
   }
 
   handleTilePress(hex) {

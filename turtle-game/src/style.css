@@ -226,6 +226,23 @@ canvas {
   transform: translate(-50%, 0) scale(1);
 }
 
+@media (orientation: landscape) and (min-aspect-ratio: 3 / 2) and (max-height: 500px) {
+  .tutorial-callout {
+    top: 96px;
+    left: calc((100vw - 100vh) / 4);
+    width: min(200px, calc((100vw - 100vh) / 2 - 20px));
+    padding: 9px 8px 10px;
+  }
+
+  .tutorial-callout strong {
+    font-size: 12px;
+  }
+
+  .tutorial-callout > span:last-child {
+    font-size: 10px;
+  }
+}
+
 .tutorial-callout.nudge {
   animation: tutorial-nudge 420ms ease;
 }

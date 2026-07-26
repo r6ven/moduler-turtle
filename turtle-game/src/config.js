@@ -5,6 +5,11 @@ export const CONFIG = {
   desktopHexRadius: 46,
   mobileHexRadius: 34,
   mobileBreakpoint: 500,
+  boardLayout: {
+    edgePadding: 12,
+    hudGap: 8,
+    minTapRadius: 26
+  },
 
   // Local fallback için duruyor. Asıl kayıt artık Supabase.
   saveKey: "zen-kaplumbaga-progress-v1",
