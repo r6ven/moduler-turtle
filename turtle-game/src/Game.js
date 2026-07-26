@@ -745,7 +745,6 @@ export class Game {
 
     const eligible =
       this.level === 1 &&
-      !this.progress.hasCompletedLevel(1) &&
       Boolean(targetKey) &&
       Boolean(this.grid[targetKey]);
 
