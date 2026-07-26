@@ -450,6 +450,8 @@ export class Game {
     baseHexRadius,
     hudInsets = { top: 0, bottom: 0 }
   ) {
+    // mapRadius identifies the generated puzzle and its leaderboard entry.
+    // Never reduce it for a viewport; fit only the visual hex radius.
     const safeMapRadius = Math.max(1, Math.floor(Number(mapRadius) || 1));
     const edgePadding = CONFIG.boardLayout.edgePadding;
     const requestedTopInset = Math.max(0, Number(hudInsets.top) || 0);
