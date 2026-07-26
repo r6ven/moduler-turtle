@@ -276,7 +276,7 @@ Istemci RPC cevaplarindan asagidaki alanlari bekler:
 }
 ```
 
-Liderlik tablosunda her kayit icin `username`, `last_level` ve `best_by_level` beklenir. Bos proje kurulumu `supabase/bootstrap/fresh_project.sql`, mevcut production sisteminin veri-korumali token gecisi ise `supabase/migrations/202607260001_add_player_sessions.sql` ile repoda tutulur. Ayrintili uygulama ve dogrulama adimlari `SUPABASE_SETUP.md` icindedir.
+Liderlik tablosunda her kayit icin `username`, `last_level` ve `best_by_level` beklenir. Bos proje kurulumu `supabase/bootstrap/fresh_project.sql`, mevcut production sisteminin veri-korumali token gecisi ise `supabase/migrations/202607260001_add_player_sessions.sql` ile repoda tutulur. Ayrintili uygulama ve dogrulama adimlari repo kokundeki `Supabase.md` icindedir.
 
 ### 5.4 Kayit davranisi
 

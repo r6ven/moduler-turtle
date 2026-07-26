@@ -1,8 +1,12 @@
 # Supabase kurulumu
 
+> Durum: Beklemede. Bu dosyadaki Supabase işlemleri şimdilik
+> uygulanmayacak; daha sonra yapılacak işler için repo içinde not olarak
+> tutulmaktadır.
+
 ## Mevcut production projesi
 
-Mevcut kullanıcıları korumak için `supabase/bootstrap/fresh_project.sql` dosyasını production üzerinde çalıştırmayın. Bu dosya yalnızca boş bir Supabase projesi içindir.
+Mevcut kullanıcıları korumak için `turtle-game/supabase/bootstrap/fresh_project.sql` dosyasını production üzerinde çalıştırmayın. Bu dosya yalnızca boş bir Supabase projesi içindir.
 
 1. Supabase Dashboard → SQL Editor bölümünü açın.
 2. Güvenlik için önce `public.players` tablosunun yedeğini alın.
@@ -19,7 +23,7 @@ select proname from pg_proc where proname in (
 );
 ```
 
-4. `supabase/migrations/202607260001_add_player_sessions.sql` dosyasının tamamını SQL Editor'da çalıştırın.
+4. `turtle-game/supabase/migrations/202607260001_add_player_sessions.sql` dosyasının tamamını SQL Editor'da çalıştırın.
 5. Kullanıcı sayısının değişmediğini doğrulayın:
 
 ```sql
@@ -33,8 +37,8 @@ Frontend migration uygulanmadan da eski RPC'lere geri dönerek çalışır. Güv
 
 ## Yeni/boş Supabase projesi
 
-1. `supabase/bootstrap/fresh_project.sql` dosyasını çalıştırın.
-2. Ardından `supabase/migrations/202607260001_add_player_sessions.sql` dosyasını çalıştırın.
+1. `turtle-game/supabase/bootstrap/fresh_project.sql` dosyasını çalıştırın.
+2. Ardından `turtle-game/supabase/migrations/202607260001_add_player_sessions.sql` dosyasını çalıştırın.
 3. Project Settings → API bölümünden URL ve anon/publishable key değerlerini alın.
 4. Render ortam değişkenlerine şunları ekleyin:
 
@@ -43,7 +47,7 @@ VITE_SUPABASE_URL
 VITE_SUPABASE_ANON_KEY
 ```
 
-Yerel geliştirme için `.env.example` dosyasını `.env` olarak kopyalayıp değerleri doldurun. Anon key gizli servis anahtarı değildir; güvenlik RLS, tablo grant'leri ve dar yetkili `security definer` RPC'leriyle sağlanır. `service_role` anahtarını hiçbir zaman frontend ortamına eklemeyin.
+Yerel geliştirme için `turtle-game/.env.example` dosyasını `.env` olarak kopyalayıp değerleri doldurun. Anon key gizli servis anahtarı değildir; güvenlik RLS, tablo grant'leri ve dar yetkili `security definer` RPC'leriyle sağlanır. `service_role` anahtarını hiçbir zaman frontend ortamına eklemeyin.
 
 ## Geri alma
 
