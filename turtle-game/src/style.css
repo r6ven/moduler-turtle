@@ -2987,14 +2987,6 @@ body.menu-open #gameCanvas {
   opacity: 0.72;
 }
 
-.storybook-sprout {
-  position: absolute;
-  top: 7.5%;
-  left: 50%;
-  color: var(--storybook-olive);
-  font-size: clamp(10px, 2.8vw, 17px);
-  transform: translateX(-50%) rotate(45deg);
-}
 
 .menu-turtle-layer {
   position: absolute;
@@ -3368,38 +3360,6 @@ body.menu-open #gameCanvas {
   }
 }
 /* Storybook composition polish after mobile visual QA. */
-.storybook-sprout {
-  width: 20px;
-  height: 18px;
-  color: transparent;
-  font-size: 0;
-  transform: translateX(-50%);
-}
-
-.storybook-sprout::before {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 2px;
-  height: 15px;
-  border-radius: 2px;
-  background: var(--storybook-olive);
-  transform: translateX(-50%);
-}
-
-.storybook-sprout::after {
-  content: "";
-  position: absolute;
-  top: 5px;
-  left: 3px;
-  width: 8px;
-  height: 5px;
-  border-radius: 90% 12% 90% 12%;
-  background: var(--storybook-olive);
-  box-shadow: 7px -5px 0 var(--storybook-olive);
-  transform: rotate(30deg);
-}
 
 .storybook-brand .menu-turtle-layer {
   top: 9.5%;
@@ -3479,46 +3439,19 @@ body.menu-open #gameCanvas {
 
 .turtle-core {
   z-index: 3;
-  clip-path: polygon(
-    50% 18%,
-    63% 23%,
-    76% 34%,
-    81% 51%,
-    80% 68%,
-    72% 80%,
-    61% 88%,
-    50% 91%,
-    39% 88%,
-    28% 80%,
-    20% 68%,
-    19% 51%,
-    24% 34%,
-    37% 23%
-  );
   transform-origin: 50% 54%;
   animation-name: menu-turtle-core-swim;
 }
 
 .turtle-head {
   z-index: 2;
-  clip-path: polygon(
-    50% 0,
-    57% 4%,
-    60% 14%,
-    59% 22%,
-    50% 18%,
-    41% 22%,
-    40% 14%,
-    43% 4%
-  );
   transform-origin: 50% 19%;
   animation-name: menu-turtle-head-swim;
 }
 
 .turtle-tail {
   z-index: 1;
-  clip-path: polygon(46% 87%, 54% 87%, 55% 94%, 52% 100%, 48% 100%, 45% 94%);
-  transform-origin: 50% 88%;
+  transform-origin: 50% 86%;
   animation-name: menu-turtle-tail-swim;
 }
 
@@ -3527,72 +3460,22 @@ body.menu-open #gameCanvas {
 }
 
 .turtle-fin.front-left {
-  clip-path: polygon(
-    0 23%,
-    10% 20%,
-    22% 20%,
-    29% 22%,
-    32% 26%,
-    31% 31%,
-    26% 35%,
-    20% 42%,
-    11% 52%,
-    2% 54%,
-    0 50%
-  );
-  transform-origin: 30% 28%;
+  transform-origin: 31% 28%;
   animation-name: menu-turtle-front-left-swim;
 }
 
 .turtle-fin.front-right {
-  clip-path: polygon(
-    100% 23%,
-    90% 20%,
-    78% 20%,
-    71% 22%,
-    68% 26%,
-    69% 31%,
-    74% 35%,
-    80% 42%,
-    89% 52%,
-    98% 54%,
-    100% 50%
-  );
-  transform-origin: 70% 28%;
+  transform-origin: 69% 28%;
   animation-name: menu-turtle-front-right-swim;
 }
 
 .turtle-fin.rear-left {
-  clip-path: polygon(
-    14% 68%,
-    22% 65%,
-    29% 67%,
-    31% 72%,
-    29% 79%,
-    25% 89%,
-    20% 98%,
-    16% 97%,
-    13% 91%,
-    13% 78%
-  );
-  transform-origin: 29% 70%;
+  transform-origin: 30% 70%;
   animation-name: menu-turtle-rear-left-swim;
 }
 
 .turtle-fin.rear-right {
-  clip-path: polygon(
-    86% 68%,
-    78% 65%,
-    71% 67%,
-    69% 72%,
-    71% 79%,
-    75% 89%,
-    80% 98%,
-    84% 97%,
-    87% 91%,
-    87% 78%
-  );
-  transform-origin: 71% 70%;
+  transform-origin: 70% 70%;
   animation-name: menu-turtle-rear-right-swim;
 }
 
@@ -3610,9 +3493,9 @@ body.menu-open #gameCanvas {
 
 @keyframes menu-turtle-head-swim {
   0%, 40%, 76%, 100% { transform: translateY(0) rotate(0deg); }
-  20%, 60% { transform: translateY(-0.5%); }
-  80%, 86%, 92% { transform: translateY(-1.2%); }
-  83%, 89%, 95% { transform: translateY(0.6%); }
+  20%, 60% { transform: translateY(-0.5%) rotate(0.8deg); }
+  80%, 86%, 92% { transform: translateY(-1.2%) rotate(-2.4deg); }
+  83%, 89%, 95% { transform: translateY(0.6%) rotate(1.8deg); }
 }
 
 @keyframes menu-turtle-tail-swim {
@@ -3625,29 +3508,29 @@ body.menu-open #gameCanvas {
 @keyframes menu-turtle-front-left-swim {
   0%, 40%, 76%, 100% { transform: rotate(0deg); }
   20%, 60% { transform: rotate(-2.2deg); }
-  80%, 86%, 92% { transform: rotate(-4deg); }
-  83%, 89%, 95% { transform: rotate(3deg); }
+  80%, 86%, 92% { transform: rotate(-8deg); }
+  83%, 89%, 95% { transform: rotate(6deg); }
 }
 
 @keyframes menu-turtle-front-right-swim {
   0%, 40%, 76%, 100% { transform: rotate(0deg); }
   20%, 60% { transform: rotate(2.2deg); }
-  80%, 86%, 92% { transform: rotate(4deg); }
-  83%, 89%, 95% { transform: rotate(-3deg); }
+  80%, 86%, 92% { transform: rotate(8deg); }
+  83%, 89%, 95% { transform: rotate(-6deg); }
 }
 
 @keyframes menu-turtle-rear-left-swim {
   0%, 40%, 76%, 100% { transform: rotate(0deg); }
   20%, 60% { transform: rotate(1.6deg); }
-  80%, 86%, 92% { transform: rotate(4deg); }
-  83%, 89%, 95% { transform: rotate(-3deg); }
+  80%, 86%, 92% { transform: rotate(8deg); }
+  83%, 89%, 95% { transform: rotate(-6deg); }
 }
 
 @keyframes menu-turtle-rear-right-swim {
   0%, 40%, 76%, 100% { transform: rotate(0deg); }
   20%, 60% { transform: rotate(-1.6deg); }
-  80%, 86%, 92% { transform: rotate(-4deg); }
-  83%, 89%, 95% { transform: rotate(3deg); }
+  80%, 86%, 92% { transform: rotate(-8deg); }
+  83%, 89%, 95% { transform: rotate(6deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -42,6 +42,34 @@ test("main menu hides the game canvas", async () => {
   );
 });
 
+test("menu turtle uses independent image layers without the head sprout", async () => {
+  const [html, css] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/style.css", import.meta.url), "utf8")
+  ]);
+  const layerSources = Array.from(
+    html.matchAll(/src="\/photos\/menu\/turtle-layers\/([^"]+)"/g),
+    (match) => match[1]
+  );
+  const expectedLayers = [
+    "menu-turtle-body.webp",
+    "menu-turtle-front-left.webp",
+    "menu-turtle-front-right.webp",
+    "menu-turtle-head.webp",
+    "menu-turtle-rear-left.webp",
+    "menu-turtle-rear-right.webp",
+    "menu-turtle-tail.webp"
+  ];
+  const layerStyles = css.slice(
+    css.indexOf(".turtle-core {"),
+    css.indexOf("@keyframes menu-turtle-hover")
+  );
+
+  assert.deepEqual([...new Set(layerSources)].sort(), expectedLayers);
+  assert.equal(layerSources.length, expectedLayers.length * 2);
+  assert.doesNotMatch(html, /storybook-sprout/);
+  assert.doesNotMatch(layerStyles, /clip-path/);
+});
 test("level 1 tutorial is restored when the level is replayed", () => {
   const targetKey = "0,1";
   const game = {
