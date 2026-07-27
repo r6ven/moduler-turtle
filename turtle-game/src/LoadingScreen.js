@@ -1,3 +1,5 @@
+import { LoadingTurtleAnimator } from "./LoadingTurtleAnimator.js";
+
 const LOADER_VARIANTS = new Set([
   "shell",
   "ripple",
@@ -13,6 +15,9 @@ export class LoadingScreen {
   constructor(root, message) {
     this.root = root;
     this.message = message;
+    this.turtleAnimator = root?.querySelectorAll
+      ? new LoadingTurtleAnimator(root)
+      : null;
     this.sequence = 0;
     this.shownAt = performance.now();
     this.previewVariant = this.getPreviewVariant();
@@ -32,6 +37,7 @@ export class LoadingScreen {
   show({ variant = "shell", message = "Ada hazırlanıyor" } = {}) {
     if (!this.root) return;
 
+    this.turtleAnimator?.start();
     this.sequence += 1;
     this.shownAt = performance.now();
     const selectedVariant = this.previewVariant || variant;
@@ -66,5 +72,6 @@ export class LoadingScreen {
 
     this.root.classList.remove("active", "leaving");
     this.root.setAttribute("aria-busy", "false");
+    this.turtleAnimator?.stop();
   }
 }

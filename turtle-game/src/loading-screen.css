@@ -149,39 +149,26 @@
   animation-delay: 320ms;
 }
 
-/* Design 1: shell compass */
-.loader-shell-mark {
+/* The same geometric turtle used by RendererTurtle.js */
+.loader-game-turtle {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 82px;
-  height: 98px;
-  border: 5px solid rgba(247, 237, 205, 0.92);
-  background:
-    radial-gradient(circle at 50% 48%, #efe5bd 0 15%, transparent 16%),
-    conic-gradient(
-      from 30deg,
-      #1f7778 0 16%,
-      #165e63 16% 33%,
-      #2c8582 33% 50%,
-      #14565c 50% 66%,
-      #2b8280 66% 83%,
-      #176267 83%
-    );
-  box-shadow: 0 8px 16px rgba(65, 52, 34, 0.2);
-  clip-path: polygon(50% 0, 92% 24%, 92% 75%, 50% 100%, 8% 75%, 8% 24%);
   transform: translate(-50%, -50%);
-  animation: loader-shell-breathe 3.2s ease-in-out infinite;
+  filter: drop-shadow(0 8px 7px rgba(65, 52, 34, 0.2));
 }
 
-.loader-shell-mark::before {
-  content: "✦";
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: var(--loader-olive);
-  font-size: 24px;
+.loader-shell-turtle {
+  width: 108px;
+  height: 128px;
+  animation: loader-turtle-float 3.2s ease-in-out infinite;
+}
+
+.loader-ripple-turtle {
+  z-index: 2;
+  width: 48px;
+  height: 58px;
+  animation: loader-turtle-circle 3.4s linear infinite;
 }
 
 .loader-orbit {
@@ -276,39 +263,6 @@
   animation: loader-water-pulse 2.8s ease-in-out infinite;
 }
 
-.loader-swimmer {
-  position: absolute;
-  top: calc(50% - 9px);
-  left: calc(50% - 7px);
-  width: 14px;
-  height: 20px;
-  border-radius: 50% 50% 42% 42%;
-  background: #dfe7ad;
-  box-shadow: 0 -7px 0 -3px #dfe7ad;
-  transform-origin: 50% 50%;
-  animation: loader-swimmer-circle 3.4s linear infinite;
-}
-
-.loader-swimmer::before,
-.loader-swimmer::after {
-  content: "";
-  position: absolute;
-  top: 5px;
-  width: 8px;
-  height: 4px;
-  border-radius: 80% 20% 80% 20%;
-  background: #94af66;
-}
-
-.loader-swimmer::before {
-  right: 10px;
-  transform: rotate(-28deg);
-}
-
-.loader-swimmer::after {
-  left: 10px;
-  transform: rotate(208deg);
-}
 
 /* Design 3: sprouting island */
 .loader-sun {
@@ -462,7 +416,7 @@
   30% { opacity: 1; transform: translateY(-4px) scale(1); }
 }
 
-@keyframes loader-shell-breathe {
+@keyframes loader-turtle-float {
   0%, 100% { transform: translate(-50%, -50%) rotate(-1deg) scale(0.98); }
   50% { transform: translate(-50%, -52%) rotate(1deg) scale(1.03); }
 }
@@ -491,9 +445,21 @@
   50% { filter: brightness(1.08); transform: translate(-50%, -50%) scale(1.035); }
 }
 
-@keyframes loader-swimmer-circle {
-  from { transform: rotate(0deg) translateY(-26px) rotate(0deg); }
-  to { transform: rotate(360deg) translateY(-26px) rotate(-360deg); }
+@keyframes loader-turtle-circle {
+  from {
+    transform:
+      translate(-50%, -50%)
+      rotate(0deg)
+      translateY(-34px)
+      rotate(0deg);
+  }
+  to {
+    transform:
+      translate(-50%, -50%)
+      rotate(360deg)
+      translateY(-34px)
+      rotate(-360deg);
+  }
 }
 
 @keyframes loader-sun-glow {

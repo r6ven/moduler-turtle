@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { LoadingScreen } from "../src/LoadingScreen.js";
+import { LoadingTurtleAnimator } from "../src/LoadingTurtleAnimator.js";
 
 globalThis.window = {
   setTimeout
@@ -87,4 +88,52 @@ test("unknown loading designs safely fall back to the shell", () => {
   loading.show({ variant: "unknown" });
 
   assert.equal(root.dataset.loaderVariant, "shell");
+});
+
+test("loading turtles reuse the in-game geometric renderer", () => {
+  let scheduledFrame = null;
+  let nextFrameId = 0;
+
+  window.devicePixelRatio = 2;
+  window.matchMedia = () => ({ matches: false });
+  window.requestAnimationFrame = (callback) => {
+    scheduledFrame = callback;
+    nextFrameId += 1;
+    return nextFrameId;
+  };
+  window.cancelAnimationFrame = () => {};
+
+  const calls = [];
+  const ctx = {
+    setTransform() {},
+    clearRect() {},
+    save() {},
+    translate() {},
+    scale() {},
+    restore() {}
+  };
+  const canvas = {
+    width: 0,
+    height: 0,
+    clientWidth: 108,
+    clientHeight: 128,
+    getBoundingClientRect: () => ({ width: 108, height: 128 }),
+    getContext: () => ctx
+  };
+  const animator = new LoadingTurtleAnimator({
+    querySelectorAll: () => [canvas]
+  });
+
+  animator.renderer.drawGeometricTurtle = (drawingContext, turtle) => {
+    calls.push({ drawingContext, turtle });
+  };
+  scheduledFrame(animator.startedAt + 100);
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].drawingContext, ctx);
+  assert.equal(calls[0].turtle.motionBlend, 0.82);
+  assert.equal(canvas.width, 216);
+  assert.equal(canvas.height, 256);
+
+  animator.stop();
 });

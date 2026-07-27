@@ -3479,7 +3479,16 @@ body.menu-open #gameCanvas {
 
 .turtle-core {
   z-index: 3;
-  clip-path: polygon(25% 16%, 75% 16%, 80% 72%, 64% 88%, 36% 88%, 20% 72%);
+  clip-path: polygon(
+    36% 15%,
+    64% 15%,
+    76% 36%,
+    76% 68%,
+    63% 87%,
+    37% 87%,
+    24% 68%,
+    24% 36%
+  );
   transform-origin: 50% 54%;
   animation-name: menu-turtle-core-swim;
 }
@@ -3503,26 +3512,26 @@ body.menu-open #gameCanvas {
 }
 
 .turtle-fin.front-left {
-  clip-path: polygon(0 14%, 42% 14%, 42% 59%, 0 63%);
-  transform-origin: 35% 39%;
+  clip-path: polygon(0 12%, 45% 12%, 45% 62%, 0 65%);
+  transform-origin: 33% 38%;
   animation-name: menu-turtle-front-left-swim;
 }
 
 .turtle-fin.front-right {
-  clip-path: polygon(58% 14%, 100% 14%, 100% 63%, 58% 59%);
-  transform-origin: 65% 39%;
+  clip-path: polygon(55% 12%, 100% 12%, 100% 65%, 55% 62%);
+  transform-origin: 67% 38%;
   animation-name: menu-turtle-front-right-swim;
 }
 
 .turtle-fin.rear-left {
-  clip-path: polygon(3% 50%, 44% 50%, 44% 98%, 3% 100%);
-  transform-origin: 37% 69%;
+  clip-path: polygon(2% 47%, 47% 47%, 47% 100%, 2% 100%);
+  transform-origin: 35% 71%;
   animation-name: menu-turtle-rear-left-swim;
 }
 
 .turtle-fin.rear-right {
-  clip-path: polygon(56% 50%, 97% 50%, 97% 100%, 56% 98%);
-  transform-origin: 63% 69%;
+  clip-path: polygon(53% 47%, 98% 47%, 98% 100%, 53% 100%);
+  transform-origin: 65% 71%;
   animation-name: menu-turtle-rear-right-swim;
 }
 
@@ -3555,29 +3564,29 @@ body.menu-open #gameCanvas {
 @keyframes menu-turtle-front-left-swim {
   0%, 40%, 76%, 100% { transform: rotate(0deg); }
   20%, 60% { transform: rotate(-2.2deg); }
-  80%, 86%, 92% { transform: rotate(-15deg); }
-  83%, 89%, 95% { transform: rotate(10deg); }
+  80%, 86%, 92% { transform: rotate(-11deg); }
+  83%, 89%, 95% { transform: rotate(8deg); }
 }
 
 @keyframes menu-turtle-front-right-swim {
   0%, 40%, 76%, 100% { transform: rotate(0deg); }
   20%, 60% { transform: rotate(2.2deg); }
-  80%, 86%, 92% { transform: rotate(15deg); }
-  83%, 89%, 95% { transform: rotate(-10deg); }
+  80%, 86%, 92% { transform: rotate(11deg); }
+  83%, 89%, 95% { transform: rotate(-8deg); }
 }
 
 @keyframes menu-turtle-rear-left-swim {
   0%, 40%, 76%, 100% { transform: rotate(0deg); }
   20%, 60% { transform: rotate(1.6deg); }
-  80%, 86%, 92% { transform: rotate(9deg); }
-  83%, 89%, 95% { transform: rotate(-7deg); }
+  80%, 86%, 92% { transform: rotate(7deg); }
+  83%, 89%, 95% { transform: rotate(-5deg); }
 }
 
 @keyframes menu-turtle-rear-right-swim {
   0%, 40%, 76%, 100% { transform: rotate(0deg); }
   20%, 60% { transform: rotate(-1.6deg); }
-  80%, 86%, 92% { transform: rotate(-9deg); }
-  83%, 89%, 95% { transform: rotate(7deg); }
+  80%, 86%, 92% { transform: rotate(-7deg); }
+  83%, 89%, 95% { transform: rotate(5deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
