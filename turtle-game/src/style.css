@@ -3279,35 +3279,6 @@ body.menu-open #gameCanvas {
   border-left: 1px dashed rgba(91, 67, 49, 0.72);
 }
 
-.storybook-close {
-  position: absolute;
-  z-index: 8;
-  top: 1.7%;
-  left: 4.5%;
-  display: grid;
-  width: clamp(34px, 10vw, 52px);
-  height: clamp(34px, 10vw, 52px);
-  padding: 0;
-  place-items: center;
-  border: 1px solid rgba(244, 238, 216, 0.1);
-  border-radius: 50%;
-  background: rgba(43, 45, 41, 0.9);
-  box-shadow: 0 6px 16px rgba(12, 15, 12, 0.26);
-  color: #f4efe4;
-  cursor: pointer;
-}
-
-.storybook-close span {
-  margin-top: -0.08em;
-  font-family: Inter, "Segoe UI", sans-serif;
-  font-size: clamp(28px, 8vw, 42px);
-  font-weight: 200;
-  line-height: 1;
-}
-
-.storybook-close:hover {
-  background: rgba(31, 78, 75, 0.94);
-}
 
 .storybook-auth-menu .storybook-brand {
   top: 8%;
@@ -3388,16 +3359,11 @@ body.menu-open #gameCanvas {
     max-height: 98dvh;
   }
 
-  .storybook-close {
-    top: 2.5%;
-    left: 5.5%;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .storybook-primary-action,
-  .storybook-secondary-action,
-  .storybook-close {
+  .storybook-secondary-action {
     transition: none;
   }
 }
@@ -3446,4 +3412,177 @@ body.menu-open #gameCanvas {
 
 .storybook-game-menu .progress-summary p {
   padding: 0;
+}
+/* Full-bleed menu and layered turtle motion. */
+#main-menu-overlay {
+  padding: 0;
+  background: #e8dcc3 url("/photos/menu/menu-background.webp") center / cover no-repeat;
+  backdrop-filter: none;
+}
+
+#main-menu-overlay::before {
+  display: none;
+}
+
+#main-menu-overlay .main-menu-card {
+  width: min(94vw, calc(96dvh * 0.45), 560px);
+  height: auto;
+  min-height: 0;
+  max-height: 96dvh;
+  aspect-ratio: 841 / 1870;
+  overflow: hidden;
+  background-size: 100% 100%;
+  filter: none;
+}
+
+@media (max-aspect-ratio: 3 / 4) {
+  #main-menu-overlay .main-menu-card {
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    max-height: none;
+    aspect-ratio: auto;
+  }
+}
+
+.menu-turtle-motion {
+  position: absolute;
+  z-index: 2;
+  top: 9.5%;
+  left: 50%;
+  width: 64%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  transform-origin: 50% 52%;
+  animation: menu-turtle-hover 4.8s ease-in-out infinite;
+  filter: drop-shadow(0 5px 2px rgba(68, 52, 35, 0.25));
+  pointer-events: none;
+  user-select: none;
+}
+
+.storybook-brand .menu-turtle-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
+  transform: none;
+  filter: none;
+  pointer-events: none;
+  user-select: none;
+  will-change: transform;
+  animation-duration: 10s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.turtle-core {
+  z-index: 3;
+  clip-path: polygon(25% 16%, 75% 16%, 80% 72%, 64% 88%, 36% 88%, 20% 72%);
+  transform-origin: 50% 54%;
+  animation-name: menu-turtle-core-swim;
+}
+
+.turtle-head {
+  z-index: 2;
+  clip-path: polygon(35% 0, 65% 0, 66% 31%, 34% 31%);
+  transform-origin: 50% 26%;
+  animation-name: menu-turtle-head-swim;
+}
+
+.turtle-tail {
+  z-index: 1;
+  clip-path: polygon(38% 73%, 62% 73%, 64% 100%, 36% 100%);
+  transform-origin: 50% 78%;
+  animation-name: menu-turtle-tail-swim;
+}
+
+.turtle-fin {
+  z-index: 1;
+}
+
+.turtle-fin.front-left {
+  clip-path: polygon(0 14%, 42% 14%, 42% 59%, 0 63%);
+  transform-origin: 35% 39%;
+  animation-name: menu-turtle-front-left-swim;
+}
+
+.turtle-fin.front-right {
+  clip-path: polygon(58% 14%, 100% 14%, 100% 63%, 58% 59%);
+  transform-origin: 65% 39%;
+  animation-name: menu-turtle-front-right-swim;
+}
+
+.turtle-fin.rear-left {
+  clip-path: polygon(3% 50%, 44% 50%, 44% 98%, 3% 100%);
+  transform-origin: 37% 69%;
+  animation-name: menu-turtle-rear-left-swim;
+}
+
+.turtle-fin.rear-right {
+  clip-path: polygon(56% 50%, 97% 50%, 97% 100%, 56% 98%);
+  transform-origin: 63% 69%;
+  animation-name: menu-turtle-rear-right-swim;
+}
+
+@keyframes menu-turtle-hover {
+  0%, 100% { transform: translateX(-50%) translateY(0) rotate(-0.35deg); }
+  50% { transform: translateX(-50%) translateY(-1.2%) rotate(0.35deg); }
+}
+
+@keyframes menu-turtle-core-swim {
+  0%, 20%, 40%, 60%, 76%, 100% { transform: translateY(0) scale(1); }
+  10%, 30%, 50%, 70% { transform: translateY(-0.25%) scale(1.004, 0.996); }
+  80%, 86%, 92% { transform: translateY(-1.2%) scale(1.012, 0.988); }
+  83%, 89%, 95% { transform: translateY(0.5%) scale(0.994, 1.006); }
+}
+
+@keyframes menu-turtle-head-swim {
+  0%, 40%, 76%, 100% { transform: translateY(0) rotate(0deg); }
+  20%, 60% { transform: translateY(-0.5%) rotate(1.2deg); }
+  80%, 86%, 92% { transform: translateY(-1.5%) rotate(-5deg); }
+  83%, 89%, 95% { transform: translateY(0.8%) rotate(4deg); }
+}
+
+@keyframes menu-turtle-tail-swim {
+  0%, 40%, 76%, 100% { transform: rotate(0deg); }
+  20%, 60% { transform: rotate(1.8deg); }
+  80%, 86%, 92% { transform: rotate(-6deg); }
+  83%, 89%, 95% { transform: rotate(6deg); }
+}
+
+@keyframes menu-turtle-front-left-swim {
+  0%, 40%, 76%, 100% { transform: rotate(0deg); }
+  20%, 60% { transform: rotate(-2.2deg); }
+  80%, 86%, 92% { transform: rotate(-15deg); }
+  83%, 89%, 95% { transform: rotate(10deg); }
+}
+
+@keyframes menu-turtle-front-right-swim {
+  0%, 40%, 76%, 100% { transform: rotate(0deg); }
+  20%, 60% { transform: rotate(2.2deg); }
+  80%, 86%, 92% { transform: rotate(15deg); }
+  83%, 89%, 95% { transform: rotate(-10deg); }
+}
+
+@keyframes menu-turtle-rear-left-swim {
+  0%, 40%, 76%, 100% { transform: rotate(0deg); }
+  20%, 60% { transform: rotate(1.6deg); }
+  80%, 86%, 92% { transform: rotate(9deg); }
+  83%, 89%, 95% { transform: rotate(-7deg); }
+}
+
+@keyframes menu-turtle-rear-right-swim {
+  0%, 40%, 76%, 100% { transform: rotate(0deg); }
+  20%, 60% { transform: rotate(-1.6deg); }
+  80%, 86%, 92% { transform: rotate(-9deg); }
+  83%, 89%, 95% { transform: rotate(7deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-turtle-motion,
+  .storybook-brand .menu-turtle-layer {
+    animation: none;
+  }
 }

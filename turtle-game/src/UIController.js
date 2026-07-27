@@ -37,7 +37,6 @@ export class UIController {
     this.savedLevelLabel = document.getElementById("saved-level-label");
     this.completedLevelLabel = document.getElementById("completed-level-label");
 
-    this.startGameButton = document.getElementById("start-game-btn");
     this.continueGameButton = document.getElementById("continue-game-btn");
     this.levelsButton = document.getElementById("levels-btn");
     this.recordsButton = document.getElementById("records-btn");
@@ -63,7 +62,6 @@ export class UIController {
     onToggleSound,
     onLogin,
     onRegister,
-    onStartGame,
     onContinueGame,
     onOpenLevels,
     onOpenRecords,
@@ -90,7 +88,6 @@ export class UIController {
       if (event.key === "Enter") onLogin();
     });
 
-    this.startGameButton.addEventListener("click", onStartGame);
     this.continueGameButton.addEventListener("click", onContinueGame);
     this.levelsButton.addEventListener("click", onOpenLevels);
     this.recordsButton.addEventListener("click", onOpenRecords);

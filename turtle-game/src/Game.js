@@ -83,7 +83,6 @@ export class Game {
       onToggleSound: () => this.toggleSound(),
       onLogin: () => this.login(),
       onRegister: () => this.register(),
-      onStartGame: () => this.closeMenu(),
       onContinueGame: () => this.continueGame(),
       onOpenLevels: () => this.openLevels(),
       onOpenRecords: () => this.openRecords(),
