@@ -3460,22 +3460,22 @@ body.menu-open #gameCanvas {
 }
 
 .turtle-fin.front-left {
-  transform-origin: 31% 28%;
+  transform-origin: 30% 25%;
   animation-name: menu-turtle-front-left-swim;
 }
 
 .turtle-fin.front-right {
-  transform-origin: 69% 28%;
+  transform-origin: 70% 25%;
   animation-name: menu-turtle-front-right-swim;
 }
 
 .turtle-fin.rear-left {
-  transform-origin: 30% 70%;
+  transform-origin: 28% 69%;
   animation-name: menu-turtle-rear-left-swim;
 }
 
 .turtle-fin.rear-right {
-  transform-origin: 70% 70%;
+  transform-origin: 72% 69%;
   animation-name: menu-turtle-rear-right-swim;
 }
 
