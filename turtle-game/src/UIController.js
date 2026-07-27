@@ -1,5 +1,11 @@
+import { LoadingScreen } from "./LoadingScreen.js";
+
 export class UIController {
   constructor() {
+    this.loadingScreen = new LoadingScreen(
+      document.getElementById("loading-overlay"),
+      document.getElementById("loading-message")
+    );
     this.levelValue = document.getElementById("lvl-val");
     this.moveValue = document.getElementById("move-val");
     this.hintValue = document.getElementById("hint-val");
@@ -118,6 +124,14 @@ export class UIController {
 
   clearPassword() {
     this.passwordInput.value = "";
+  }
+
+  showLoading(options = {}) {
+    this.loadingScreen.show(options);
+  }
+
+  hideLoading(options = {}) {
+    return this.loadingScreen.hide(options);
   }
 
   setAuthMessage(message, type = "info") {

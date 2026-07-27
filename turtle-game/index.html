@@ -6,6 +6,56 @@
   <title>Zen Kaplumbağa: Sonsuz Ada Bahçesi</title>
 </head>
 <body>
+  <div
+    id="loading-overlay"
+    class="loading-overlay active"
+    data-loader-variant="shell"
+    role="status"
+    aria-live="polite"
+    aria-busy="true"
+  >
+    <div class="loading-paper-grain" aria-hidden="true"></div>
+    <div class="loading-stage" aria-hidden="true">
+      <div class="loader-scene loader-shell-scene">
+        <span class="loader-orbit orbit-one"></span>
+        <span class="loader-orbit orbit-two"></span>
+        <span class="loader-shell-mark"></span>
+        <span class="loader-leaf leaf-one"></span>
+        <span class="loader-leaf leaf-two"></span>
+      </div>
+      <div class="loader-scene loader-ripple-scene">
+        <span class="loader-ripple ripple-one"></span>
+        <span class="loader-ripple ripple-two"></span>
+        <span class="loader-ripple ripple-three"></span>
+        <span class="loader-water-core"></span>
+        <span class="loader-swimmer"></span>
+      </div>
+      <div class="loader-scene loader-sprout-scene">
+        <span class="loader-sun"></span>
+        <span class="loader-island"></span>
+        <span class="loader-stem"></span>
+        <span class="loader-sprout-leaf sprout-left"></span>
+        <span class="loader-sprout-leaf sprout-right"></span>
+        <span class="loader-ground-wave"></span>
+      </div>
+      <div class="loader-scene loader-channel-scene">
+        <svg viewBox="0 0 240 104" focusable="false">
+          <path class="loader-channel-bank" d="M24 72 C62 72 65 30 105 30 S153 74 216 74" />
+          <path class="loader-channel-water" d="M24 72 C62 72 65 30 105 30 S153 74 216 74" />
+          <path class="loader-channel-glint" d="M24 72 C62 72 65 30 105 30 S153 74 216 74" />
+        </svg>
+        <span class="loader-channel-node node-one"></span>
+        <span class="loader-channel-node node-two"></span>
+        <span class="loader-channel-node node-three"></span>
+      </div>
+    </div>
+    <div class="loading-copy">
+      <span class="loading-eyebrow">Sonsuz Ada Bahçesi</span>
+      <strong id="loading-message">Ada hazırlanıyor</strong>
+      <span class="loading-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+    </div>
+  </div>
+
   <div id="game-container">
     <canvas id="gameCanvas"></canvas>
 

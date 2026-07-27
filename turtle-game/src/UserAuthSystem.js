@@ -32,6 +32,14 @@ export class UserAuthSystem {
     );
   }
 
+  hasRememberedDeviceSession() {
+    try {
+      return Boolean(localStorage.getItem(DEVICE_SESSION_KEY));
+    } catch {
+      return false;
+    }
+  }
+
   usesSessionToken() {
     return Boolean(this.currentSessionToken);
   }

@@ -77,6 +77,14 @@ export class Game {
   }
 
   start() {
+    const hasRememberedSession = this.auth.hasRememberedDeviceSession();
+
+    this.ui.showLoading({
+      variant: hasRememberedSession ? "channel" : "shell",
+      message: hasRememberedSession
+        ? "Su yolları yeniden bağlanıyor"
+        : "Ada hazırlanıyor"
+    });
     this.ui.bind({
       onNextLevel: () => this.nextLevel(),
       onHint: () => this.useHint(),
@@ -113,7 +121,7 @@ export class Game {
     this.ui.showAuthMenu();
 
     if (!this.debugPerformanceMode) {
-      void this.restoreDeviceSession();
+      void this.finishStartupLoading();
     }
 
     if (this.debugPerformanceMode) {
@@ -122,6 +130,7 @@ export class Game {
       this.progress.startTimer();
       this.resumeAnimationClock();
       this.showTutorialIfNeeded();
+      void this.ui.hideLoading({ minimumMs: 180 });
     }
 
     if (this.debugPerformanceMode) {
@@ -141,6 +150,17 @@ export class Game {
     }
 
     this.loop();
+  }
+
+  async finishStartupLoading() {
+    try {
+      await this.restoreDeviceSession();
+    } catch (error) {
+      console.error("Session restore failed", error);
+      this.ui.setAuthMessage("Oturum kontrolü tamamlanamadı.", "error");
+    } finally {
+      await this.ui.hideLoading({ minimumMs: 780 });
+    }
   }
 
   getInitialQuality() {
@@ -550,14 +570,27 @@ export class Game {
 
   async login() {
     const { username, password } = this.ui.getAuthCredentials();
-    const result = await this.auth.login(username, password);
 
-    if (!result.ok) {
-      this.ui.setAuthMessage(result.error, "error");
-      return;
+    this.ui.showLoading({
+      variant: "ripple",
+      message: "Dalgalar seni adaya taşıyor"
+    });
+
+    try {
+      const result = await this.auth.login(username, password);
+
+      if (!result.ok) {
+        this.ui.setAuthMessage(result.error, "error");
+        return;
+      }
+
+      this.afterAuthSuccess("Giriş başarılı.");
+    } catch (error) {
+      console.error("Login failed", error);
+      this.ui.setAuthMessage("Giriş sırasında bağlantı kurulamadı.", "error");
+    } finally {
+      await this.ui.hideLoading({ minimumMs: 680 });
     }
-
-    this.afterAuthSuccess("Giriş başarılı.");
   }
 
   async restoreDeviceSession() {
@@ -574,14 +607,27 @@ export class Game {
 
   async register() {
     const { username, password } = this.ui.getAuthCredentials();
-    const result = await this.auth.register(username, password);
 
-    if (!result.ok) {
-      this.ui.setAuthMessage(result.error, "error");
-      return;
+    this.ui.showLoading({
+      variant: "sprout",
+      message: "Yeni bir ada filizleniyor"
+    });
+
+    try {
+      const result = await this.auth.register(username, password);
+
+      if (!result.ok) {
+        this.ui.setAuthMessage(result.error, "error");
+        return;
+      }
+
+      this.afterAuthSuccess("Kayıt oluşturuldu.");
+    } catch (error) {
+      console.error("Registration failed", error);
+      this.ui.setAuthMessage("Kayıt sırasında bağlantı kurulamadı.", "error");
+    } finally {
+      await this.ui.hideLoading({ minimumMs: 720 });
     }
-
-    this.afterAuthSuccess("Kayıt oluşturuldu.");
   }
 
   afterAuthSuccess(message) {
