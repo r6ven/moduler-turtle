@@ -45,27 +45,18 @@
   </div>
 
   <div id="main-menu-overlay" class="active">
-    <div id="auth-card" class="main-menu-card">
-      <header class="menu-brand">
-        <div class="menu-brand-mark" aria-hidden="true">
-          <span class="brand-hex"></span>
-          <span class="brand-channel"></span>
-          <span class="brand-turtle">
-            <i class="brand-head"></i>
-            <i class="brand-shell"></i>
-          </span>
-        </div>
-        <div class="menu-brand-copy">
-          <span class="menu-eyebrow">Sonsuz Ada Bahçesi</span>
-          <h1><span>Zen</span><span>Kaplumbağa</span></h1>
-        </div>
+    <div id="auth-card" class="main-menu-card storybook-auth-menu">
+      <header class="storybook-brand">
+        <p class="storybook-eyebrow">Sonsuz Ada Bahçesi</p>
+        <span class="storybook-sprout" aria-hidden="true">◆</span>
+        <img
+          class="menu-turtle-layer"
+          src="/photos/menu/menu-turtle-emblem.webp"
+          alt=""
+          aria-hidden="true"
+        />
+        <h1><span>Zen</span><span>Kaplumbağa</span></h1>
       </header>
-
-      <div class="menu-flow-preview" aria-hidden="true">
-        <span class="menu-flow-source"></span>
-        <span class="menu-flow-channel"><i></i></span>
-        <span class="menu-flow-sink"></span>
-      </div>
 
       <div class="auth-form">
         <input id="username-input" class="auth-input" type="text" autocomplete="username" placeholder="Kullanıcı adı" maxlength="24" />
@@ -77,51 +68,85 @@
       <div id="auth-message" class="auth-message"></div>
     </div>
 
-    <div id="game-menu-card" class="main-menu-card hidden">
-      <header class="menu-brand compact-brand">
-        <div class="menu-brand-mark" aria-hidden="true">
-          <span class="brand-hex"></span>
-          <span class="brand-channel"></span>
-          <span class="brand-turtle">
-            <i class="brand-head"></i>
-            <i class="brand-shell"></i>
-          </span>
-        </div>
-        <div class="menu-brand-copy">
-          <span class="menu-eyebrow">Sonsuz Ada Bahçesi</span>
-          <h1><span>Zen</span><span>Kaplumbağa</span></h1>
-        </div>
+    <div id="game-menu-card" class="main-menu-card storybook-game-menu hidden">
+      <button
+        class="storybook-close return-btn"
+        id="start-game-btn"
+        type="button"
+        aria-label="Oyuna dön"
+      >
+        <span aria-hidden="true">×</span>
+      </button>
+
+      <header class="storybook-brand">
+        <p class="storybook-eyebrow">Sonsuz Ada Bahçesi</p>
+        <span class="storybook-sprout" aria-hidden="true">◆</span>
+        <img
+          class="menu-turtle-layer"
+          src="/photos/menu/menu-turtle-emblem.webp"
+          alt=""
+          aria-hidden="true"
+        />
+        <h1><span>Zen</span><span>Kaplumbağa</span></h1>
       </header>
 
-      <div class="menu-flow-preview" aria-hidden="true">
-        <span class="menu-flow-source"></span>
-        <span class="menu-flow-channel"><i></i></span>
-        <span class="menu-flow-sink"></span>
-      </div>
-
       <div class="player-summary">
-        <p id="current-user-label" class="player-name">Oyuncu</p>
+        <img
+          class="menu-progress-frame-layer"
+          src="/photos/menu/menu-progress-frame.webp"
+          alt=""
+          aria-hidden="true"
+        />
+        <img
+          class="menu-island-badge-layer"
+          src="/photos/menu/menu-island-badge.webp"
+          alt=""
+          aria-hidden="true"
+        />
         <div class="progress-summary">
-          <p id="saved-level-label">Ada 1</p>
-          <p id="completed-level-label">0 tamamlandı</p>
+          <div class="progress-title-row">
+            <p id="current-user-label" class="player-name">Oyuncu</p>
+            <span aria-hidden="true">·</span>
+            <p id="saved-level-label">Ada 1</p>
+          </div>
+          <p id="completed-level-label">0 bölüm tamamlandı</p>
         </div>
       </div>
 
-      <button class="menu-btn primary" id="continue-game-btn">Devam Et</button>
-      <button class="menu-btn return-btn" id="start-game-btn">Oyuna Dön</button>
+      <button class="menu-btn primary storybook-primary-action" id="continue-game-btn">
+        Devam Et
+      </button>
 
       <div class="menu-action-grid">
-        <button class="menu-btn" id="levels-btn">Bölümler</button>
-        <button class="menu-btn" id="records-btn">Rekorlar</button>
+        <button class="menu-btn storybook-secondary-action" id="levels-btn">
+          <svg viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M32 7 48 18v25L32 56 16 43V18Z" />
+            <path d="M32 19v25M32 30c-7-7-11-6-13-5 2 7 6 10 13 10M32 28c7-7 11-6 13-5-2 7-6 10-13 10" />
+          </svg>
+          <span>Bölümler</span>
+        </button>
+        <button class="menu-btn storybook-secondary-action" id="records-btn">
+          <svg viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M22 11h20v9c0 10-4 17-10 20-6-3-10-10-10-20Z" />
+            <path d="M22 16H12c0 11 5 17 14 17M42 16h10c0 11-5 17-14 17M32 40v10M22 54h20" />
+          </svg>
+          <span>Rekorlar</span>
+        </button>
       </div>
 
       <div class="menu-footer-actions">
-        <button class="menu-btn ghost danger-text" id="restart-game-btn">Kayıtları Sıfırla</button>
-        <button class="menu-btn ghost" id="logout-btn">Çıkış Yap</button>
+        <button class="menu-btn ghost danger-text" id="restart-game-btn">
+          <span aria-hidden="true">↻</span>
+          Kayıtları Sıfırla
+        </button>
+        <span class="storybook-footer-divider" aria-hidden="true"></span>
+        <button class="menu-btn ghost" id="logout-btn">
+          <span aria-hidden="true">▯</span>
+          Çıkış Yap
+        </button>
       </div>
     </div>
   </div>
-
   <div id="level-select-overlay">
     <div class="level-select-card">
       <h2>Bölümler</h2>

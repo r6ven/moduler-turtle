@@ -2906,3 +2906,544 @@ body.menu-open #gameCanvas {
   .menu-flow-sink::after { inset: 13px; }
   .menu-flow-channel { right: 33px; left: 33px; height: 11px; }
 }
+
+/* Layered storybook main menu composed from public/photos/menu assets. */
+#main-menu-overlay {
+  --storybook-ink: #49372d;
+  --storybook-teal: #195f62;
+  --storybook-olive: #6e7134;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(92, 83, 69, 0.42), transparent 52%),
+    linear-gradient(180deg, #4c4740 0%, #2c2d29 100%);
+  backdrop-filter: blur(9px) saturate(0.72);
+}
+
+#main-menu-overlay::before {
+  z-index: 0;
+  opacity: 0.28;
+  background:
+    radial-gradient(circle at 18% 78%, rgba(8, 14, 10, 0.55), transparent 28%),
+    linear-gradient(115deg, rgba(255, 255, 255, 0.025), transparent 32% 68%, rgba(0, 0, 0, 0.12));
+  mask-image: none;
+}
+
+#main-menu-overlay .main-menu-card {
+  position: relative;
+  z-index: 2;
+  width: min(94vw, calc(96dvh * 0.45), 560px);
+  height: auto;
+  max-width: none;
+  max-height: 96dvh;
+  aspect-ratio: 841 / 1870;
+  overflow: visible;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: url("/photos/menu/menu-background.webp") center / 100% 100% no-repeat;
+  box-shadow: none;
+  color: var(--storybook-ink);
+  filter: drop-shadow(0 22px 30px rgba(9, 12, 10, 0.42));
+  scrollbar-width: none;
+}
+
+#main-menu-overlay .main-menu-card.hidden {
+  display: none;
+}
+
+.storybook-brand {
+  position: absolute;
+  top: 6.4%;
+  right: 7.5%;
+  left: 13.5%;
+  height: 49.5%;
+  text-align: center;
+}
+
+.storybook-eyebrow {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  margin: 0;
+  color: #553f32;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(9px, 2.5vw, 15px);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.storybook-eyebrow::after {
+  content: "";
+  display: block;
+  width: 42%;
+  height: 1px;
+  margin: 11px auto 0;
+  background: linear-gradient(90deg, transparent, #8b8156 18% 42%, transparent 42% 58%, #8b8156 58% 82%, transparent);
+  opacity: 0.72;
+}
+
+.storybook-sprout {
+  position: absolute;
+  top: 7.5%;
+  left: 50%;
+  color: var(--storybook-olive);
+  font-size: clamp(10px, 2.8vw, 17px);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.menu-turtle-layer {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  width: 47%;
+  height: auto;
+  max-height: 64%;
+  object-fit: contain;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 5px 2px rgba(68, 52, 35, 0.25));
+  user-select: none;
+  pointer-events: none;
+}
+
+#main-menu-overlay .storybook-brand h1 {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  margin: 0;
+  color: var(--storybook-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(42px, 12vw, 74px);
+  font-weight: 400;
+  line-height: 0.73;
+  letter-spacing: -0.045em;
+  text-shadow: 0 1px 0 rgba(255, 250, 230, 0.72);
+}
+
+#main-menu-overlay .storybook-brand h1 span {
+  display: block;
+}
+
+#main-menu-overlay .storybook-brand h1 span:first-child {
+  color: #0d666a;
+  font-size: 1.08em;
+  font-style: italic;
+}
+
+#main-menu-overlay .storybook-brand h1 span + span {
+  margin-top: 0.06em;
+  color: #3f3028;
+  font-size: 0.68em;
+  letter-spacing: -0.055em;
+}
+
+.storybook-game-menu .player-summary {
+  position: absolute;
+  top: 58.5%;
+  right: 12.5%;
+  left: 18.5%;
+  width: auto;
+  height: 9.7%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--storybook-ink);
+}
+
+.menu-progress-frame-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  filter: drop-shadow(0 3px 2px rgba(61, 45, 31, 0.2));
+  pointer-events: none;
+}
+
+.menu-island-badge-layer {
+  position: absolute;
+  z-index: 2;
+  top: 14%;
+  bottom: 14%;
+  left: 5.5%;
+  width: auto;
+  max-width: 23%;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 1px rgba(68, 54, 39, 0.2));
+  pointer-events: none;
+}
+
+.storybook-game-menu .progress-summary {
+  position: absolute;
+  z-index: 3;
+  top: 20%;
+  right: 8%;
+  bottom: 17%;
+  left: 30%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+}
+
+.progress-title-row {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.42em;
+  color: var(--storybook-teal);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(9px, 2.8vw, 17px);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+}
+
+.storybook-game-menu .player-name,
+.storybook-game-menu .progress-summary p {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 0;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.storybook-game-menu #completed-level-label {
+  width: 100%;
+  margin-top: 0.18em;
+  overflow: visible;
+  line-height: 1.1;
+  color: #5a4637;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(8px, 2.45vw, 15px);
+  font-weight: 400;
+  letter-spacing: 0.015em;
+}
+
+.storybook-primary-action,
+.storybook-secondary-action {
+  isolation: isolate;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+  box-shadow: none !important;
+  transform: translateY(0);
+}
+
+.storybook-primary-action {
+  position: absolute;
+  top: 69.7%;
+  right: 14.5%;
+  left: 20.5%;
+  width: auto;
+  min-height: 0;
+  height: 8.4%;
+  margin: 0 !important;
+  padding: 0 5%;
+  background-image: url("/photos/menu/menu-primary-button-frame.webp") !important;
+  color: #fff9e9 !important;
+  font-family: Georgia, "Times New Roman", serif !important;
+  font-size: clamp(16px, 4.8vw, 28px) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  text-shadow: 0 2px 0 rgba(95, 54, 20, 0.42);
+}
+
+#main-menu-overlay #continue-game-btn::before {
+  display: none;
+  content: none;
+}
+
+.storybook-primary-action:hover,
+.storybook-secondary-action:hover {
+  filter: brightness(1.05) drop-shadow(0 3px 3px rgba(64, 45, 28, 0.2));
+  transform: translateY(-1px);
+}
+
+.storybook-primary-action:active,
+.storybook-secondary-action:active {
+  filter: brightness(0.97);
+  transform: translateY(1px);
+}
+
+.storybook-game-menu .menu-action-grid {
+  position: absolute;
+  top: 79.8%;
+  right: 13.2%;
+  left: 18.8%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2.3%;
+  width: auto;
+  height: 8.7%;
+  margin: 0;
+}
+
+.storybook-secondary-action {
+  display: flex !important;
+  min-width: 0;
+  min-height: 0 !important;
+  height: 100%;
+  margin: 0 !important;
+  padding: 7% 8% 6% !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2%;
+  background-image: url("/photos/menu/menu-secondary-button-frame.webp") !important;
+  color: #174f53 !important;
+  font-family: Georgia, "Times New Roman", serif !important;
+  font-size: clamp(10px, 2.9vw, 17px) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+#main-menu-overlay #levels-btn::before,
+#main-menu-overlay #records-btn::before {
+  display: none;
+  content: none;
+}
+
+.storybook-secondary-action svg {
+  width: clamp(21px, 7vw, 38px);
+  height: clamp(21px, 7vw, 38px);
+  overflow: visible;
+  fill: none;
+  stroke: #1f6666;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.storybook-game-menu .menu-footer-actions {
+  position: absolute;
+  top: 90.3%;
+  right: 13.5%;
+  left: 20.5%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) 1px minmax(0, 0.9fr);
+  align-items: center;
+  gap: 4%;
+  width: auto;
+  height: 4.5%;
+  margin: 0;
+}
+
+.storybook-game-menu .menu-footer-actions .menu-btn {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #574335;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(8px, 2.25vw, 13px);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.storybook-game-menu .menu-footer-actions .menu-btn span {
+  margin-right: 0.45em;
+  color: #735d3f;
+  font-size: 1.45em;
+}
+
+.storybook-game-menu .menu-footer-actions .danger-text {
+  color: #574335;
+}
+
+.storybook-footer-divider {
+  width: 1px;
+  height: 60%;
+  border-left: 1px dashed rgba(91, 67, 49, 0.72);
+}
+
+.storybook-close {
+  position: absolute;
+  z-index: 8;
+  top: 1.7%;
+  left: 4.5%;
+  display: grid;
+  width: clamp(34px, 10vw, 52px);
+  height: clamp(34px, 10vw, 52px);
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(244, 238, 216, 0.1);
+  border-radius: 50%;
+  background: rgba(43, 45, 41, 0.9);
+  box-shadow: 0 6px 16px rgba(12, 15, 12, 0.26);
+  color: #f4efe4;
+  cursor: pointer;
+}
+
+.storybook-close span {
+  margin-top: -0.08em;
+  font-family: Inter, "Segoe UI", sans-serif;
+  font-size: clamp(28px, 8vw, 42px);
+  font-weight: 200;
+  line-height: 1;
+}
+
+.storybook-close:hover {
+  background: rgba(31, 78, 75, 0.94);
+}
+
+.storybook-auth-menu .storybook-brand {
+  top: 8%;
+  height: 48%;
+}
+
+.storybook-auth-menu .auth-form {
+  position: absolute;
+  top: 59.5%;
+  right: 14%;
+  left: 20%;
+  width: auto;
+  margin: 0;
+}
+
+.storybook-auth-menu .auth-input {
+  height: clamp(39px, 7dvh, 52px);
+  border: 1px solid rgba(87, 67, 52, 0.35);
+  border-radius: 3px;
+  background: rgba(255, 248, 225, 0.83);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 2px 3px rgba(65, 48, 35, 0.12);
+  color: #403128;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.storybook-auth-menu #login-btn,
+.storybook-auth-menu #register-btn {
+  position: absolute;
+  right: 15%;
+  left: 21%;
+  width: auto;
+  min-height: 0;
+  height: 7.2%;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  box-shadow: none;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(13px, 3.7vw, 21px);
+  text-transform: uppercase;
+}
+
+.storybook-auth-menu #login-btn {
+  top: 75%;
+  background-image: url("/photos/menu/menu-primary-button-frame.webp");
+  color: #fff9e9;
+}
+
+.storybook-auth-menu #register-btn {
+  top: 83%;
+  background-image: url("/photos/menu/menu-secondary-button-frame.webp");
+  color: var(--storybook-teal);
+}
+
+.storybook-auth-menu .auth-message {
+  position: absolute;
+  top: 91%;
+  right: 16%;
+  left: 21%;
+  margin: 0;
+  font-size: clamp(8px, 2vw, 12px);
+  text-align: center;
+}
+
+#main-menu-overlay button:focus-visible,
+#main-menu-overlay input:focus-visible {
+  outline: 3px solid rgba(27, 111, 111, 0.72);
+  outline-offset: 2px;
+}
+
+@media (max-height: 680px) {
+  #main-menu-overlay .main-menu-card {
+    width: min(92vw, calc(98dvh * 0.45), 520px);
+    max-height: 98dvh;
+  }
+
+  .storybook-close {
+    top: 2.5%;
+    left: 5.5%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .storybook-primary-action,
+  .storybook-secondary-action,
+  .storybook-close {
+    transition: none;
+  }
+}
+/* Storybook composition polish after mobile visual QA. */
+.storybook-sprout {
+  width: 20px;
+  height: 18px;
+  color: transparent;
+  font-size: 0;
+  transform: translateX(-50%);
+}
+
+.storybook-sprout::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  height: 15px;
+  border-radius: 2px;
+  background: var(--storybook-olive);
+  transform: translateX(-50%);
+}
+
+.storybook-sprout::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 3px;
+  width: 8px;
+  height: 5px;
+  border-radius: 90% 12% 90% 12%;
+  background: var(--storybook-olive);
+  box-shadow: 7px -5px 0 var(--storybook-olive);
+  transform: rotate(30deg);
+}
+
+.storybook-brand .menu-turtle-layer {
+  top: 9.5%;
+  width: 64%;
+}
+
+#main-menu-overlay .storybook-brand h1 {
+  bottom: 9%;
+}
+
+.storybook-game-menu .progress-summary p {
+  padding: 0;
+}

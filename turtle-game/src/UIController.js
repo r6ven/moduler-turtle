@@ -197,10 +197,14 @@ export class UIController {
     this.authCard.classList.add("hidden");
     this.gameMenuCard.classList.remove("hidden");
 
-    this.currentUserLabel.innerText = `Oyuncu · ${username}`;
-    this.savedLevelLabel.innerText = `Ada ${level}`;
-    this.completedLevelLabel.innerText = `${completedCount} tamamlandı`;
-    this.continueGameButton.innerText = `Devam Et · Ada ${level}`;
+    this.currentUserLabel.innerText = String(username || "Oyuncu").toUpperCase();
+    this.savedLevelLabel.innerText = `ADA ${level}`;
+    this.completedLevelLabel.innerText = `${completedCount} bölüm tamamlandı`;
+    this.continueGameButton.innerText = "DEVAM ET";
+    this.continueGameButton.setAttribute(
+      "aria-label",
+      `Devam et, Ada ${level}`
+    );
 
     this.showMainMenu();
   }
