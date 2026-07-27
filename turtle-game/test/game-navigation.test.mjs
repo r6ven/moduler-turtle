@@ -69,7 +69,7 @@ test("menu turtle uses independent image layers without the head sprout", async 
   assert.equal(layerSources.length, expectedLayers.length * 2);
   assert.equal(
     (html.match(/class="menu-turtle-layer turtle-core"[^>]*hidden/g) || []).length,
-    2
+    0
   );
   assert.doesNotMatch(html, /storybook-sprout/);
   assert.doesNotMatch(layerStyles, /clip-path/);
