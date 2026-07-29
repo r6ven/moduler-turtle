@@ -1,7 +1,9 @@
 import { CONFIG } from "./config.js";
 import { tileKey } from "./HexMath.js";
 import { AudioSystem } from "./AudioSystem.js";
+import { EndlessSprintSession } from "./EndlessSprintSession.js";
 import { InputManager } from "./InputManager.js";
+import { ModeRecordStore } from "./ModeRecordStore.js";
 import { ParticleSystem } from "./ParticleSystem.js";
 import { ProgressSystem } from "./ProgressSystem.js";
 import { PuzzleGenerator } from "./PuzzleGenerator.js";
@@ -18,6 +20,9 @@ export class Game {
 
     this.auth = new UserAuthSystem();
     this.progress = new ProgressSystem(this.auth);
+    this.modeRecords = new ModeRecordStore();
+    this.endlessSprint = new EndlessSprintSession();
+    this.gameMode = "story";
 
     this.level = 1;
     this.mapRadius = CONFIG.difficulty.getMapRadius(this.level);
@@ -92,6 +97,7 @@ export class Game {
       onLogin: () => this.login(),
       onRegister: () => this.register(),
       onContinueGame: () => this.continueGame(),
+      onStartEndless: (settings) => this.startEndlessSprint(settings),
       onOpenLevels: () => this.openLevels(),
       onOpenRecords: () => this.openRecords(),
       onSelectLevel: (level) => this.selectLevel(level),
@@ -331,6 +337,20 @@ export class Game {
     return this.debugPerformanceMode || this.auth.hasCurrentUser();
   }
 
+  getActiveProgress() {
+    return this.gameMode === "endless" && this.endlessSprint.active
+      ? this.endlessSprint
+      : this.progress;
+  }
+
+  pauseActiveTimer() {
+    this.getActiveProgress().pauseTimer();
+  }
+
+  startActiveTimer() {
+    this.getActiveProgress().startTimer();
+  }
+
   resumeAnimationClock(timestamp = performance.now()) {
     this.lastLoopTimestamp = timestamp;
     this.lastRenderAt = 0;
@@ -346,7 +366,7 @@ export class Game {
     this.resumeAnimationClock(now);
 
     if (this.pageHidden) {
-      this.progress.pauseTimer();
+      this.pauseActiveTimer();
       return;
     }
 
@@ -355,7 +375,7 @@ export class Game {
       !this.levelCompleted &&
       this.hasPlayableSession()
     ) {
-      this.progress.startTimer();
+      this.startActiveTimer();
     }
   }
 
@@ -526,6 +546,7 @@ export class Game {
   }
 
   generateLevel() {
+    this.gameMode = "story";
     this.levelCompleted = false;
     this.lastTimerSecond = -1;
     this.resetPerformanceSamples();
@@ -561,6 +582,52 @@ export class Game {
 
     this.ui.updateStats(this.progress);
     this.ui.updateTimer(0);
+
+    this.turtle.reset(0, 0, this.hexRadius);
+    this.turtle.speed = 0.08;
+
+    this.checkConnections({ allowCompletion: false });
+  }
+
+  generateEndlessPuzzle() {
+    const status = this.endlessSprint.getStatus();
+
+    this.gameMode = "endless";
+    this.levelCompleted = false;
+    this.lastTimerSecond = -1;
+    this.resetPerformanceSamples();
+    this.victoryTour.active = false;
+    this.victoryTour.path = [];
+    this.victoryTour.index = 0;
+    this.victoryTour.nextAt = 0;
+    this.victoryTour.result = null;
+    this.victoryTour.revealAt = 0;
+
+    this.particles.clear();
+    this.ui.hideCompletion();
+    this.ui.updateSprintHeader(status.puzzleIndex, status.sprintLength);
+
+    const generated = PuzzleGenerator.generate(
+      this.endlessSprint.getCurrentPuzzleRequest()
+    );
+    const mapRadiusChanged = this.mapRadius !== generated.mapRadius;
+
+    this.mapRadius = generated.mapRadius;
+    this.grid = generated.grid;
+
+    if (mapRadiusChanged) {
+      this.resizeCanvas();
+    }
+
+    this.renderer.invalidateGrid();
+    this.endlessSprint.beginPuzzle({
+      minimumMoves: generated.minimumMoves,
+      activeTileCount: generated.activeTileCount
+    });
+    this.configureTutorial(null);
+
+    this.ui.updateStats(this.endlessSprint);
+    this.ui.updateTimer(this.endlessSprint.getElapsedSeconds());
 
     this.turtle.reset(0, 0, this.hexRadius);
     this.turtle.speed = 0.08;
@@ -637,6 +704,7 @@ export class Game {
     this.ui.setAuthMessage(message);
 
     this.progress.loadForCurrentUser();
+    this.endlessSprint.reset();
     this.level = this.progress.getSavedLevel();
 
     this.generateLevel();
@@ -650,7 +718,8 @@ export class Game {
   }
 
   logout() {
-    this.progress.pauseTimer();
+    this.pauseActiveTimer();
+    this.endlessSprint.reset();
     this.auth.logout();
     this.progress.loadForCurrentUser();
 
@@ -663,7 +732,7 @@ export class Game {
 
   openMenu() {
     this.menuOpen = true;
-    this.progress.pauseTimer();
+    this.pauseActiveTimer();
     this.resetPerformanceSamples();
     this.ui.hideTutorial();
 
@@ -673,6 +742,11 @@ export class Game {
         this.progress.getSavedLevel(),
         this.progress.getCompletedLevels().length
       );
+      this.ui.updateEndlessSprintMenu(this.endlessSprint.getStatus());
+
+      if (this.gameMode === "endless" && this.endlessSprint.active) {
+        this.ui.showMenuMode("endless");
+      }
     } else {
       this.ui.showAuthMenu();
     }
@@ -689,7 +763,7 @@ export class Game {
     this.ui.hideLevelSelect();
     this.ui.hideRecords();
     this.ui.hideMainMenu();
-    this.progress.startTimer();
+    this.startActiveTimer();
     this.resumeAnimationClock();
     this.showTutorialIfNeeded();
   }
@@ -702,11 +776,41 @@ export class Game {
 
     const savedLevel = this.progress.getSavedLevel();
 
-    if (this.level !== savedLevel || this.levelCompleted) {
+    if (
+      this.gameMode === "endless" &&
+      this.endlessSprint.active &&
+      !this.endlessSprint.isComplete()
+    ) {
+      this.endlessSprint.reset();
+    }
+
+    if (
+      this.gameMode !== "story" ||
+      this.level !== savedLevel ||
+      this.levelCompleted
+    ) {
       this.level = savedLevel;
       this.generateLevel();
     }
 
+    this.closeMenu();
+  }
+
+  startEndlessSprint(settings = {}) {
+    if (!this.auth.hasCurrentUser()) {
+      this.closeMenu();
+      return;
+    }
+
+    if (this.endlessSprint.active && !this.endlessSprint.isComplete()) {
+      this.gameMode = "endless";
+      this.closeMenu();
+      return;
+    }
+
+    this.audio.init();
+    this.endlessSprint.start(settings);
+    this.generateEndlessPuzzle();
     this.closeMenu();
   }
 
@@ -720,26 +824,24 @@ export class Game {
   async openRecords() {
     if (!this.auth.hasCurrentUser()) return;
 
-    this.ui.showRecords([
-      {
-        username: "Yükleniyor...",
-        best_by_level: {}
-      }
-    ]);
+    const modeRecords = this.modeRecords.read();
+
+    this.ui.showRecords({
+      storyMessage: "Hikâye rekorları yükleniyor...",
+      endlessRecords: this.modeRecords.getEndlessWinners(),
+      dailyRecords: modeRecords.daily
+    });
 
     const result = await this.auth.getLeaderboard();
 
-    if (!result.ok) {
-      this.ui.showRecords([
-        {
-          username: `Rekorlar alınamadı: ${result.error}`,
-          best_by_level: {}
-        }
-      ]);
-      return;
-    }
-
-    this.ui.showRecords(result.records);
+    this.ui.showRecords({
+      storyRecords: result.ok ? result.records : [],
+      storyMessage: result.ok
+        ? ""
+        : `Rekorlar alınamadı: ${result.error}`,
+      endlessRecords: this.modeRecords.getEndlessWinners(),
+      dailyRecords: modeRecords.daily
+    });
   }
 
   selectLevel(level) {
@@ -750,6 +852,10 @@ export class Game {
     }
 
     this.audio.init();
+
+    if (this.endlessSprint.active && !this.endlessSprint.isComplete()) {
+      this.endlessSprint.reset();
+    }
 
     this.level = level;
     this.generateLevel();
@@ -868,8 +974,10 @@ export class Game {
 
     this.audio.play("click");
 
-    this.progress.addMove();
-    this.ui.updateStats(this.progress);
+    const activeProgress = this.getActiveProgress();
+
+    activeProgress.addMove();
+    this.ui.updateStats(activeProgress);
 
     if (this.tutorial.active && key === this.tutorial.targetKey) {
       this.completeTutorial();
@@ -904,9 +1012,22 @@ export class Game {
     this.audio.play("success");
     this.particles.createCelebration(this.displaySize, this.displaySize);
 
-    const result = this.progress.completeCurrentLevel();
+    const result = this.gameMode === "endless"
+      ? this.endlessSprint.completeCurrentPuzzle()
+      : this.progress.completeCurrentLevel();
 
-    this.ui.updateTimer(result.timeSeconds);
+    if (result.mode === "endless" && result.sprintComplete) {
+      this.modeRecords.saveEndlessSprint(
+        this.auth.getCurrentUsername(),
+        result
+      );
+    }
+
+    this.ui.updateTimer(
+      this.gameMode === "endless"
+        ? result.totalTimeSeconds
+        : result.timeSeconds
+    );
 
     this.startVictoryTour(result);
   }
@@ -1051,8 +1172,10 @@ export class Game {
     bestTile.hintGlow = 1;
     this.renderer.invalidateConnections();
 
-    this.progress.addHint();
-    this.ui.updateStats(this.progress);
+    const activeProgress = this.getActiveProgress();
+
+    activeProgress.addHint();
+    this.ui.updateStats(activeProgress);
 
     this.audio.play("hint");
     this.particles.createHint(bestTile, this.hexRadius);
@@ -1094,6 +1217,27 @@ export class Game {
   }
 
   nextLevel() {
+    if (this.gameMode === "endless") {
+      if (this.endlessSprint.isComplete()) {
+        this.ui.hideCompletion();
+        this.menuOpen = true;
+        this.ui.showGameMenu(
+          this.auth.getCurrentUsername(),
+          this.progress.getSavedLevel(),
+          this.progress.getCompletedLevels().length
+        );
+        this.ui.updateEndlessSprintMenu(this.endlessSprint.getStatus());
+        this.ui.showMenuMode("endless");
+        return;
+      }
+
+      if (this.endlessSprint.advancePuzzle()) {
+        this.generateEndlessPuzzle();
+        this.endlessSprint.startTimer();
+      }
+      return;
+    }
+
     this.level += 1;
     this.generateLevel();
     this.progress.startTimer();
@@ -1128,7 +1272,7 @@ export class Game {
     this.updateVictoryTour(timestamp);
 
     if (!this.menuOpen && !this.levelCompleted && this.hasPlayableSession()) {
-      const elapsedSeconds = this.progress.getElapsedSeconds();
+      const elapsedSeconds = this.getActiveProgress().getElapsedSeconds();
 
       if (elapsedSeconds !== this.lastTimerSecond) {
         this.lastTimerSecond = elapsedSeconds;

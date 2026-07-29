@@ -69,7 +69,8 @@
       <div class="top-cluster">
         <div class="top-bar">
           <div id="level-indicator" class="hud-element">
-            🐢 Ada Seviyesi: <span id="lvl-val">1</span>
+            <span id="level-label">🐢 Ada Seviyesi:</span>
+            <span id="lvl-val">1</span>
           </div>
 
           <div class="top-actions">
@@ -141,7 +142,14 @@
         <h1><span>Zen</span><span>Kaplumbağa</span></h1>
       </header>
 
-      <div class="player-summary">
+      <nav class="menu-mode-switcher" aria-label="Oyun modu">
+        <button class="menu-mode-tab active" type="button" data-menu-mode="story" aria-selected="true">Hikâye</button>
+        <button class="menu-mode-tab" type="button" data-menu-mode="endless" aria-selected="false">Sonsuz</button>
+        <button class="menu-mode-tab" type="button" data-menu-mode="daily" aria-selected="false">Günlük</button>
+      </nav>
+
+      <section id="story-mode-panel" class="menu-mode-panel" data-mode-panel="story">
+        <div class="player-summary">
         <img
           class="menu-progress-frame-layer"
           src="/photos/menu/menu-progress-frame.webp"
@@ -184,6 +192,67 @@
           <span>Rekorlar</span>
         </button>
       </div>
+      </section>
+
+      <section id="endless-mode-panel" class="menu-mode-panel endless-mode-panel hidden" data-mode-panel="endless">
+        <header class="endless-mode-heading">
+          <span class="future-mode-symbol" aria-hidden="true">∞</span>
+          <div>
+            <p class="future-mode-kicker">Beş bulmacalık seri</p>
+            <h2>Sonsuz Sprint</h2>
+            <p>Tahtanı ve akışın zorluğunu seç. Hikâye ilerlemen değişmeden kendi Sprint rekorunu geliştir.</p>
+          </div>
+        </header>
+
+        <fieldset class="endless-choice-group" id="endless-board-options">
+          <legend>Tahta</legend>
+          <label class="endless-choice">
+            <input type="radio" name="endless-board" value="compact">
+            <span><strong>Küçük</strong><small>14 karo · hızlı</small></span>
+          </label>
+          <label class="endless-choice">
+            <input type="radio" name="endless-board" value="classic" checked>
+            <span><strong>Orta</strong><small>22 karo · dengeli</small></span>
+          </label>
+          <label class="endless-choice">
+            <input type="radio" name="endless-board" value="dense">
+            <span><strong>Yoğun</strong><small>30 karo · uzun</small></span>
+          </label>
+        </fieldset>
+
+        <fieldset class="endless-choice-group" id="endless-difficulty-options">
+          <legend>Zorluk</legend>
+          <label class="endless-choice">
+            <input type="radio" name="endless-difficulty" value="calm">
+            <span><strong>Sakin</strong><small>temiz yollar</small></span>
+          </label>
+          <label class="endless-choice">
+            <input type="radio" name="endless-difficulty" value="balanced" checked>
+            <span><strong>Dengeli</strong><small>döngü + 1 kilit</small></span>
+          </label>
+          <label class="endless-choice">
+            <input type="radio" name="endless-difficulty" value="expert">
+            <span><strong>Usta</strong><small>yoğun + 3 kilit</small></span>
+          </label>
+        </fieldset>
+
+        <div id="endless-sprint-status" class="endless-sprint-status" aria-live="polite">
+          <strong>5 Puzzle Sprint</strong>
+          <span>Toplam süre ve hamle tek seride ölçülür.</span>
+        </div>
+
+        <button class="menu-btn storybook-primary-action endless-start-btn" id="start-endless-btn" type="button">
+          SPRINT’İ BAŞLAT
+        </button>
+      </section>
+
+      <section id="daily-mode-panel" class="menu-mode-panel future-mode-panel hidden" data-mode-panel="daily">
+        <span class="future-mode-symbol" aria-hidden="true">☀</span>
+        <p class="future-mode-kicker">Her gün aynı meydan okuma</p>
+        <h2>Günlük Puzzle</h2>
+        <p>Herkesle aynı beş günlük bulmacayı çöz. Sonuçlarını karşılaştır ve günlük serini koru.</p>
+        <span class="future-mode-status">Günlük sistem hazırlanıyor</span>
+      </section>
 
       <div class="menu-footer-actions">
         <button class="menu-btn ghost danger-text" id="restart-game-btn">
@@ -212,7 +281,13 @@
   <div id="records-overlay">
     <div class="records-card">
       <h2>Rekorlar</h2>
-      <p>Oyuncuların tamamladığı bölümler, yıldızları, hamleleri ve süreleri.</p>
+      <p id="records-description">Her bölümün en iyi ada kaşifi.</p>
+
+      <nav class="record-mode-switcher" aria-label="Rekor modu">
+        <button class="record-mode-tab active" type="button" data-record-mode="story" aria-selected="true">Hikâye</button>
+        <button class="record-mode-tab" type="button" data-record-mode="endless" aria-selected="false">Sonsuz</button>
+        <button class="record-mode-tab" type="button" data-record-mode="daily" aria-selected="false">Günlük</button>
+      </nav>
 
       <div id="records-list" class="records-list"></div>
 

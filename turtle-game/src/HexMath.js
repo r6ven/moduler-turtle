@@ -62,11 +62,11 @@ export function oppositeDir(dirIndex) {
   return (dirIndex + 3) % 6;
 }
 
-export function shuffled(array) {
+export function shuffled(array, random = Math.random) {
   const copy = [...array];
 
   for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(random() * (i + 1));
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
 

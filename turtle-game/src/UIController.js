@@ -6,6 +6,7 @@ export class UIController {
       document.getElementById("loading-overlay"),
       document.getElementById("loading-message")
     );
+    this.levelLabel = document.getElementById("level-label");
     this.levelValue = document.getElementById("lvl-val");
     this.moveValue = document.getElementById("move-val");
     this.hintValue = document.getElementById("hint-val");
@@ -32,6 +33,15 @@ export class UIController {
     this.mainMenuOverlay = document.getElementById("main-menu-overlay");
     this.authCard = document.getElementById("auth-card");
     this.gameMenuCard = document.getElementById("game-menu-card");
+    this.menuModeTabs = Array.from(
+      document.querySelectorAll("[data-menu-mode]")
+    );
+    this.menuModePanels = Array.from(
+      document.querySelectorAll("[data-mode-panel]")
+    );
+    this.footerDivider = this.gameMenuCard.querySelector(
+      ".storybook-footer-divider"
+    );
 
     this.usernameInput = document.getElementById("username-input");
     this.passwordInput = document.getElementById("password-input");
@@ -48,6 +58,9 @@ export class UIController {
     this.recordsButton = document.getElementById("records-btn");
     this.restartGameButton = document.getElementById("restart-game-btn");
     this.logoutButton = document.getElementById("logout-btn");
+    this.endlessModePanel = document.getElementById("endless-mode-panel");
+    this.startEndlessButton = document.getElementById("start-endless-btn");
+    this.endlessSprintStatus = document.getElementById("endless-sprint-status");
 
     this.levelSelectOverlay = document.getElementById("level-select-overlay");
     this.levelList = document.getElementById("level-list");
@@ -55,6 +68,17 @@ export class UIController {
 
     this.recordsOverlay = document.getElementById("records-overlay");
     this.recordsList = document.getElementById("records-list");
+    this.recordsDescription = document.getElementById("records-description");
+    this.recordModeTabs = Array.from(
+      document.querySelectorAll("[data-record-mode]")
+    );
+    this.activeRecordMode = "story";
+    this.recordData = {
+      storyRecords: [],
+      endlessRecords: [],
+      dailyRecords: [],
+      storyMessage: ""
+    };
     this.recordsBackButton = document.getElementById("records-back-btn");
 
     this.resetConfirmOverlay = document.getElementById("reset-confirm-overlay");
@@ -69,6 +93,7 @@ export class UIController {
     onLogin,
     onRegister,
     onContinueGame,
+    onStartEndless,
     onOpenLevels,
     onOpenRecords,
     onSelectLevel,
@@ -86,6 +111,12 @@ export class UIController {
     this.loginButton.addEventListener("click", onLogin);
     this.registerButton.addEventListener("click", onRegister);
 
+    this.menuModeTabs.forEach((button) => {
+      button.addEventListener("click", () => {
+        this.showMenuMode(button.dataset.menuMode);
+      });
+    });
+
     this.usernameInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") this.passwordInput.focus();
     });
@@ -95,6 +126,9 @@ export class UIController {
     });
 
     this.continueGameButton.addEventListener("click", onContinueGame);
+    this.startEndlessButton.addEventListener("click", () => {
+      onStartEndless(this.getEndlessSettings());
+    });
     this.levelsButton.addEventListener("click", onOpenLevels);
     this.recordsButton.addEventListener("click", onOpenRecords);
     this.restartGameButton.addEventListener("click", onRequestReset);
@@ -102,6 +136,11 @@ export class UIController {
 
     this.levelSelectBackButton.addEventListener("click", () => this.hideLevelSelect());
     this.recordsBackButton.addEventListener("click", () => this.hideRecords());
+    this.recordModeTabs.forEach((button) => {
+      button.addEventListener("click", () => {
+        this.showRecordMode(button.dataset.recordMode);
+      });
+    });
 
     this.levelList.addEventListener("click", (event) => {
       const button = event.target.closest("[data-level]");
@@ -122,6 +161,51 @@ export class UIController {
     };
   }
 
+  getEndlessSettings() {
+    const board = this.endlessModePanel.querySelector(
+      'input[name="endless-board"]:checked'
+    );
+    const difficulty = this.endlessModePanel.querySelector(
+      'input[name="endless-difficulty"]:checked'
+    );
+
+    return {
+      boardId: board?.value || "classic",
+      difficultyId: difficulty?.value || "balanced"
+    };
+  }
+
+  updateEndlessSprintMenu(status = {}) {
+    const running = Boolean(status.active && !status.complete);
+
+    this.endlessModePanel.classList.toggle("is-running", running);
+    this.startEndlessButton.innerText = running
+      ? "SPRINT’E DÖN"
+      : "SPRINT’İ BAŞLAT";
+
+    if (running) {
+      this.endlessSprintStatus.innerHTML = `
+        <strong>Puzzle ${status.puzzleIndex}/${status.sprintLength}</strong>
+        <span>${status.board.label} · ${status.difficulty.label} · ${status.totalMoves} hamle · ${this.formatDuration(status.totalTimeSeconds)}</span>
+      `;
+      return;
+    }
+
+    if (status.active && status.complete) {
+      this.startEndlessButton.innerText = "YENİ SPRINT";
+      this.endlessSprintStatus.innerHTML = `
+        <strong>Sprint tamamlandı</strong>
+        <span>${status.board.label} · ${status.difficulty.label} · ${status.totalMoves} hamle · ${this.formatDuration(status.totalTimeSeconds)}</span>
+      `;
+      return;
+    }
+
+    this.endlessSprintStatus.innerHTML = `
+      <strong>5 Puzzle Sprint</strong>
+      <span>Toplam süre ve hamle tek seride ölçülür.</span>
+    `;
+  }
+
   clearPassword() {
     this.passwordInput.value = "";
   }
@@ -140,7 +224,13 @@ export class UIController {
   }
 
   updateLevel(level) {
+    this.levelLabel.innerText = "🐢 Ada Seviyesi:";
     this.levelValue.innerText = String(level);
+  }
+
+  updateSprintHeader(index, total) {
+    this.levelLabel.innerText = "∞ Sprint:";
+    this.levelValue.innerText = `${index}/${total}`;
   }
 
   updateStats({ moves, hintsUsed }) {
@@ -204,6 +294,26 @@ export class UIController {
     this.usernameInput.focus();
   }
 
+  showMenuMode(mode = "story") {
+    const supportedModes = new Set(["story", "endless", "daily"]);
+    const activeMode = supportedModes.has(mode) ? mode : "story";
+    const storyActive = activeMode === "story";
+
+    this.menuModeTabs.forEach((button) => {
+      const active = button.dataset.menuMode === activeMode;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+    });
+
+    this.menuModePanels.forEach((panel) => {
+      panel.classList.toggle("hidden", panel.dataset.modePanel !== activeMode);
+    });
+
+    this.gameMenuCard.dataset.activeMode = activeMode;
+    this.gameMenuCard.classList.toggle("future-mode-active", !storyActive);
+    this.restartGameButton.classList.toggle("hidden", !storyActive);
+    this.footerDivider.classList.toggle("hidden", !storyActive);
+  }
   showGameMenu(username, level, completedCount = 0) {
     this.authCard.classList.add("hidden");
     this.gameMenuCard.classList.remove("hidden");
@@ -216,6 +326,8 @@ export class UIController {
       "aria-label",
       `Devam et, Ada ${level}`
     );
+
+    this.showMenuMode("story");
 
     this.showMainMenu();
   }
@@ -265,88 +377,184 @@ export class UIController {
     this.levelSelectOverlay.classList.remove("active");
   }
 
-  showRecords(records) {
-    const safeRecords = Array.isArray(records) ? records.slice(0, 200) : [];
+  showRecords({
+    storyRecords = [],
+    endlessRecords = [],
+    dailyRecords = [],
+    storyMessage = ""
+  } = {}) {
+    this.recordData = {
+      storyRecords: Array.isArray(storyRecords) ? storyRecords : [],
+      endlessRecords: Array.isArray(endlessRecords) ? endlessRecords : [],
+      dailyRecords: Array.isArray(dailyRecords) ? dailyRecords : [],
+      storyMessage: String(storyMessage || "")
+    };
 
-    if (!safeRecords.length) {
-      this.recordsList.innerHTML = `
-        <div class="records-empty">
-          Henüz rekor yok. İlk bölüm tamamlanınca burada görünecek.
-        </div>
-      `;
-      this.recordsOverlay.classList.add("active");
-      return;
-    }
+    const nextMode = this.recordsOverlay.classList.contains("active")
+      ? this.activeRecordMode
+      : "story";
 
-    this.recordsList.innerHTML = safeRecords
-      .map((player) => {
-        const progressCandidate =
-          player?.best_by_level || player?.bestByLevel || {};
-        const bestByLevel =
-          progressCandidate &&
-          typeof progressCandidate === "object" &&
-          !Array.isArray(progressCandidate)
-            ? progressCandidate
-            : {};
-        const username = this.escapeHtml(
-          String(player?.username || "Oyuncu").slice(0, 48)
-        );
-        const levels = Object.keys(bestByLevel)
-          .map((level) => Number(level))
-          .filter(
-            (level) =>
-              Number.isInteger(level) && level >= 1 && level <= 10000
-          )
-          .sort((a, b) => a - b)
-          .slice(0, 200);
-
-        if (!levels.length) {
-          return `
-            <div class="record-player">
-              <div class="record-player-title">${username}</div>
-              <div class="records-empty">Henüz tamamlanan bölüm yok.</div>
-            </div>
-          `;
-        }
-
-        const rows = levels
-          .map((level) => {
-            const record = bestByLevel[level] || bestByLevel[String(level)] || {};
-            const starfish = this.renderStarfishRating(record.stars || 1);
-            const moves = this.formatRecordInteger(record.bestMoves);
-            const time = record.bestTimeSeconds == null
-              ? "-"
-              : this.formatDuration(record.bestTimeSeconds);
-
-            return `
-              <div class="record-row">
-                <div>Ada ${level}</div>
-                <div>${starfish}</div>
-                <div>${moves} hamle</div>
-                <div>${time}</div>
-              </div>
-            `;
-          })
-          .join("");
-
-        return `
-          <div class="record-player">
-            <div class="record-player-title">${username}</div>
-            <div class="record-row header">
-              <div>Bölüm</div>
-              <div>Deniz yıldızı</div>
-              <div>Hamle</div>
-              <div>Süre</div>
-            </div>
-            ${rows}
-          </div>
-        `;
-      })
-      .join("");
-
+    this.showRecordMode(nextMode);
     this.recordsOverlay.classList.add("active");
   }
 
+  showRecordMode(mode = "story") {
+    const supportedModes = new Set(["story", "endless", "daily"]);
+    const activeMode = supportedModes.has(mode) ? mode : "story";
+
+    this.activeRecordMode = activeMode;
+
+    this.recordModeTabs.forEach((button) => {
+      const active = button.dataset.recordMode === activeMode;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+    });
+
+    if (activeMode === "story") {
+      this.recordsDescription.innerText =
+        "Her hikâye bölümünde yalnızca en iyi sonuç gösterilir.";
+      this.renderStoryRecordWinners();
+      return;
+    }
+
+    if (activeMode === "endless") {
+      this.recordsDescription.innerText =
+        "Her tahta ve zorluk serisinin en iyi beşli Sprint sonucu.";
+      this.renderEndlessRecordWinners();
+      return;
+    }
+
+    this.recordsDescription.innerText =
+      "Günün ortak serisindeki en iyi sonuçlar.";
+    this.renderDailyRecordWinners();
+  }
+
+  renderStoryRecordWinners() {
+    if (this.recordData.storyMessage) {
+      this.recordsList.innerHTML = `
+        <div class="records-empty">${this.escapeHtml(this.recordData.storyMessage)}</div>
+      `;
+      return;
+    }
+
+    const winners = new Map();
+
+    this.recordData.storyRecords.forEach((player) => {
+      const progressCandidate =
+        player?.best_by_level || player?.bestByLevel || {};
+      const bestByLevel = progressCandidate &&
+        typeof progressCandidate === "object" &&
+        !Array.isArray(progressCandidate)
+          ? progressCandidate
+          : {};
+      const username = String(player?.username || "Oyuncu").slice(0, 48);
+
+      Object.entries(bestByLevel).forEach(([rawLevel, rawRecord]) => {
+        const level = Number(rawLevel);
+
+        if (!Number.isInteger(level) || level < 1 || level > 10000) return;
+
+        const record = rawRecord && typeof rawRecord === "object"
+          ? rawRecord
+          : {};
+        const candidate = {
+          level,
+          username,
+          stars: Math.max(0, Math.min(3, Number(record.stars) || 0)),
+          moves: record.bestMoves != null && Number.isFinite(Number(record.bestMoves))
+            ? Math.max(0, Math.floor(Number(record.bestMoves)))
+            : Number.POSITIVE_INFINITY,
+          timeSeconds: record.bestTimeSeconds != null && Number.isFinite(Number(record.bestTimeSeconds))
+            ? Math.max(0, Math.floor(Number(record.bestTimeSeconds)))
+            : Number.POSITIVE_INFINITY
+        };
+        const current = winners.get(level);
+
+        if (!current || this.compareStoryRecords(candidate, current) < 0) {
+          winners.set(level, candidate);
+        }
+      });
+    });
+
+    const rows = Array.from(winners.values())
+      .sort((first, second) => first.level - second.level);
+
+    if (!rows.length) {
+      this.recordsList.innerHTML = `
+        <div class="records-empty">Henüz tamamlanan hikâye bölümü yok.</div>
+      `;
+      return;
+    }
+
+    this.recordsList.innerHTML = `
+      <div class="record-winner-row header">
+        <div>Bölüm</div><div>Oyuncu</div><div>Yıldız</div><div>Hamle</div><div>Süre</div>
+      </div>
+      ${rows.map((record) => `
+        <div class="record-winner-row">
+          <div>Ada ${record.level}</div>
+          <div>${this.escapeHtml(record.username)}</div>
+          <div>${this.renderStarfishRating(record.stars)}</div>
+          <div>${this.formatRecordInteger(record.moves)}</div>
+          <div>${Number.isFinite(record.timeSeconds) ? this.formatDuration(record.timeSeconds) : "-"}</div>
+        </div>
+      `).join("")}
+    `;
+  }
+
+  compareStoryRecords(first, second) {
+    return (
+      second.stars - first.stars ||
+      first.moves - second.moves ||
+      first.timeSeconds - second.timeSeconds ||
+      first.username.localeCompare(second.username, "tr")
+    );
+  }
+
+  renderEndlessRecordWinners() {
+    const records = this.recordData.endlessRecords;
+
+    if (!records.length) {
+      this.recordsList.innerHTML = `
+        <div class="records-empty">Henüz tamamlanan Sonsuz Sprint yok.</div>
+      `;
+      return;
+    }
+
+    this.recordsList.innerHTML = `
+      <div class="record-sprint-row header">
+        <div>Seri</div><div>Oyuncu</div><div>Hamle</div><div>Süre</div>
+      </div>
+      ${records.map((record) => `
+        <div class="record-sprint-row">
+          <div><strong>${this.escapeHtml(record.boardLabel)}</strong><small>${this.escapeHtml(record.difficultyLabel)}</small></div>
+          <div>${this.escapeHtml(record.username)}</div>
+          <div>${this.formatRecordInteger(record.totalMoves)}</div>
+          <div>${this.formatDuration(record.totalTimeSeconds)}</div>
+        </div>
+      `).join("")}
+    `;
+  }
+
+  renderDailyRecordWinners() {
+    const records = this.recordData.dailyRecords;
+
+    if (!records.length) {
+      this.recordsList.innerHTML = `
+        <div class="records-empty">Günlük Puzzle açıldığında günlük rekorlar burada görünecek.</div>
+      `;
+      return;
+    }
+
+    this.recordsList.innerHTML = records.map((record) => `
+      <div class="record-sprint-row">
+        <div>${this.escapeHtml(record.dateLabel || record.date || "Günlük")}</div>
+        <div>${this.escapeHtml(record.username || "Oyuncu")}</div>
+        <div>${this.formatRecordInteger(record.totalMoves)}</div>
+        <div>${this.formatDuration(record.totalTimeSeconds)}</div>
+      </div>
+    `).join("");
+  }
   hideRecords() {
     this.recordsOverlay.classList.remove("active");
   }
@@ -390,24 +598,39 @@ export class UIController {
     this.configureCompletionWave();
     this.overlay.classList.toggle("minimum-clear", minimumClear);
 
-    if (minimumClear && earnedStars === 3) {
-      this.completeTitleText.innerText = "Harika bir uyum!";
-    } else if (earnedStars === 3) {
-      this.completeTitleText.innerText = "Profesyonel!";
+    if (result.mode === "endless") {
+      this.completeTitleText.innerText = result.sprintComplete
+        ? "Sprint tamamlandı!"
+        : `Sprint ${result.sprintIndex}/${result.sprintLength}`;
+      this.completeText.innerText = result.sprintComplete
+        ? `${result.totalMoves} toplam hamle · ${this.formatDuration(result.totalTimeSeconds)} · ${result.totalHints} ipucu`
+        : `${result.moves} hamle · ${this.formatDuration(result.timeSeconds)} · ${result.hintsUsed} ipucu`;
+      this.completeGoal.innerText = result.sprintComplete
+        ? `${result.boardLabel} tahta · ${result.difficultyLabel} zorluk · 5 puzzle`
+        : `Seri toplamı ${result.totalMoves} hamle · ${this.formatDuration(result.totalTimeSeconds)}`;
+      this.nextButton.innerText = result.sprintComplete
+        ? "SPRINT SONUCUNA DÖN"
+        : "SONRAKİ PUZZLE";
     } else {
-      this.completeTitleText.innerText = "Tebrikler!";
+      if (minimumClear && earnedStars === 3) {
+        this.completeTitleText.innerText = "Harika bir uyum!";
+      } else if (earnedStars === 3) {
+        this.completeTitleText.innerText = "Profesyonel!";
+      } else {
+        this.completeTitleText.innerText = "Tebrikler!";
+      }
+
+      this.completeText.innerText =
+        `${result.moves} hamle · ${this.formatDuration(result.timeSeconds)} · ${result.hintsUsed} ipucu`;
+      this.completeGoal.innerText =
+        `En kısa çözüm ${result.minimumMoves} · 3 deniz yıldızı hedefi ${result.targetMoves} hamle`;
+      this.nextButton.innerText = "Sonraki Adaya Yüz";
     }
 
     this.starResult.setAttribute(
       "aria-label",
       `${earnedStars} deniz yıldızı kazanıldı`
     );
-
-    this.completeText.innerText =
-      `${result.moves} hamle · ${this.formatDuration(result.timeSeconds)} · ${result.hintsUsed} ipucu`;
-
-    this.completeGoal.innerText =
-      `En kısa çözüm ${result.minimumMoves} · 3 deniz yıldızı hedefi ${result.targetMoves} hamle`;
 
     this.nextButton.disabled = true;
     this.overlay.classList.remove("active", "is-ready");
