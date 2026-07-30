@@ -33,3 +33,57 @@ jobs:
 
       - name: Build production bundle
         run: npm run build
+
+  ranked-database-contract:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: turtle-game
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: turtle_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d turtle_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Supabase API roles
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d turtle_test -v ON_ERROR_STOP=1 <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin;
+          SQL
+
+      - name: Apply bootstrap and migrations
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d turtle_test -v ON_ERROR_STOP=1 -f supabase/bootstrap/fresh_project.sql
+          psql -h 127.0.0.1 -U postgres -d turtle_test -v ON_ERROR_STOP=1 -f supabase/migrations/202607260001_add_player_sessions.sql
+          psql -h 127.0.0.1 -U postgres -d turtle_test -v ON_ERROR_STOP=1 -f supabase/migrations/202607260002_add_login_rate_limits.sql
+          psql -h 127.0.0.1 -U postgres -d turtle_test -v ON_ERROR_STOP=1 -c "insert into public.players(username,password_hash,last_level) values ('existing_ci_player',crypt('keep-me',gen_salt('bf',4)),73)"
+
+      - name: Apply ranked migration without changing existing players
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d turtle_test -v ON_ERROR_STOP=1 -f supabase/migrations/202607300001_add_ranked_sprints.sql
+          psql -h 127.0.0.1 -U postgres -d turtle_test -v ON_ERROR_STOP=1 -Atc "select username || ':' || last_level from public.players where username='existing_ci_player'" | grep -Fx "existing_ci_player:73"
+
+      - name: Exercise ranked transaction and grants
+        env:
+          PGPASSWORD: postgres
+        run: psql -h 127.0.0.1 -U postgres -d turtle_test -v ON_ERROR_STOP=1 -f test/supabase-ranked-integration.sql

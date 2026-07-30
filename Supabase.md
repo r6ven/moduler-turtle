@@ -1,10 +1,8 @@
 # Supabase kurulumu
 
-> Durum: Production session migration uygulandı ve doğrulandı.
-> `public.player_sessions` tablosu ile token tabanlı RPC'ler production
-> projesinde mevcut. 26 Temmuz 2026 tarihli kontrolde normal girişten sonra
-> bir aktif session kaydı oluştuğu görüldü. Login rate-limit migration'ı repo
-> içinde hazırdır; production'a uygulanması beklenmektedir.
+> Durum (30 Temmuz 2026): session ve login rate-limit migration'ları
+> production'da uygulanmış ve doğrulanmıştır. Mevcut kullanıcılar, ilerleme
+> ve oturumlar korunmaktadır.
 
 ## Production durumu
 
@@ -36,8 +34,7 @@ Migration'ı tekrar çalıştırmaya gerek yoktur. Mevcut kullanıcıları korum
 
 ## Login rate-limit / brute-force koruması
 
-Aşağıdaki ikinci additive migration repo içinde hazırdır ancak production
-Supabase projesinde ayrıca çalıştırılmalıdır:
+Aşağıdaki ikinci additive migration production Supabase projesine uygulanmıştır:
 
 ```text
 turtle-game/supabase/migrations/202607260002_add_login_rate_limits.sql
@@ -165,9 +162,13 @@ zorunlu değildir. Eklenirse Vite değerleri build sırasında kullandığı iç
    dosyasını çalıştırın.
 4. `turtle-game/supabase/migrations/202607300001_add_ranked_sprints.sql`
    dosyasını çalıştırın.
-5. Project Settings → API bölümünden URL ve anon/publishable key değerlerini
+5. `turtle-game/supabase/migrations/202607300002_remove_legacy_ranked_rpcs.sql`
+   dosyasını çalıştırın.
+6. `turtle-game/supabase/migrations/202607300003_harden_ranked_rpc_grants.sql`
+   dosyasını çalıştırın.
+7. Project Settings → API bölümünden URL ve anon/publishable key değerlerini
    alın.
-6. Render ortam değişkenlerine `VITE_SUPABASE_URL` ve
+8. Render ortam değişkenlerine `VITE_SUPABASE_URL` ve
    `VITE_SUPABASE_ANON_KEY` değerlerini ekleyin.
 
 Yerel geliştirme için `turtle-game/.env.example` dosyasını `.env` olarak
@@ -182,7 +183,15 @@ geri almak gerekirse önce uygulamayı eski RPC moduna alın; daha sonra yalnız
 `player_sessions` tablosu ile `*_session` fonksiyonları kaldırılabilir.
 `public.players` tablosuna dokunmayın.
 
-## Dereceli Sprint v2 (uygulama bekliyor)
+## Dereceli Sprint v2 güvenli slot/replay akışı
+
+> Production durumu (30 Temmuz 2026): üç Ranked migration uygulanmıştır ve
+> `generate-ranked-season`, `submit-ranked-replay`, `finalize-ranked-day`
+> Edge Function'ları `ACTIVE` durumundadır. Oyuncu, oturum ve ilerleme verileri
+> korunmuştur. Dereceli modu açmak için yalnız `RANKED_PUZZLE_SECRET` ile
+> `RANKED_CRON_SECRET` Supabase Edge Function Secrets bölümüne eklenmeli ve
+> ilk sezon üretilmelidir. Sezon bulunmadığı sürece istemci güvenli biçimde
+> `series_unavailable` alır.
 
 Aşağıdaki migration **additive** yapıdadır; mevcut `public.players`, ilerleme
 JSON'ları, parolalar ve oturumlar silinmez veya sıfırlanmaz:
@@ -193,13 +202,22 @@ turtle-game/supabase/migrations/202607300001_add_ranked_sprints.sql
 
 Migration şunları ekler:
 
-- aylık sezon ve gizli puzzle havuzu tabloları;
+- sürümlü gameplay/presentation definition içeren aylık, değiştirilemez puzzle
+  havuzu;
 - oyuncu/gün başına tek ilk dereceli deneme kısıtı;
-- beş puzzle sonucunu sunucu zamanıyla ve sırayla kaydeden RPC'ler;
+- istemci uyumluluğunu günlük hakkı tüketmeden kontrol eden atomik başlangıç;
+- yalnız mevcut slotu açan idempotent release ve `released_at` tabanlı sunucu
+  süresi;
+- hamle replay'ini saf doğrulayıcıyla yeniden oynatan `submit-ranked-replay`
+  Edge Function'ı;
+- yalnız `service_role` tarafından çağrılabilen replay-context ve atomik kabul
+  RPC'leri;
+- şüpheli fakat geçerli sonuçları otomatik silmek yerine `review_required`
+  olarak işaretleyen risk sinyalleri;
 - UTC gün sonu yüzdelik puan kesinleştirmesi;
 - günlük ve aylık dereceli leaderboard RPC'leri;
 - eski rastgele hikâye kayıtlarına dokunmadan ayrı `story_level_results_v2`
-  adil hikâye leaderboard'u.
+  casual/istemci bildirimli hikâye leaderboard'u.
 
 ### Uygulama sırası
 
@@ -218,6 +236,7 @@ Bu değerleri `VITE_*`, Render Environment veya GitHub source içine koymayın.
 
 ```bash
 supabase functions deploy generate-ranked-season --no-verify-jwt
+supabase functions deploy submit-ranked-replay --no-verify-jwt
 supabase functions deploy finalize-ranked-day --no-verify-jwt
 ```
 
@@ -238,8 +257,11 @@ curl -X POST "https://PROJECT_REF.supabase.co/functions/v1/generate-ranked-seaso
 
 Her aylık manifest 31 x 5 = 155 kimlik saklar. Kısa aylarda fazla günler
 `play_date = null` ve `published = false` kalır. Oyuncu RPC'si yalnız bugünün
-yayımlanmış beş kaydını döndürür. Gelecek seed ve puzzle tanımları doğrudan
-anon/authenticated erişimine kapalıdır.
+yayımlanmış ilk slotunu döndürür; sonraki definition yalnız önceki replay Edge
+Function tarafından doğrulandıktan sonra açılır. Gelecek seed ve puzzle
+tanımları doğrudan anon/authenticated erişimine kapalıdır. Tamamlanmış veya
+geçersiz günlük hak tekrar açıldığında beşli seri yalnız derecesiz antrenman
+olarak verilir.
 
 ### Doğrulama sorgusu
 
@@ -253,13 +275,28 @@ order by season_id desc;
 
 select
   has_table_privilege('anon','public.ranked_puzzle_slots','select') as anon_can_read_future,
-  to_regprocedure('public.claim_ranked_sprint_attempt(text)') as claim_rpc,
+  to_regprocedure(
+    'public.start_ranked_attempt(text,integer[],text[])'
+  ) as atomic_start_rpc,
+  has_function_privilege(
+    'anon',
+    'public.get_ranked_replay_context(text,uuid,integer)',
+    'execute'
+  ) as anon_can_read_replay_context,
+  has_function_privilege(
+    'anon',
+    'public.accept_ranked_replay(text,uuid,integer,uuid,jsonb,integer,text)',
+    'execute'
+  ) as anon_can_accept_replay,
   to_regprocedure('public.finalize_ranked_day(date)') as finalize_rpc;
 ```
 
 Beklenen: kullanıcı sayısı değişmemiş, sezon başına `stored_slots = 155` ve
-`anon_can_read_future = false`. Temmuzda 155, 30 günlük ayda 150, normal
-şubatta 140 puzzle yayımlanır.
+`anon_can_read_future = false`, `anon_can_read_replay_context = false` ve
+`anon_can_accept_replay = false`. Temmuzda 155, 30 günlük ayda 150, normal
+şubatta 140 puzzle yayımlanır. Migration dosyası BOM içermeyen UTF-8 olarak
+saklanır; SQL Editor'a yapıştırırken dosyanın en başında görünmez karakter
+olmamalıdır.
 
 ### Puan modeli
 

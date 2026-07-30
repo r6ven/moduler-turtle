@@ -6,7 +6,11 @@ import { InputManager } from "./InputManager.js";
 import { ModeRecordStore } from "./ModeRecordStore.js";
 import { ParticleSystem } from "./ParticleSystem.js";
 import { ProgressSystem } from "./ProgressSystem.js";
-import { RankedSprintSession } from "./RankedSprintSession.js";
+import {
+  RANKED_CLIENT_COMPATIBILITY,
+  RankedSprintSession
+} from "./RankedSprintSession.js";
+import { hydratePuzzleDefinition } from "./PuzzleDefinition.js";
 import { PuzzleGenerator } from "./PuzzleGenerator.js";
 import { PuzzleValidator } from "./PuzzleValidator.js";
 import { Renderer } from "./Renderer.js";
@@ -25,7 +29,6 @@ export class Game {
     this.endlessSprint = new EndlessSprintSession();
     this.rankedSprint = new RankedSprintSession();
     this.currentPuzzle = null;
-    this.rankedSubmissionQueue = Promise.resolve();
     this.gameMode = "story";
 
     this.level = 1;
@@ -668,6 +671,35 @@ export class Game {
 
   generateRankedPuzzle() {
     const status = this.rankedSprint.getStatus();
+    const payload = this.rankedSprint.getCurrentPuzzlePayload();
+    const generated = hydratePuzzleDefinition(
+      payload.definition,
+      payload.presentationDefinition,
+      {
+        supportedSchemas:
+          RANKED_CLIENT_COMPATIBILITY.supportedDefinitionSchemas,
+        supportedRules:
+          RANKED_CLIENT_COMPATIBILITY.supportedGameRules
+      }
+    );
+
+    if (
+      payload.gameplayChecksum &&
+      generated.gameplayChecksum !== payload.gameplayChecksum
+    ) {
+      const error = new Error("Dereceli puzzle verisi doğrulanamadı.");
+      error.code = "gameplay_checksum_mismatch";
+      throw error;
+    }
+
+    if (
+      payload.presentationChecksum &&
+      generated.presentationChecksum !== payload.presentationChecksum
+    ) {
+      const error = new Error("Dereceli puzzle sunum verisi do?rulanamad?.");
+      error.code = "presentation_checksum_mismatch";
+      throw error;
+    }
 
     this.gameMode = "ranked";
     this.levelCompleted = false;
@@ -679,9 +711,6 @@ export class Game {
     this.ui.updateRankedSprintStatus(status);
     this.ui.updateSprintHeader(status.puzzleIndex, status.sprintLength);
 
-    const generated = PuzzleGenerator.generate(
-      this.rankedSprint.getCurrentPuzzleRequest()
-    );
     const mapRadiusChanged = this.mapRadius !== generated.mapRadius;
     this.mapRadius = generated.mapRadius;
     this.grid = generated.grid;
@@ -693,12 +722,14 @@ export class Game {
     this.configureTutorial(null);
     this.ui.updateStats(this.rankedSprint);
     this.ui.updateTimer(this.rankedSprint.getElapsedSeconds());
-    this.ui.setHintEnabled?.(!this.rankedSprint.ranked, "Dereceli Sprintte ipucu kullan\u0131lamaz.");
+    this.ui.setHintEnabled?.(
+      !this.rankedSprint.ranked,
+      "Dereceli Sprintte ipucu kullanılamaz."
+    );
     this.turtle.reset(0, 0, this.hexRadius);
     this.turtle.speed = 0.08;
     this.checkConnections({ allowCompletion: false });
   }
-
 
   requestRankedSprint() {
     if (this.rankedSprint.active && !this.rankedSprint.isComplete()) {
@@ -714,32 +745,38 @@ export class Game {
     if (!this.auth.hasCurrentUser()) return;
 
     this.ui.hideRankedRules();
-    this.ui.showLoading({ variant: "channel", message: "G\u00fcn\u00fcn ortak serisi haz\u0131rlan\u0131yor" });
+    this.ui.showLoading({
+      variant: "channel",
+      message: "Günün ortak serisi hazırlanıyor"
+    });
 
     try {
-      const claim = await this.auth.claimRankedSprint();
-      if (!claim.ok) {
-        this.ui.setRankedMessage(claim.error || "Bug\u00fcnk\u00fc dereceli hak kullan\u0131lm\u0131\u015f.", "error");
+      const started = await this.auth.startRankedSprint(
+        RANKED_CLIENT_COMPATIBILITY
+      );
+
+      if (!started.ok) {
+        const message = started.code === "client_update_required"
+          ? "Dereceli Sprint için oyunu güncellemen gerekiyor. Günlük hakkın kullanılmadı."
+          : started.error || "Bugünkü dereceli seri başlatılamadı.";
+        this.ui.setRankedMessage(message, "error");
         return;
       }
 
-      this.rankedSprint.claim(claim);
+      this.rankedSprint.start(started);
       this.generateRankedPuzzle();
-      if (this.rankedSprint.ranked) {
-        const started = await this.auth.startRankedSprintAttempt(this.rankedSprint.attemptId);
-        if (!started.ok) throw new Error(started.error || "Dereceli s\u00fcre ba\u015flat\u0131lamad\u0131.");
-      }
-      this.rankedSprint.activate();
       this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
       this.closeMenu();
     } catch (error) {
-      this.invalidateRankedSprint("start_failed");
-      this.ui.setRankedMessage(error.message || "Dereceli Sprint ba\u015flat\u0131lamad\u0131.", "error");
+      this.invalidateRankedSprint(error.code || "start_failed");
+      this.ui.setRankedMessage(
+        error.message || "Dereceli Sprint başlatılamadı.",
+        "error"
+      );
     } finally {
       await this.ui.hideLoading({ minimumMs: 320 });
     }
   }
-
   invalidateRankedSprint(reason) {
     if (!this.rankedSprint.ranked || !this.rankedSprint.claimed || this.rankedSprint.complete) return;
     this.rankedSprint.invalidate(reason);
@@ -1110,7 +1147,7 @@ export class Game {
 
     const activeProgress = this.getActiveProgress();
 
-    activeProgress.addMove();
+    activeProgress.addMove(key);
     this.ui.updateStats(activeProgress);
 
     if (this.tutorial.active && key === this.tutorial.targetKey) {
@@ -1146,30 +1183,14 @@ export class Game {
     this.audio.play("success");
     this.particles.createCelebration(this.displaySize, this.displaySize);
 
-    const result = this.gameMode === "ranked"
-      ? this.rankedSprint.completeCurrentPuzzle()
-      : this.gameMode === "endless"
-        ? this.endlessSprint.completeCurrentPuzzle()
-        : this.progress.completeCurrentLevel();
-
-    if (result.mode === "ranked" && result.ranked) {
-      this.rankedSubmissionQueue = this.rankedSubmissionQueue
-        .catch(() => ({ ok: false }))
-        .then(() => this.auth.submitRankedPuzzle(
-          result.attemptId,
-          result.slot,
-          result.moves,
-          result.checksum
-        ))
-        .then((submission) => {
-          if (!submission.ok) this.invalidateRankedSprint("submission_failed");
-          return submission;
-        });
+    if (this.gameMode === "ranked") {
+      void this.completeRankedLevel();
+      return;
     }
 
-    if (result.mode === "ranked") {
-      this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
-    }
+    const result = this.gameMode === "endless"
+      ? this.endlessSprint.completeCurrentPuzzle()
+      : this.progress.completeCurrentLevel();
 
     if (result.mode === "story") {
       void this.auth.saveStoryV2Result(this.level, result);
@@ -1191,6 +1212,67 @@ export class Game {
     this.startVictoryTour(result);
   }
 
+  async completeRankedLevel() {
+    const pending = this.rankedSprint.completeCurrentPuzzle();
+
+    if (!pending.ranked) {
+      this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
+      this.ui.updateTimer(pending.totalTimeSeconds);
+      this.startVictoryTour(pending);
+      return;
+    }
+
+    await this.submitPendingRankedResult();
+  }
+
+  async submitPendingRankedResult() {
+    const pending = this.rankedSprint.completeCurrentPuzzle();
+
+    this.ui.hideCompletion();
+    this.ui.showLoading({
+      variant: "channel",
+      message: "Çözüm sunucuda doğrulanıyor"
+    });
+
+    try {
+      const submission = await this.auth.submitRankedReplay(pending);
+
+      if (!submission.ok) {
+        if (["network_error", "server_error"].includes(submission.code)) {
+          this.ui.setRankedMessage(
+            "Bağlantı kurulamadı. Günlük hakkın korunuyor; tekrar dene.",
+            "error"
+          );
+          this.ui.showCompletion({
+            ...pending,
+            validationPending: true
+          });
+          return;
+        }
+
+        this.rankedSprint.invalidate(
+          submission.code || "submission_rejected"
+        );
+        const rejected = this.rankedSprint.rejectSubmission(
+          submission.code || "submission_rejected"
+        );
+        this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
+        this.ui.setRankedMessage(
+          submission.error || "Dereceli çözüm reddedildi.",
+          "error"
+        );
+        this.startVictoryTour(rejected);
+        return;
+      }
+
+      const accepted = this.rankedSprint.acceptSubmission(submission);
+      this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
+      this.ui.updateTimer(accepted.totalTimeSeconds);
+      this.startVictoryTour(accepted);
+    } finally {
+      await this.ui.hideLoading({ minimumMs: 240 });
+    }
+  }
   startVictoryTour(result) {
     const path = this.buildVictoryPath();
 
@@ -1375,19 +1457,57 @@ export class Game {
     this.ui.updateSound(enabled);
   }
 
-  nextLevel() {
+  async nextLevel() {
     if (this.gameMode === "ranked") {
+      if (this.rankedSprint.hasPendingSubmission()) {
+        await this.submitPendingRankedResult();
+        return;
+      }
+
       if (this.rankedSprint.isComplete()) {
         this.ui.hideCompletion();
         this.menuOpen = true;
-        this.ui.showGameMenu(this.auth.getCurrentUsername(), this.progress.getSavedLevel(), this.progress.getCompletedLevels().length);
+        this.ui.showGameMenu(
+          this.auth.getCurrentUsername(),
+          this.progress.getSavedLevel(),
+          this.progress.getCompletedLevels().length
+        );
         this.ui.showMenuMode("endless");
         this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
         return;
       }
 
-      if (this.rankedSprint.advancePuzzle()) {
+      if (!this.rankedSprint.ranked) {
+        if (this.rankedSprint.advanceTrainingPuzzle()) {
+          this.generateRankedPuzzle();
+        }
+        return;
+      }
+
+      this.ui.showLoading({
+        variant: "channel",
+        message: "Sıradaki puzzle yayımlanıyor"
+      });
+
+      try {
+        const nextSlot = this.rankedSprint.getStatus().puzzleIndex + 1;
+        const released = await this.auth.releaseRankedPuzzle(
+          this.rankedSprint.attemptId,
+          nextSlot
+        );
+
+        if (!released.ok) {
+          this.ui.setRankedMessage(
+            released.error || "Sıradaki puzzle yayımlanamadı; tekrar dene.",
+            "error"
+          );
+          return;
+        }
+
+        this.rankedSprint.acceptReleasedPuzzle(released.puzzle);
         this.generateRankedPuzzle();
+      } finally {
+        await this.ui.hideLoading({ minimumMs: 240 });
       }
       return;
     }
@@ -1417,7 +1537,6 @@ export class Game {
     this.generateLevel();
     this.progress.startTimer();
   }
-
   loop(timestamp = performance.now()) {
     if (this.pageHidden) {
       requestAnimationFrame((nextTimestamp) => this.loop(nextTimestamp));

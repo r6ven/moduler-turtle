@@ -1,4 +1,4 @@
-﻿import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import { CONFIG } from "./config.js";
 
 const DEVICE_SESSION_KEY = "zen-kaplumbaga-device-session-v1";
@@ -246,23 +246,63 @@ export class UserAuthSystem {
     return this.normalizeRpcResponse(data);
   }
 
-  claimRankedSprint() {
-    return this.callRankedRpc("claim_ranked_sprint_attempt");
-  }
-
-  startRankedSprintAttempt(attemptId) {
-    return this.callRankedRpc("start_ranked_sprint_attempt", {
-      p_attempt_id: attemptId
+  startRankedSprint(compatibility) {
+    return this.callRankedRpc("start_ranked_attempt", {
+      p_supported_definition_schemas:
+        compatibility.supportedDefinitionSchemas,
+      p_supported_game_rules: compatibility.supportedGameRules
     });
   }
 
-  submitRankedPuzzle(attemptId, slot, moves, checksum) {
-    return this.callRankedRpc("submit_ranked_puzzle_result", {
+  releaseRankedPuzzle(attemptId, slot) {
+    return this.callRankedRpc("release_ranked_slot", {
       p_attempt_id: attemptId,
-      p_slot: slot,
-      p_moves: moves,
-      p_checksum: checksum
+      p_slot: slot
     });
+  }
+
+  async submitRankedReplay(result) {
+    if (!this.currentSessionToken) {
+      return { ok: false, code: "secure_session_required" };
+    }
+
+    try {
+      const response = await fetch(
+        `${CONFIG.supabase.url}/functions/v1/submit-ranked-replay`,
+        {
+          method: "POST",
+          headers: {
+            apikey: CONFIG.supabase.anonKey,
+            authorization: `Bearer ${CONFIG.supabase.anonKey}`,
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({
+            sessionToken: this.currentSessionToken,
+            attemptId: result.attemptId,
+            slot: result.slot,
+            submissionId: result.submissionId,
+            replay: result.replay
+          })
+        }
+      );
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok || payload.ok === false) {
+        return {
+          ok: false,
+          code: payload.code || (response.status >= 500 ? "server_error" : "rejected"),
+          error: payload.error || `Replay doğrulanamadı (${response.status}).`
+        };
+      }
+
+      return payload;
+    } catch (error) {
+      return {
+        ok: false,
+        code: "network_error",
+        error: error?.message || "Replay doğrulama servisine ulaşılamadı."
+      };
+    }
   }
 
   invalidateRankedSprint(attemptId, reason) {

@@ -10,10 +10,15 @@ import {
 } from "./HexMath.js";
 import { PuzzleValidator } from "./PuzzleValidator.js";
 import {
+  calculateObjectChecksum,
+  DEFAULT_RULES_VERSION,
+  PUZZLE_DEFINITION_SCHEMA_VERSION,
+  RANKED_RULES_VERSION
+} from "./PuzzleDefinition.js";
+import {
   createPuzzleRandomStreams,
   createRuntimePuzzleSeed,
   derivePuzzleSeed,
-  hashStringToSeed,
   normalizePuzzleSeed
 } from "./PuzzleRandom.js";
 
@@ -116,7 +121,13 @@ export class PuzzleGenerator {
       candidateSeed,
       qualityAttempt
     );
-    const checksum = PuzzleGenerator.calculateDefinitionChecksum(definition);
+    const presentationDefinition = PuzzleGenerator.createPresentationDefinition(
+      grid,
+      options,
+      candidateSeed
+    );
+    const gameplayChecksum = PuzzleGenerator.calculateDefinitionChecksum(definition);
+    const presentationChecksum = calculateObjectChecksum(presentationDefinition);
 
     return {
       grid,
@@ -131,8 +142,13 @@ export class PuzzleGenerator {
       qualityAttempt,
       quality,
       generatorVersion: PUZZLE_GENERATOR_VERSION,
-      checksum,
+      schemaVersion: PUZZLE_DEFINITION_SCHEMA_VERSION,
+      rulesVersion: options.rulesVersion,
+      checksum: gameplayChecksum,
+      gameplayChecksum,
+      presentationChecksum,
       definition,
+      presentationDefinition,
       generationDiagnostics: cleanMap.diagnostics
     };
   }
@@ -220,6 +236,11 @@ export class PuzzleGenerator {
       : mode === "story"
         ? `story-v2-${level}`
         : `${mode}-v${PUZZLE_GENERATOR_VERSION}-${baseSeed}`;
+    const rulesVersion = typeof input.rulesVersion === "string" && input.rulesVersion.trim()
+      ? input.rulesVersion.trim()
+      : mode === "daily"
+        ? RANKED_RULES_VERSION
+        : DEFAULT_RULES_VERSION;
 
     return Object.freeze({
       mode,
@@ -231,6 +252,7 @@ export class PuzzleGenerator {
       baseSeed,
       seed: baseSeed,
       puzzleId,
+      rulesVersion,
       tutorial,
       search: Object.freeze({ maxNodeVisits, maxAttempts }),
       quality: Object.freeze({
@@ -629,13 +651,16 @@ export class PuzzleGenerator {
         rotation: tile.rotation,
         source: tile.source,
         sink: tile.sink,
-        victoryIndex: tile.victoryIndex
+        victoryIndex: tile.victoryIndex,
+        tutorialTarget: tile.tutorialTarget === true
       }));
 
     return {
       puzzleId: options.puzzleId,
       mode: options.mode,
       generatorVersion: PUZZLE_GENERATOR_VERSION,
+      schemaVersion: PUZZLE_DEFINITION_SCHEMA_VERSION,
+      rulesVersion: options.rulesVersion,
       seed: candidateSeed,
       baseSeed: options.baseSeed,
       qualityAttempt,
@@ -654,9 +679,29 @@ export class PuzzleGenerator {
     };
   }
 
+  static createPresentationDefinition(grid, options, candidateSeed) {
+    const tiles = Object.values(grid)
+      .sort((first, second) => first.q - second.q || first.r - second.r)
+      .map((tile) => ({
+        key: tileKey(tile.q, tile.r),
+        q: tile.q,
+        r: tile.r,
+        decorSeed: tile.decorSeed >>> 0,
+        pulsePhase: tile.pulsePhase,
+        landmark: tile.landmark,
+        landmarkVariant: tile.landmarkVariant
+      }));
+
+    return {
+      schemaVersion: PUZZLE_DEFINITION_SCHEMA_VERSION,
+      puzzleId: options.puzzleId,
+      seed: candidateSeed,
+      tiles
+    };
+  }
+
   static calculateDefinitionChecksum(definition) {
-    const hash = hashStringToSeed(JSON.stringify(definition));
-    return `fnv1a32-${hash.toString(16).padStart(8, "0")}`;
+    return calculateObjectChecksum(definition);
   }
   static calculateMinimumMoves(grid) {
     return Object.values(grid)

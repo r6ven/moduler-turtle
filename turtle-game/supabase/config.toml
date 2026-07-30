@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.finalize-ranked-day]
 verify_jwt = false
+
+[functions.submit-ranked-replay]
+verify_jwt = false

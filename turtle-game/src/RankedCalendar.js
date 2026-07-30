@@ -14,6 +14,9 @@ export function getDaysInUtcMonth(year, month) {
 export function createRankedSeasonManifest({ seasonId, secretSeed }) {
   if (!/^\d{4}-\d{2}$/.test(seasonId)) throw new TypeError("seasonId must use YYYY-MM.");
   const [year, month] = seasonId.split("-").map(Number);
+  if (year < 2000 || year > 9999 || month < 1 || month > 12) {
+    throw new RangeError("seasonId must contain a valid UTC year and month.");
+  }
   const daysInMonth = getDaysInUtcMonth(year, month);
   const baseSeed = normalizePuzzleSeed(secretSeed);
   const slots = [];

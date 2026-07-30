@@ -133,6 +133,26 @@ zamanında kullanılmaz.
   beşli, tek ilk hak, ipucusuz ve kesintide derecesiz.
 - Aylık havuz server-only Edge Function tarafından 155 kimlik olarak hazırlanır;
   kısa ayların fazla slotları yayımlanmaz.
-- Migration production'a otomatik uygulanmadı. Uygulama/deploy/cron adımları
-  Supabase.md içinde; mevcut kullanıcı satırlarına dokunulmamalı.
+- Ranked v2 migration'ları production'a uygulandı; üç Edge Function aktif.
+- `RANKED_PUZZLE_SECRET` ve `RANKED_CRON_SECRET` henüz Dashboard'a eklenmediği
+  ve sezon üretilmediği için mod güvenli biçimde `series_unavailable` kalır.
+- Migration/deploy/cron ayrıntıları Supabase.md içinde; mevcut kullanıcı
+  satırlarına dokunulmamalı.
 - Günlük Puzzle ana sekmesi hâlâ ayrı iskelet ve bu çalışmanın kapsamı dışında.
+## Secure ranked replay contract - 2026-07-30
+
+- Ranked start is atomic and compatibility is checked before the daily attempt
+  exists. It returns only the current gameplay/presentation definition.
+- The next slot is released only after the Edge verifier accepts the prior
+  replay. Releasing the same slot again preserves the original `released_at`.
+- Ranked moves are an ordered array of active tile keys; one entry means one
+  clockwise 60-degree rotation. Move count is always derived from its length.
+- `submit-ranked-replay` verifies gameplay checksum/schema/rules and replays the
+  solution with the browser-independent validator before a service-only RPC
+  records it in a locked transaction.
+- Published seasons and slot definitions are immutable. Gameplay and visual
+  presentation have separate checksums so art changes do not alter competition.
+- Story leaderboard remains explicitly casual/client-reported. Do not present
+  it as server-verified until story replay verification is implemented.
+- Production migration and Edge deployment must preserve `players`, progress,
+  passwords, and sessions. Never run `fresh_project.sql` in production.

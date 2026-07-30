@@ -484,7 +484,7 @@ export class UIController {
 
     if (activeMode === "story") {
       this.recordsDescription.innerText =
-        "Her hikâye bölümünde yalnızca en iyi sonuç gösterilir.";
+        "Hikâye sonuçları casual ve istemci bildirimlidir; her bölümün en iyi sonucu gösterilir.";
       this.renderStoryRecordWinners();
       return;
     }
@@ -694,18 +694,29 @@ export class UIController {
         ? "SPRINT SONUCUNA DÖN"
         : "SONRAKİ PUZZLE";
     } else if (result.mode === "ranked") {
-      const rankedLabel = result.ranked ? "Dereceli" : "Antrenman tekrari";
-      this.completeTitleText.innerText = result.sprintComplete
-        ? `${rankedLabel} seri tamamlandi`
-        : `${rankedLabel} ${result.slot}/5`;
-      this.completeText.innerText =
-        `${result.moves} hamle - ${this.formatDuration(result.timeSeconds)} - ${earnedStars} yildiz`;
-      this.completeGoal.innerText = result.ranked
-        ? "Puan gecicidir; UTC gunu kapandiginda yuzdelik dilim kesinlesir."
-        : "Bu tekrar dereceli tabloya gonderilmez.";
-      this.nextButton.innerText = result.sprintComplete
-        ? "SONUCLARA DON"
-        : "SONRAKI PUZZLE";
+      if (result.validationPending) {
+        this.completeTitleText.innerText = "Doğrulama bekliyor";
+        this.completeText.innerText =
+          `${result.moves} hamlelik replay henüz sunucuya ulaşmadı.`;
+        this.completeGoal.innerText =
+          "Aynı gönderim kimliğiyle tekrar denendiğinde günlük hakkın ve süren korunur.";
+        this.nextButton.innerText = "DOĞRULAMAYI TEKRARLA";
+      } else {
+        const rankedLabel = result.ranked ? "Dereceli" : "Antrenman tekrarı";
+        this.completeTitleText.innerText = result.sprintComplete
+          ? `${rankedLabel} seri tamamlandı`
+          : `${rankedLabel} ${result.slot}/5`;
+        this.completeText.innerText =
+          `${result.moves} hamle - ${this.formatDuration(result.timeSeconds)} - ${earnedStars} yıldız`;
+        this.completeGoal.innerText = result.ranked
+          ? result.valid === false
+            ? "Koşu doğrulama kuralları nedeniyle derecesiz kaldı."
+            : "Puan geçicidir; UTC günü kapandığında yüzdelik dilim kesinleşir."
+          : "Bu tekrar dereceli tabloya gönderilmez.";
+        this.nextButton.innerText = result.sprintComplete
+          ? "SONUÇLARA DÖN"
+          : "SONRAKİ PUZZLE";
+      }
     } else {
       if (minimumClear && earnedStars === 3) {
         this.completeTitleText.innerText = "Harika bir uyum!";
