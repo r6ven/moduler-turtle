@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const { Game } = await import("../src/Game.js");
+const {
+  Game,
+  getRankedStartErrorMessage
+} = await import("../src/Game.js");
 
 test("continue opens the saved frontier instead of a replayed level", () => {
   const generatedLevels = [];
@@ -99,4 +102,60 @@ test("level 1 tutorial is restored when the level is replayed", () => {
 
   assert.equal(game.tutorial.active, true);
   assert.equal(game.tutorial.targetKey, targetKey);
+});
+
+test("ranked start failures return to the ranked menu with a clear reason", async () => {
+  const messages = [];
+  const game = {
+    auth: {
+      hasCurrentUser: () => true,
+      startRankedSprint: async () => ({
+        ok: false,
+        code: "series_unavailable"
+      })
+    },
+    ui: {
+      hideRankedRules() {},
+      showLoading() {},
+      hideLoading: async () => {},
+      showMenuMode(mode) {
+        this.mode = mode;
+      },
+      showSprintKind(kind) {
+        this.kind = kind;
+      },
+      setRankedMessage(message, type) {
+        messages.push({ message, type });
+      }
+    },
+    rankedSprint: {
+      ranked: false,
+      claimed: false,
+      complete: false
+    },
+    invalidateRankedSprint() {
+      throw new Error("a rejected start must not invalidate an unclaimed run");
+    }
+  };
+
+  await Game.prototype.startRankedSprint.call(game);
+
+  assert.equal(game.ui.mode, "endless");
+  assert.equal(game.ui.kind, "ranked");
+  assert.deepEqual(messages.at(-1), {
+    message:
+      "Bug\u00fcn\u00fcn dereceli serisi hen\u00fcz yay\u0131mlanmad\u0131. L\u00fctfen biraz sonra tekrar dene.",
+    type: "error"
+  });
+});
+
+test("ranked start errors have stable localized fallbacks", () => {
+  assert.equal(
+    getRankedStartErrorMessage({ code: "slot_unavailable" }),
+    "Bug\u00fcn\u00fcn dereceli bulmacas\u0131 haz\u0131rlanamad\u0131. L\u00fctfen biraz sonra tekrar dene."
+  );
+  assert.equal(
+    getRankedStartErrorMessage({ error: "Server unavailable." }),
+    "Server unavailable."
+  );
 });

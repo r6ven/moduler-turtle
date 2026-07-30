@@ -18,6 +18,23 @@ import { Turtle } from "./Turtle.js";
 import { UIController } from "./UIController.js";
 import { UserAuthSystem } from "./UserAuthSystem.js";
 
+export function getRankedStartErrorMessage(result = {}) {
+  const messages = {
+    client_update_required:
+      "Dereceli Sprint i\u00e7in oyunu g\u00fcncellemen gerekiyor. G\u00fcnl\u00fck hakk\u0131n kullan\u0131lmad\u0131.",
+    series_unavailable:
+      "Bug\u00fcn\u00fcn dereceli serisi hen\u00fcz yay\u0131mlanmad\u0131. L\u00fctfen biraz sonra tekrar dene.",
+    slot_unavailable:
+      "Bug\u00fcn\u00fcn dereceli bulmacas\u0131 haz\u0131rlanamad\u0131. L\u00fctfen biraz sonra tekrar dene.",
+    invalid_session:
+      "Oturum s\u00fcren dolmu\u015f. Dereceli Sprint i\u00e7in tekrar giri\u015f yap."
+  };
+
+  return messages[result.code] ||
+    result.error ||
+    "Bug\u00fcnk\u00fc dereceli seri ba\u015flat\u0131lamad\u0131.";
+}
+
 export class Game {
   constructor() {
     this.canvas = document.getElementById("gameCanvas");
@@ -745,10 +762,13 @@ export class Game {
     if (!this.auth.hasCurrentUser()) return;
 
     this.ui.hideRankedRules();
+    this.ui.setRankedMessage("", "info");
     this.ui.showLoading({
       variant: "channel",
-      message: "Günün ortak serisi hazırlanıyor"
+      message: "G\u00fcn\u00fcn ortak serisi haz\u0131rlan\u0131yor"
     });
+
+    let failureMessage = "";
 
     try {
       const started = await this.auth.startRankedSprint(
@@ -756,10 +776,7 @@ export class Game {
       );
 
       if (!started.ok) {
-        const message = started.code === "client_update_required"
-          ? "Dereceli Sprint için oyunu güncellemen gerekiyor. Günlük hakkın kullanılmadı."
-          : started.error || "Bugünkü dereceli seri başlatılamadı.";
-        this.ui.setRankedMessage(message, "error");
+        failureMessage = getRankedStartErrorMessage(started);
         return;
       }
 
@@ -769,12 +786,16 @@ export class Game {
       this.closeMenu();
     } catch (error) {
       this.invalidateRankedSprint(error.code || "start_failed");
-      this.ui.setRankedMessage(
-        error.message || "Dereceli Sprint başlatılamadı.",
-        "error"
-      );
+      failureMessage =
+        error.message || "Dereceli Sprint ba\u015flat\u0131lamad\u0131.";
     } finally {
       await this.ui.hideLoading({ minimumMs: 320 });
+
+      if (failureMessage) {
+        this.ui.showMenuMode?.("endless");
+        this.ui.showSprintKind?.("ranked");
+        this.ui.setRankedMessage(failureMessage, "error");
+      }
     }
   }
   invalidateRankedSprint(reason) {

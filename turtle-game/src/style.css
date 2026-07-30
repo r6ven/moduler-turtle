@@ -4011,3 +4011,96 @@ body.menu-open #gameCanvas {
   font-size: 14px;
   line-height: 1.35;
 }
+
+/* Keep every menu action legible inside the narrow storybook frame. */
+#main-menu-overlay button,
+.ranked-rules-overlay button {
+  max-width: 100%;
+  line-height: 1.08;
+}
+
+#main-menu-overlay .storybook-primary-action {
+  padding-inline: 4%;
+  overflow: hidden;
+  font-size: clamp(12px, 3.7vw, 22px) !important;
+  letter-spacing: 0.035em;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+#main-menu-overlay .storybook-secondary-action {
+  padding-inline: 5% !important;
+  overflow: hidden;
+  font-size: clamp(9px, 2.45vw, 15px) !important;
+  letter-spacing: 0.025em;
+}
+
+#main-menu-overlay .storybook-auth-menu #login-btn,
+#main-menu-overlay .storybook-auth-menu #register-btn {
+  padding-inline: 4%;
+  overflow: hidden;
+  font-size: clamp(11px, 3.15vw, 19px);
+  letter-spacing: 0.025em;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+#main-menu-overlay .menu-mode-tab,
+#main-menu-overlay .sprint-kind-btn {
+  overflow: hidden;
+  padding-inline: 3%;
+  font-size: clamp(7px, 1.85vw, 11px);
+  letter-spacing: 0.02em;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+#main-menu-overlay .endless-start-btn {
+  padding-inline: 0.35em;
+  font-size: clamp(8px, 1.95vw, 11px) !important;
+  letter-spacing: 0.02em;
+}
+
+#main-menu-overlay .menu-footer-actions .menu-btn {
+  overflow: hidden;
+  font-size: clamp(7px, 1.8vw, 11px);
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+#ranked-message {
+  min-height: 0;
+  margin: 0;
+  padding: 0.2em 0.35em;
+  overflow-wrap: anywhere;
+  color: #17676a;
+  font: 700 clamp(7px, 1.75vw, 10px) / 1.2 Georgia, serif;
+  text-align: center;
+}
+
+#ranked-message.error {
+  color: #9e3f3d;
+}
+
+#ranked-message:empty {
+  display: none;
+}
+
+.ranked-rules-card .confirm-btn {
+  max-width: 100%;
+  padding-inline: 10px;
+  font-size: clamp(10px, 2.7vw, 13px);
+  line-height: 1.12;
+  text-align: center;
+}
+
+@media (max-width: 360px) {
+  #main-menu-overlay .storybook-primary-action {
+    font-size: 12px !important;
+  }
+
+  #main-menu-overlay .storybook-auth-menu #login-btn,
+  #main-menu-overlay .storybook-auth-menu #register-btn {
+    font-size: 11px;
+  }
+}
