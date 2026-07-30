@@ -159,3 +159,36 @@ test("ranked start errors have stable localized fallbacks", () => {
     "Server unavailable."
   );
 });
+
+test("unhydrated ranked sessions cannot reopen a stale board", () => {
+  let resetCount = 0;
+  let rulesCount = 0;
+  let closeCount = 0;
+  const game = {
+    rankedSprint: {
+      active: true,
+      ranked: true,
+      isComplete: () => false,
+      hasPlayablePuzzle: () => false,
+      reset() {
+        resetCount += 1;
+        this.active = false;
+      }
+    },
+    ui: {
+      showRankedRules() {
+        rulesCount += 1;
+      },
+      setHintEnabled() {}
+    },
+    closeMenu() {
+      closeCount += 1;
+    }
+  };
+
+  Game.prototype.requestRankedSprint.call(game);
+
+  assert.equal(resetCount, 1);
+  assert.equal(rulesCount, 1);
+  assert.equal(closeCount, 0);
+});

@@ -713,7 +713,7 @@ export class Game {
       payload.presentationChecksum &&
       generated.presentationChecksum !== payload.presentationChecksum
     ) {
-      const error = new Error("Dereceli puzzle sunum verisi do?rulanamad?.");
+      const error = new Error("Dereceli puzzle sunum verisi do\u011frulanamad\u0131.");
       error.code = "presentation_checksum_mismatch";
       throw error;
     }
@@ -749,15 +749,26 @@ export class Game {
   }
 
   requestRankedSprint() {
-    if (this.rankedSprint.active && !this.rankedSprint.isComplete()) {
+    if (
+      this.rankedSprint.active &&
+      !this.rankedSprint.isComplete() &&
+      this.rankedSprint.hasPlayablePuzzle()
+    ) {
       this.gameMode = "ranked";
-      this.ui.setHintEnabled?.(!this.rankedSprint.ranked, "Dereceli Sprintte ipucu kullan\u0131lamaz.");
+      this.ui.setHintEnabled?.(
+        !this.rankedSprint.ranked,
+        "Dereceli Sprintte ipucu kullan\u0131lamaz."
+      );
       this.closeMenu();
       return;
     }
+
+    if (this.rankedSprint.active && !this.rankedSprint.isComplete()) {
+      this.rankedSprint.reset();
+    }
+
     this.ui.showRankedRules();
   }
-
   async startRankedSprint() {
     if (!this.auth.hasCurrentUser()) return;
 
@@ -786,6 +797,7 @@ export class Game {
       this.closeMenu();
     } catch (error) {
       this.invalidateRankedSprint(error.code || "start_failed");
+      this.rankedSprint.reset();
       failureMessage =
         error.message || "Dereceli Sprint ba\u015flat\u0131lamad\u0131.";
     } finally {
@@ -1205,7 +1217,9 @@ export class Game {
     this.particles.createCelebration(this.displaySize, this.displaySize);
 
     if (this.gameMode === "ranked") {
-      void this.completeRankedLevel();
+      void this.completeRankedLevel().catch((error) => {
+        this.handleRankedCompletionFailure(error);
+      });
       return;
     }
 
@@ -1234,6 +1248,14 @@ export class Game {
   }
 
   async completeRankedLevel() {
+    if (!this.rankedSprint.hasPlayablePuzzle()) {
+      const error = new Error(
+        "Dereceli puzzle tamamlanma durumu haz\u0131r de\u011fil."
+      );
+      error.code = "ranked_puzzle_not_ready";
+      throw error;
+    }
+
     const pending = this.rankedSprint.completeCurrentPuzzle();
 
     if (!pending.ranked) {
@@ -1246,6 +1268,27 @@ export class Game {
     await this.submitPendingRankedResult();
   }
 
+  handleRankedCompletionFailure(error) {
+    console.error("Ranked completion failed", error);
+    const reason = error?.code || "ranked_completion_failed";
+
+    this.invalidateRankedSprint(reason);
+    this.rankedSprint.reset();
+    this.levelCompleted = false;
+    this.menuOpen = true;
+    this.ui.hideCompletion();
+    this.ui.showGameMenu(
+      this.auth.getCurrentUsername(),
+      this.progress.getSavedLevel(),
+      this.progress.getCompletedLevels().length
+    );
+    this.ui.showMenuMode("endless");
+    this.ui.showSprintKind("ranked");
+    this.ui.setRankedMessage(
+      "Dereceli tamamlama do\u011frulanamad\u0131. Ko\u015fu yeniden ba\u015flat\u0131labilir.",
+      "error"
+    );
+  }
   async submitPendingRankedResult() {
     const pending = this.rankedSprint.completeCurrentPuzzle();
 

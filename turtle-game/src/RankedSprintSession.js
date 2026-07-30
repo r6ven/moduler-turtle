@@ -167,6 +167,15 @@ export class RankedSprintSession {
     return this.currentPuzzlePayload;
   }
 
+  hasPlayablePuzzle() {
+    return Boolean(
+      this.active &&
+      !this.complete &&
+      this.currentPuzzlePayload &&
+      this.currentPuzzle
+    );
+  }
+
   beginPuzzle(hydrated) {
     const profile = this.currentPuzzlePayload;
 
@@ -361,6 +370,7 @@ export class RankedSprintSession {
       }
       this.puzzleIndex += 1;
       this.currentPuzzlePayload = normalized;
+      this.currentPuzzle = null;
       return true;
     }
 
@@ -373,6 +383,7 @@ export class RankedSprintSession {
     }
     this.puzzleIndex += 1;
     this.currentPuzzlePayload = this.trainingPuzzles[this.puzzleIndex];
+    this.currentPuzzle = null;
     return Boolean(this.currentPuzzlePayload);
   }
 

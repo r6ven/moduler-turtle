@@ -63,6 +63,24 @@ test("ranked generator contract tracks the browser generator version", () => {
   assert.equal(RANKED_GENERATOR_VERSION, PUZZLE_GENERATOR_VERSION);
 });
 
+test("ranked checksums ignore JSON object key order", () => {
+  const generatedOrder = {
+    mode: "ranked",
+    board: { mapRadius: 2, activeTileCount: 14 },
+    tiles: [{ key: "0,0", rotation: 2 }]
+  };
+  const databaseOrder = {
+    tiles: [{ rotation: 2, key: "0,0" }],
+    board: { activeTileCount: 14, mapRadius: 2 },
+    mode: "ranked"
+  };
+
+  assert.equal(
+    calculateObjectChecksum(generatedOrder),
+    calculateObjectChecksum(databaseOrder)
+  );
+});
+
 test("ranked session uses the fixed five-profile ladder and cannot pause", () => {
   let now = 1000;
   const session = new RankedSprintSession({ now: () => now });
@@ -70,10 +88,12 @@ test("ranked session uses the fixed five-profile ladder and cannot pause", () =>
   const payload = session.getCurrentPuzzlePayload();
   assert.equal(payload.slot, 1);
   assert.equal(payload.activeTileCount, 14);
+  assert.equal(session.hasPlayablePuzzle(), false);
   session.beginPuzzle(hydratePuzzleDefinition(
     payload.definition,
     payload.presentationDefinition
   ));
+  assert.equal(session.hasPlayablePuzzle(), true);
   session.addMove("0,0");
   now = 5000;
   session.pauseTimer();
@@ -109,6 +129,15 @@ test("ranked submission retries keep one stable id and replay", () => {
   });
   assert.equal(accepted.elapsedMs, 1750);
   assert.equal(session.hasPendingSubmission(), false);
+
+  const nextPayload = createPuzzlePayload(RANKED_PUZZLE_PROFILES[1]);
+  session.acceptReleasedPuzzle(nextPayload);
+  assert.equal(session.hasPlayablePuzzle(), false);
+  session.beginPuzzle(hydratePuzzleDefinition(
+    nextPayload.gameplay_definition,
+    nextPayload.presentation_definition
+  ));
+  assert.equal(session.hasPlayablePuzzle(), true);
 });
 
 test("an active ranked attempt resumes at the server slot with prior totals", () => {
@@ -303,4 +332,20 @@ test("ranked migration is additive and future manifests stay private", async () 
   assert.match(verifierEdge, /accept_ranked_replay/);
   assert.match(verifierEdge, /submissionId/);
   assert.doesNotMatch(verifierEdge, /moveCount\s*:\s*body/);
+});
+
+
+test("ranked checksum migration canonicalizes jsonb without deleting players", async () => {
+  const migrationUrl = new URL(
+    "../supabase/migrations/202607300004_canonicalize_ranked_checksums.sql",
+    import.meta.url
+  );
+  const sql = (await readFile(migrationUrl, "utf8")).toLowerCase();
+
+  assert.match(sql, /_ranked_canonical_jsonb/);
+  assert.match(sql, /order by item\.key/);
+  assert.match(sql, /update public\.ranked_puzzle_slots/);
+  assert.match(sql, /enable trigger protect_ranked_slot/);
+  assert.doesNotMatch(sql, /delete\s+from\s+public\.players/);
+  assert.doesNotMatch(sql, /truncate\s+(table\s+)?public\.players/);
 });

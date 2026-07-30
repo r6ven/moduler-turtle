@@ -6,8 +6,38 @@ export const PUZZLE_DEFINITION_SCHEMA_VERSION = 1;
 export const RANKED_RULES_VERSION = "ranked-v2";
 export const DEFAULT_RULES_VERSION = "rotation-v1";
 
+export function stringifyCanonicalObject(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => {
+      const serialized = stringifyCanonicalObject(entry);
+      return serialized === undefined ? "null" : serialized;
+    }).join(",")}]`;
+  }
+
+  if (value && typeof value === "object") {
+    const entries = Object.keys(value)
+      .sort()
+      .flatMap((key) => {
+        const serialized = stringifyCanonicalObject(value[key]);
+        return serialized === undefined
+          ? []
+          : [`${JSON.stringify(key)}:${serialized}`];
+      });
+
+    return `{${entries.join(",")}}`;
+  }
+
+  return JSON.stringify(value);
+}
+
 export function calculateObjectChecksum(value) {
-  const hash = hashStringToSeed(JSON.stringify(value));
+  const serialized = stringifyCanonicalObject(value);
+
+  if (serialized === undefined) {
+    throw new TypeError("Checksum value must be JSON serializable.");
+  }
+
+  const hash = hashStringToSeed(serialized);
   return `fnv1a32-${hash.toString(16).padStart(8, "0")}`;
 }
 
