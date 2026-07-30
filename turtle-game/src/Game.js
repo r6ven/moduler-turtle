@@ -45,6 +45,8 @@ export class Game {
     this.modeRecords = new ModeRecordStore();
     this.endlessSprint = new EndlessSprintSession();
     this.rankedSprint = new RankedSprintSession();
+    this.rankedForfeitPromise = null;
+    this.rankedForfeitSlot = null;
     this.currentPuzzle = null;
     this.gameMode = "story";
 
@@ -148,8 +150,13 @@ export class Game {
     });
 
     window.addEventListener("pagehide", () => {
-      if (this.gameMode === "ranked" && this.rankedSprint.active && this.rankedSprint.ranked) {
-        this.invalidateRankedSprint("page_unloaded");
+      if (
+        this.gameMode === "ranked" &&
+        this.rankedSprint.active &&
+        this.rankedSprint.ranked &&
+        !this.levelCompleted
+      ) {
+        this.forfeitCurrentRankedPuzzle("page_unloaded");
       }
     });
 
@@ -402,8 +409,13 @@ export class Game {
     this.resumeAnimationClock(now);
 
     if (this.pageHidden) {
-      if (this.gameMode === "ranked" && this.rankedSprint.active && this.rankedSprint.ranked) {
-        this.invalidateRankedSprint("page_hidden");
+      if (
+        this.gameMode === "ranked" &&
+        this.rankedSprint.active &&
+        this.rankedSprint.ranked &&
+        !this.levelCompleted
+      ) {
+        this.forfeitCurrentRankedPuzzle("page_hidden");
       } else {
         this.pauseActiveTimer();
       }
@@ -599,6 +611,7 @@ export class Game {
 
     this.particles.clear();
     this.ui.hideCompletion();
+    this.ui.updateRankedPuzzleEligibility?.({});
     this.ui.updateLevel(this.level);
     this.ui.setHintEnabled?.(true);
 
@@ -652,6 +665,7 @@ export class Game {
 
     this.particles.clear();
     this.ui.hideCompletion();
+    this.ui.updateRankedPuzzleEligibility?.({});
     this.ui.updateSprintHeader(status.puzzleIndex, status.sprintLength);
     this.ui.setHintEnabled?.(true);
 
@@ -726,6 +740,7 @@ export class Game {
     this.particles.clear();
     this.ui.hideCompletion();
     this.ui.updateRankedSprintStatus(status);
+    this.ui.updateRankedPuzzleEligibility?.(status);
     this.ui.updateSprintHeader(status.puzzleIndex, status.sprintLength);
 
     const mapRadiusChanged = this.mapRadius !== generated.mapRadius;
@@ -736,6 +751,9 @@ export class Game {
     if (mapRadiusChanged) this.resizeCanvas();
     this.renderer.invalidateGrid();
     this.rankedSprint.beginPuzzle(generated);
+    this.ui.updateRankedPuzzleEligibility?.(
+      this.rankedSprint.getStatus()
+    );
     this.configureTutorial(null);
     this.ui.updateStats(this.rankedSprint);
     this.ui.updateTimer(this.rankedSprint.getElapsedSeconds());
@@ -751,20 +769,26 @@ export class Game {
   requestRankedSprint() {
     if (
       this.rankedSprint.active &&
-      !this.rankedSprint.isComplete() &&
-      this.rankedSprint.hasPlayablePuzzle()
+      !this.rankedSprint.isComplete()
     ) {
+      if (
+        this.gameMode !== "ranked" ||
+        !this.rankedSprint.hasPlayablePuzzle()
+      ) {
+        this.generateRankedPuzzle();
+      }
+
       this.gameMode = "ranked";
       this.ui.setHintEnabled?.(
         !this.rankedSprint.ranked,
         "Dereceli Sprintte ipucu kullan\u0131lamaz."
       );
+      this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
+      this.ui.updateRankedPuzzleEligibility?.(
+        this.rankedSprint.getStatus()
+      );
       this.closeMenu();
       return;
-    }
-
-    if (this.rankedSprint.active && !this.rankedSprint.isComplete()) {
-      this.rankedSprint.reset();
     }
 
     this.ui.showRankedRules();
@@ -792,11 +816,14 @@ export class Game {
       }
 
       this.rankedSprint.start(started);
+      this.rankedForfeitPromise = null;
+      this.rankedForfeitSlot = null;
       this.generateRankedPuzzle();
       this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
       this.closeMenu();
     } catch (error) {
-      this.invalidateRankedSprint(error.code || "start_failed");
+      // Client hydration/start failures must not consume the daily attempt.
+      // The same server slot can be requested again after the client recovers.
       this.rankedSprint.reset();
       failureMessage =
         error.message || "Dereceli Sprint ba\u015flat\u0131lamad\u0131.";
@@ -815,6 +842,75 @@ export class Game {
     this.rankedSprint.invalidate(reason);
     this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
     void this.auth.invalidateRankedSprint(this.rankedSprint.attemptId, reason);
+  }
+
+  forfeitCurrentRankedPuzzle(reason) {
+    const changed = this.rankedSprint.forfeitCurrentPuzzle(reason);
+
+    if (!changed) return this.rankedForfeitPromise;
+
+    const slot = this.rankedSprint.getStatus().puzzleIndex;
+    this.rankedForfeitSlot = slot;
+    this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
+    this.ui.updateRankedPuzzleEligibility?.(
+      this.rankedSprint.getStatus()
+    );
+
+    const request = this.auth.forfeitRankedPuzzle(
+      this.rankedSprint.attemptId,
+      slot,
+      reason
+    );
+    this.rankedForfeitPromise = Promise.resolve(request)
+      .then((result) => {
+        if (!result?.ok) {
+          const error = new Error(
+            result?.error ||
+            "Puzzle puan durumu sunucuya iletilemedi."
+          );
+          error.code = result?.code || "forfeit_failed";
+          throw error;
+        }
+        return result;
+      })
+      .finally(() => {
+        if (this.rankedForfeitSlot === slot) {
+          this.rankedForfeitPromise = null;
+        }
+      });
+    this.rankedForfeitPromise.catch(() => {});
+    return this.rankedForfeitPromise;
+  }
+
+  async ensureCurrentRankedForfeit() {
+    const status = this.rankedSprint.getStatus();
+    if (status.scoreEligible !== false) return;
+
+    if (!this.rankedForfeitPromise) {
+      const slot = status.puzzleIndex;
+      this.rankedForfeitSlot = slot;
+      this.rankedForfeitPromise = this.auth.forfeitRankedPuzzle(
+        this.rankedSprint.attemptId,
+        slot,
+        status.forfeitReason || "client_interrupted"
+      ).then((result) => {
+        if (!result?.ok) {
+          const error = new Error(
+            result?.error ||
+            "Puzzle puan durumu sunucuya iletilemedi."
+          );
+          error.code = result?.code || "forfeit_failed";
+          throw error;
+        }
+        return result;
+      }).finally(() => {
+        if (this.rankedForfeitSlot === slot) {
+          this.rankedForfeitPromise = null;
+        }
+      });
+    }
+
+    await this.rankedForfeitPromise;
   }
 
   async login() {
@@ -900,10 +996,24 @@ export class Game {
     );
   }
 
-  logout() {
+  async logout() {
     this.pauseActiveTimer();
+    if (
+      this.gameMode === "ranked" &&
+      this.rankedSprint.active &&
+      this.rankedSprint.ranked &&
+      !this.levelCompleted
+    ) {
+      try {
+        await this.forfeitCurrentRankedPuzzle("left_for_logout");
+      } catch {
+        // A reload can retry the slot-scoped forfeit with the same session.
+      }
+    }
     this.endlessSprint.reset();
     this.rankedSprint.reset();
+    this.rankedForfeitPromise = null;
+    this.rankedForfeitSlot = null;
     this.auth.logout();
     this.progress.loadForCurrentUser();
 
@@ -916,8 +1026,13 @@ export class Game {
 
   openMenu() {
     this.menuOpen = true;
-    if (this.gameMode === "ranked" && this.rankedSprint.active && this.rankedSprint.ranked) {
-      this.invalidateRankedSprint("menu_opened");
+    if (
+      this.gameMode === "ranked" &&
+      this.rankedSprint.active &&
+      this.rankedSprint.ranked &&
+      !this.levelCompleted
+    ) {
+      this.forfeitCurrentRankedPuzzle("menu_opened");
     } else {
       this.pauseActiveTimer();
     }
@@ -975,9 +1090,12 @@ export class Game {
     ) {
       this.endlessSprint.reset();
     }
-    if (this.gameMode === "ranked" && this.rankedSprint.claimed) {
-      this.invalidateRankedSprint("left_for_story");
-      this.rankedSprint.reset();
+    if (
+      this.gameMode === "ranked" &&
+      this.rankedSprint.claimed &&
+      !this.levelCompleted
+    ) {
+      this.forfeitCurrentRankedPuzzle("left_for_story");
     }
 
     if (
@@ -1005,8 +1123,7 @@ export class Game {
     }
 
     if (this.rankedSprint.claimed && !this.rankedSprint.isComplete()) {
-      this.invalidateRankedSprint("left_for_training");
-      this.rankedSprint.reset();
+      this.forfeitCurrentRankedPuzzle("left_for_training");
     }
 
     this.audio.init();
@@ -1057,8 +1174,7 @@ export class Game {
       this.endlessSprint.reset();
     }
     if (this.rankedSprint.claimed && !this.rankedSprint.isComplete()) {
-      this.invalidateRankedSprint("left_for_story");
-      this.rankedSprint.reset();
+      this.forfeitCurrentRankedPuzzle("left_for_story");
     }
 
     this.level = level;
@@ -1299,6 +1415,20 @@ export class Game {
     });
 
     try {
+      try {
+        await this.ensureCurrentRankedForfeit();
+      } catch (error) {
+        this.ui.setRankedMessage(
+          "Puan d\u0131\u015f\u0131 durumu sunucuya ula\u015fmad\u0131. Hakk\u0131n korunuyor; tekrar dene.",
+          "error"
+        );
+        this.ui.showCompletion({
+          ...pending,
+          validationPending: true
+        });
+        return;
+      }
+
       const submission = await this.auth.submitRankedReplay(pending);
 
       if (!submission.ok) {
@@ -1330,7 +1460,12 @@ export class Game {
       }
 
       const accepted = this.rankedSprint.acceptSubmission(submission);
+      this.rankedForfeitPromise = null;
+      this.rankedForfeitSlot = null;
       this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
+      this.ui.updateRankedPuzzleEligibility?.(
+        this.rankedSprint.getStatus()
+      );
       this.ui.updateTimer(accepted.totalTimeSeconds);
       this.startVictoryTour(accepted);
     } finally {
@@ -1569,6 +1704,8 @@ export class Game {
         }
 
         this.rankedSprint.acceptReleasedPuzzle(released.puzzle);
+        this.rankedForfeitPromise = null;
+        this.rankedForfeitSlot = null;
         this.generateRankedPuzzle();
       } finally {
         await this.ui.hideLoading({ minimumMs: 240 });

@@ -81,7 +81,7 @@ test("ranked checksums ignore JSON object key order", () => {
   );
 });
 
-test("ranked session uses the fixed five-profile ladder and cannot pause", () => {
+test("interrupting one ranked puzzle forfeits only that slot", () => {
   let now = 1000;
   const session = new RankedSprintSession({ now: () => now });
   session.start(manifestPayload());
@@ -100,9 +100,31 @@ test("ranked session uses the fixed five-profile ladder and cannot pause", () =>
   now = 8000;
   assert.equal(session.getElapsedSeconds(), 7);
   assert.deepEqual(session.replay, ["0,0"]);
-  session.invalidate("menu_opened");
-  assert.equal(session.getStatus().valid, false);
-  assert.equal(session.getStatus().invalidReason, "menu_opened");
+
+  assert.equal(session.forfeitCurrentPuzzle("menu_opened"), true);
+  assert.equal(session.getStatus().valid, true);
+  assert.equal(session.getStatus().scoreEligible, false);
+  assert.equal(session.getStatus().forfeitReason, "menu_opened");
+  assert.equal(session.forfeitCurrentPuzzle("page_hidden"), false);
+
+  const pending = session.completeCurrentPuzzle();
+  assert.equal(pending.scoreEligible, false);
+  session.acceptSubmission({
+    ok: true, elapsed_ms: 7000, move_count: 1, stars: 3,
+    final_state_hash: "fnv1a32-test",
+    score_eligible: false,
+    forfeit_reason: "menu_opened"
+  });
+  const nextPayload = {
+    ...createPuzzlePayload(RANKED_PUZZLE_PROFILES[1]),
+    score_eligible: true,
+    forfeit_reason: null
+  };
+  session.acceptReleasedPuzzle(nextPayload);
+  assert.equal(session.getStatus().puzzleIndex, 2);
+  assert.equal(session.getStatus().scoreEligible, true);
+  assert.equal(session.getStatus().forfeitReason, null);
+  assert.equal(session.getStatus().valid, true);
 });
 
 test("ranked submission retries keep one stable id and replay", () => {
@@ -346,6 +368,25 @@ test("ranked checksum migration canonicalizes jsonb without deleting players", a
   assert.match(sql, /order by item\.key/);
   assert.match(sql, /update public\.ranked_puzzle_slots/);
   assert.match(sql, /enable trigger protect_ranked_slot/);
+  assert.doesNotMatch(sql, /delete\s+from\s+public\.players/);
+  assert.doesNotMatch(sql, /truncate\s+(table\s+)?public\.players/);
+});
+
+
+test("slot forfeit migration preserves the attempt and scores later slots", async () => {
+  const migrationUrl = new URL(
+    "../supabase/migrations/202607300006_forfeit_ranked_slots.sql",
+    import.meta.url
+  );
+  const sql = (await readFile(migrationUrl, "utf8")).toLowerCase();
+
+  assert.match(sql, /current_slot_score_eligible boolean not null default true/);
+  assert.match(sql, /score_eligible boolean not null default true/);
+  assert.match(sql, /create or replace function public\.forfeit_current_ranked_slot/);
+  assert.match(sql, /set current_slot_score_eligible=false/);
+  assert.match(sql, /set current_slot=p_slot\+1[\s\S]*current_slot_score_eligible=true/);
+  assert.match(sql, /and result\.score_eligible/);
+  assert.match(sql, /grant execute on function public\.forfeit_current_ranked_slot/);
   assert.doesNotMatch(sql, /delete\s+from\s+public\.players/);
   assert.doesNotMatch(sql, /truncate\s+(table\s+)?public\.players/);
 });

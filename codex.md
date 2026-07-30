@@ -130,7 +130,8 @@ zamanında kullanılmaz.
 - Kilitli karo üretimi bütün modlardan çıkarıldı. Zorluk aktif karo, loop ve
   final minimum-hamle/başlangıç-bağlantı kalite kapısıyla ölçülüyor.
 - Sonsuz sekmesi Antrenman ve Dereceli olarak ayrıldı. Dereceli: ortak günlük
-  beşli, tek ilk hak, ipucusuz ve kesintide derecesiz.
+  beşli, tek ilk hak ve ipucusuz. Kesinti bütün seriyi değil, yalnızca o anki
+  slotu puan dışı bırakır; oyuncu slotu çözer ve sonraki slotlar yeniden puanlıdır.
 - Aylık havuz server-only Edge Function tarafından 155 kimlik olarak hazırlanır;
   kısa ayların fazla slotları yayımlanmaz.
 - Ranked v2 migration'ları production'a uygulandı; üç Edge Function aktif.
@@ -156,3 +157,16 @@ zamanında kullanılmaz.
   it as server-verified until story replay verification is implemented.
 - Production migration and Edge deployment must preserve `players`, progress,
   passwords, and sessions. Never run `fresh_project.sql` in production.
+
+## Ranked interruption contract - 2026-07-30
+
+- Never invalidate a full ranked attempt because of menu, page hide/unload,
+  logout, or switching to story/training.
+- Mark only the released current slot `score_eligible=false`; keep the attempt
+  active and require a verified replay before the next slot can be released.
+- Every newly released slot resets score eligibility to true. Leaderboards and
+  finalization include only eligible puzzle results, but finishing the daily
+  series still requires all five verified solutions.
+- Client start/hydration failures preserve the server attempt and its original
+  release timestamp so retrying never consumes the daily entitlement or resets
+  competition time.

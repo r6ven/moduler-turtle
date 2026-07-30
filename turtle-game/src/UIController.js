@@ -30,6 +30,7 @@ export class UIController {
     this.menuButton = document.getElementById("menu-btn");
     this.fullscreenButton = document.getElementById("fullscreen-btn");
     this.tutorialCallout = document.getElementById("tutorial-callout");
+    this.rankedScoreCallout = document.getElementById("ranked-score-callout");
     this.mainMenuOverlay = document.getElementById("main-menu-overlay");
     this.authCard = document.getElementById("auth-card");
     this.gameMenuCard = document.getElementById("game-menu-card");
@@ -212,11 +213,27 @@ export class UIController {
       ? "SER\u0130YE D\u00d6N"
       : "DERECEL\u0130 KURALLARI";
     const validity = status.valid ? "Dereceli" : "Derecesiz";
-    const reason = status.invalidReason ? ` - ${status.invalidReason}` : "";
+    const slotNote = status.valid && status.scoreEligible === false
+      ? " - Bu puzzle puan d\u0131\u015f\u0131"
+      : status.invalidReason
+        ? ` - ${status.invalidReason}`
+        : "";
     this.rankedSprintStatus.innerHTML = `
       <strong>${validity} - Puzzle ${status.puzzleIndex}/${status.sprintLength}</strong>
-      <span>${status.totalMoves || 0} hamle - ${this.formatDuration(status.totalTimeSeconds || 0)}${reason}</span>
+      <span>${status.totalMoves || 0} hamle - ${this.formatDuration(status.totalTimeSeconds || 0)}${slotNote}</span>
     `;
+  }
+
+  updateRankedPuzzleEligibility(status = {}) {
+    if (!this.rankedScoreCallout) return;
+    const visible = Boolean(
+      status.active &&
+      status.ranked &&
+      !status.complete &&
+      status.scoreEligible === false
+    );
+    this.rankedScoreCallout.classList.toggle("active", visible);
+    this.rankedScoreCallout.setAttribute("aria-hidden", String(!visible));
   }
 
   setHintEnabled(enabled, reason = "") {
@@ -709,10 +726,12 @@ export class UIController {
         this.completeText.innerText =
           `${result.moves} hamle - ${this.formatDuration(result.timeSeconds)} - ${earnedStars} yıldız`;
         this.completeGoal.innerText = result.ranked
-          ? result.valid === false
-            ? "Koşu doğrulama kuralları nedeniyle derecesiz kaldı."
-            : "Puan geçicidir; UTC günü kapandığında yüzdelik dilim kesinleşir."
-          : "Bu tekrar dereceli tabloya gönderilmez.";
+          ? result.scoreEligible === false
+            ? "Bu puzzle puan d\u0131\u015f\u0131 kald\u0131. Sonraki puzzle dereceli ve puanl\u0131 devam edecek."
+            : result.valid === false
+              ? "Ko\u015fu do\u011frulama kurallar\u0131 nedeniyle derecesiz kald\u0131."
+              : "Puan ge\u00e7icidir; UTC g\u00fcn\u00fc kapand\u0131\u011f\u0131nda y\u00fczdelik dilim kesinle\u015fir."
+          : "Bu tekrar dereceli tabloya g\u00f6nderilmez.";
         this.nextButton.innerText = result.sprintComplete
           ? "SONUÇLARA DÖN"
           : "SONRAKİ PUZZLE";

@@ -34,7 +34,11 @@ function normalizeCompletedResult(raw) {
     finalStateHash: raw.final_state_hash || raw.finalStateHash || null,
     reviewStatus: raw.review_status || raw.reviewStatus || "clear",
     riskSignals: raw.risk_signals || raw.riskSignals || [],
-    provisional: raw.provisional !== false,
+    scoreEligible: raw.score_eligible ?? raw.scoreEligible ?? true,
+    forfeitReason: raw.forfeit_reason || raw.forfeitReason || null,
+    provisional:
+      (raw.score_eligible ?? raw.scoreEligible ?? true) &&
+      raw.provisional !== false,
     valid: true
   });
 }
@@ -76,6 +80,8 @@ function normalizePuzzlePayload(raw, fallbackSlot) {
     definition,
     presentationDefinition,
     releasedAt: raw.released_at || raw.releasedAt || null,
+    scoreEligible: raw.score_eligible ?? raw.scoreEligible ?? true,
+    forfeitReason: raw.forfeit_reason || raw.forfeitReason || null,
     minimumMoves: Number(
       raw.minimum_moves ?? raw.minimumMoves ?? definition.difficulty?.minimumMoves
     ),
@@ -97,6 +103,8 @@ export class RankedSprintSession {
     this.ranked = true;
     this.valid = true;
     this.invalidReason = null;
+    this.currentSlotScoreEligible = true;
+    this.currentSlotForfeitReason = null;
     this.attemptId = null;
     this.playDate = null;
     this.seasonId = null;
@@ -135,6 +143,10 @@ export class RankedSprintSession {
 
     if (this.ranked) {
       this.currentPuzzlePayload = normalizePuzzlePayload(payload.puzzle, 1);
+      this.currentSlotScoreEligible =
+        this.currentPuzzlePayload.scoreEligible !== false;
+      this.currentSlotForfeitReason =
+        this.currentPuzzlePayload.forfeitReason;
       this.puzzleIndex = this.currentPuzzlePayload.slot - 1;
       const completedResults = Array.isArray(payload.completed_results)
         ? payload.completed_results.map(normalizeCompletedResult)
@@ -155,6 +167,8 @@ export class RankedSprintSession {
         normalizePuzzlePayload(puzzle, index + 1)
       ));
       this.currentPuzzlePayload = this.trainingPuzzles[0];
+      this.currentSlotScoreEligible = false;
+      this.currentSlotForfeitReason = "training_replay";
     }
 
     this.startLocalTimer();
@@ -231,6 +245,26 @@ export class RankedSprintSession {
     if (this.ranked) this.invalidate("hint_used");
   }
 
+  forfeitCurrentPuzzle(reason) {
+    if (
+      !this.ranked ||
+      !this.claimed ||
+      !this.active ||
+      this.complete ||
+      this.pendingResult ||
+      !this.currentPuzzlePayload ||
+      this.results.length !== this.puzzleIndex
+    ) {
+      return false;
+    }
+
+    if (!this.currentSlotScoreEligible) return false;
+
+    this.currentSlotScoreEligible = false;
+    this.currentSlotForfeitReason = String(reason || "client_interrupted");
+    return true;
+  }
+
   invalidate(reason) {
     if (this.ranked && this.claimed && !this.complete && this.valid) {
       this.valid = false;
@@ -283,6 +317,10 @@ export class RankedSprintSession {
       gameplayChecksum: this.currentPuzzle.gameplayChecksum,
       generatorVersion: this.currentPuzzle.generatorVersion,
       difficultyWeight: this.currentPuzzle.difficultyWeight,
+      scoreEligible: this.ranked
+        ? this.currentSlotScoreEligible
+        : false,
+      forfeitReason: this.currentSlotForfeitReason,
       valid: this.valid,
       invalidReason: this.invalidReason,
       provisional: true
@@ -318,7 +356,21 @@ export class RankedSprintSession {
       finalStateHash: serverResult.final_state_hash || null,
       reviewStatus: serverResult.review_status || "clear",
       riskSignals: serverResult.risk_signals || [],
-      provisional: serverResult.provisional !== false
+      scoreEligible:
+        serverResult.score_eligible ??
+        serverResult.scoreEligible ??
+        this.pendingResult.scoreEligible,
+      forfeitReason:
+        serverResult.forfeit_reason ||
+        serverResult.forfeitReason ||
+        this.pendingResult.forfeitReason ||
+        null,
+      provisional:
+        (
+          serverResult.score_eligible ??
+          serverResult.scoreEligible ??
+          this.pendingResult.scoreEligible
+        ) && serverResult.provisional !== false
     });
 
     this.results.push(accepted);
@@ -371,6 +423,8 @@ export class RankedSprintSession {
       this.puzzleIndex += 1;
       this.currentPuzzlePayload = normalized;
       this.currentPuzzle = null;
+      this.currentSlotScoreEligible = normalized.scoreEligible !== false;
+      this.currentSlotForfeitReason = normalized.forfeitReason;
       return true;
     }
 
@@ -384,6 +438,8 @@ export class RankedSprintSession {
     this.puzzleIndex += 1;
     this.currentPuzzlePayload = this.trainingPuzzles[this.puzzleIndex];
     this.currentPuzzle = null;
+    this.currentSlotScoreEligible = false;
+    this.currentSlotForfeitReason = "training_replay";
     return Boolean(this.currentPuzzlePayload);
   }
 
@@ -394,6 +450,8 @@ export class RankedSprintSession {
       ranked: this.ranked,
       valid: this.valid,
       invalidReason: this.invalidReason,
+      scoreEligible: this.currentSlotScoreEligible,
+      forfeitReason: this.currentSlotForfeitReason,
       playDate: this.playDate,
       puzzleIndex: this.puzzleIndex + 1,
       sprintLength: RANKED_SPRINT_LENGTH,

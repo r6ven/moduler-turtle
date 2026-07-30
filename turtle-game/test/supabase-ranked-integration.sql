@@ -14,6 +14,7 @@ declare
   v_accepted jsonb;
   v_attempt_id uuid;
   v_submission_id uuid := gen_random_uuid();
+  v_second_submission_id uuid := gen_random_uuid();
   v_released_at text;
   v_attempt_count integer;
 begin
@@ -133,6 +134,35 @@ begin
   v_repeat := public.release_ranked_slot(v_primary_token, v_attempt_id, 2);
   if v_repeat->'puzzle'->>'released_at' <> v_released_at then
     raise exception 'idempotent release reset the slot timer';
+  end if;
+
+  v_response := public.forfeit_current_ranked_slot(
+    v_primary_token, v_attempt_id, 2, 'menu_opened'
+  );
+  if coalesce((v_response->>'ok')::boolean, false) is not true
+     or coalesce((v_response->>'score_eligible')::boolean, true) is not false then
+    raise exception 'current slot was not forfeited: %', v_response;
+  end if;
+  v_repeat := public.forfeit_current_ranked_slot(
+    v_primary_token, v_attempt_id, 2, 'page_hidden'
+  );
+  if v_repeat->>'forfeit_reason' <> 'menu_opened' then
+    raise exception 'slot forfeit retry was not idempotent: %', v_repeat;
+  end if;
+
+  v_accepted := public.accept_ranked_replay(
+    v_primary_token, v_attempt_id, 2, v_second_submission_id,
+    '["0,0"]'::jsonb, 1, 'ci-second-final-state'
+  );
+  if coalesce((v_accepted->>'ok')::boolean, false) is not true
+     or coalesce((v_accepted->>'score_eligible')::boolean, true) is not false then
+    raise exception 'forfeited slot was not solved as score-ineligible: %', v_accepted;
+  end if;
+
+  v_response := public.release_ranked_slot(v_primary_token, v_attempt_id, 3);
+  if coalesce((v_response->>'ok')::boolean, false) is not true
+     or coalesce((v_response->'puzzle'->>'score_eligible')::boolean, false) is not true then
+    raise exception 'next slot did not return to ranked scoring: %', v_response;
   end if;
 
   if has_function_privilege(

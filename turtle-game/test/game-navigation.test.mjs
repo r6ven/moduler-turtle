@@ -149,6 +149,44 @@ test("ranked start failures return to the ranked menu with a clear reason", asyn
   });
 });
 
+test("client hydration failures preserve the server ranked attempt", async () => {
+  let invalidations = 0;
+  const messages = [];
+  const game = {
+    auth: {
+      hasCurrentUser: () => true,
+      startRankedSprint: async () => ({
+        ok: true, ranked: true, attempt_id: "attempt-1", puzzle: {}
+      })
+    },
+    rankedSprint: {
+      start() {
+        throw new Error("hydrate failed");
+      },
+      reset() {}
+    },
+    ui: {
+      hideRankedRules() {},
+      setRankedMessage(message, type) {
+        messages.push({ message, type });
+      },
+      showLoading() {},
+      hideLoading: async () => {},
+      showMenuMode() {},
+      showSprintKind() {}
+    },
+    invalidateRankedSprint() {
+      invalidations += 1;
+    }
+  };
+
+  await Game.prototype.startRankedSprint.call(game);
+
+  assert.equal(invalidations, 0);
+  assert.equal(messages.at(-1).message, "hydrate failed");
+  assert.equal(messages.at(-1).type, "error");
+});
+
 test("ranked start errors have stable localized fallbacks", () => {
   assert.equal(
     getRankedStartErrorMessage({ code: "slot_unavailable" }),
@@ -160,26 +198,35 @@ test("ranked start errors have stable localized fallbacks", () => {
   );
 });
 
-test("unhydrated ranked sessions cannot reopen a stale board", () => {
-  let resetCount = 0;
+test("an active ranked slot is hydrated again without resetting the series", () => {
+  let generateCount = 0;
   let rulesCount = 0;
   let closeCount = 0;
   const game = {
+    gameMode: "story",
     rankedSprint: {
       active: true,
       ranked: true,
       isComplete: () => false,
       hasPlayablePuzzle: () => false,
+      getStatus: () => ({
+        active: true, ranked: true, valid: true, scoreEligible: false,
+        puzzleIndex: 2, sprintLength: 5, totalMoves: 10, totalTimeSeconds: 12
+      }),
       reset() {
-        resetCount += 1;
-        this.active = false;
+        throw new Error("an active ranked series must not be reset");
       }
     },
     ui: {
       showRankedRules() {
         rulesCount += 1;
       },
-      setHintEnabled() {}
+      setHintEnabled() {},
+      updateRankedSprintStatus() {},
+      updateRankedPuzzleEligibility() {}
+    },
+    generateRankedPuzzle() {
+      generateCount += 1;
     },
     closeMenu() {
       closeCount += 1;
@@ -188,7 +235,51 @@ test("unhydrated ranked sessions cannot reopen a stale board", () => {
 
   Game.prototype.requestRankedSprint.call(game);
 
-  assert.equal(resetCount, 1);
-  assert.equal(rulesCount, 1);
-  assert.equal(closeCount, 0);
+  assert.equal(generateCount, 1);
+  assert.equal(rulesCount, 0);
+  assert.equal(closeCount, 1);
+  assert.equal(game.gameMode, "ranked");
+});
+
+test("opening the menu forfeits only the current ranked puzzle", () => {
+  const reasons = [];
+  const game = {
+    gameMode: "ranked",
+    levelCompleted: false,
+    menuOpen: false,
+    endlessSprint: {
+      getStatus: () => ({ active: false })
+    },
+    rankedSprint: {
+      active: true,
+      ranked: true,
+      claimed: true,
+      getStatus: () => ({ active: true, scoreEligible: false })
+    },
+    auth: {
+      hasCurrentUser: () => true,
+      getCurrentUsername: () => "demo"
+    },
+    progress: {
+      getSavedLevel: () => 12,
+      getCompletedLevels: () => [1, 2]
+    },
+    ui: {
+      hideTutorial() {},
+      showGameMenu() {},
+      updateEndlessSprintMenu() {},
+      showMenuMode() {},
+      showSprintKind() {},
+      updateRankedSprintStatus() {}
+    },
+    resetPerformanceSamples() {},
+    forfeitCurrentRankedPuzzle(reason) {
+      reasons.push(reason);
+    }
+  };
+
+  Game.prototype.openMenu.call(game);
+
+  assert.deepEqual(reasons, ["menu_opened"]);
+  assert.equal(game.menuOpen, true);
 });

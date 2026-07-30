@@ -305,6 +305,53 @@ export class UserAuthSystem {
     }
   }
 
+  async forfeitRankedPuzzle(attemptId, slot, reason) {
+    if (!this.currentSessionToken) {
+      return { ok: false, code: "secure_session_required" };
+    }
+
+    const args = {
+      p_session_token: this.currentSessionToken,
+      p_attempt_id: attemptId,
+      p_slot: Number(slot),
+      p_reason: String(reason || "client_interrupted")
+    };
+
+    try {
+      const response = await fetch(
+        `${CONFIG.supabase.url}/rest/v1/rpc/forfeit_current_ranked_slot`,
+        {
+          method: "POST",
+          keepalive: true,
+          headers: {
+            apikey: CONFIG.supabase.anonKey,
+            authorization: `Bearer ${CONFIG.supabase.anonKey}`,
+            "content-type": "application/json"
+          },
+          body: JSON.stringify(args)
+        }
+      );
+      const payload = await response.json().catch(() => ({}));
+      const normalized = this.normalizeRpcResponse(payload);
+
+      if (!response.ok || normalized.ok === false) {
+        return {
+          ok: false,
+          code: normalized.code || "forfeit_failed",
+          error: normalized.error || `Puzzle puan dışı bırakılamadı (${response.status}).`
+        };
+      }
+
+      return normalized;
+    } catch (error) {
+      return {
+        ok: false,
+        code: "network_error",
+        error: error?.message || "Puzzle puan durumu sunucuya iletilemedi."
+      };
+    }
+  }
+
   invalidateRankedSprint(attemptId, reason) {
     const args = {
       p_session_token: this.currentSessionToken,

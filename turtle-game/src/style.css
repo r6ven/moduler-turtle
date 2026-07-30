@@ -226,6 +226,49 @@ canvas {
   transform: translate(-50%, 0) scale(1);
 }
 
+.ranked-score-callout {
+  position: absolute;
+  top: clamp(104px, 17vh, 146px);
+  left: 50%;
+  z-index: 12;
+  width: min(380px, calc(100% - 32px));
+  display: grid;
+  gap: 3px;
+  padding: 11px 15px 12px;
+  border: 1px solid rgba(166, 105, 24, 0.5);
+  border-radius: 10px;
+  background: rgba(255, 245, 218, 0.96);
+  box-shadow: 0 5px 0 rgba(166, 105, 24, 0.2), 0 12px 28px rgba(79, 57, 44, 0.18);
+  color: var(--ink);
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -8px) scale(0.98);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.ranked-score-callout.active {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+}
+
+.ranked-score-callout strong {
+  font-size: 15px;
+}
+
+.ranked-score-callout > span:last-child {
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.ranked-score-eyebrow {
+  color: #9a5b12;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+}
+
 @media (orientation: landscape) and (min-aspect-ratio: 3 / 2) and (max-height: 500px) {
   .tutorial-callout {
     top: 96px;
