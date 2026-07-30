@@ -3921,3 +3921,93 @@ body.menu-open #gameCanvas {
     font-size: 10px;
   }
 }
+
+/* Training/ranked Sprint split. */
+.sprint-kind-switcher {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.sprint-kind-btn {
+  min-height: 28px;
+  border: 1px solid rgba(21, 100, 101, 0.38);
+  border-radius: 999px;
+  background: rgba(255, 250, 229, 0.58);
+  color: #155f62;
+  font: 700 clamp(8px, 2vw, 11px) Georgia, serif;
+}
+
+.sprint-kind-btn.active {
+  background: #17676a;
+  color: #fff7df;
+}
+
+#training-sprint-panel,
+.ranked-sprint-panel {
+  display: contents;
+}
+
+#training-sprint-panel.hidden,
+.ranked-sprint-panel.hidden {
+  display: none !important;
+}
+
+.ranked-ladder {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.ranked-ladder span {
+  padding: 5px 2px;
+  border: 1px solid rgba(111, 88, 56, 0.28);
+  border-radius: 5px;
+  background: rgba(255, 250, 229, 0.48);
+  color: #5f4c38;
+  font: 600 clamp(6px, 1.45vw, 8px) Georgia, serif;
+  text-align: center;
+}
+
+#ranked-sprint-status,
+#ranked-message,
+#start-ranked-btn {
+  grid-column: 1 / -1;
+}
+
+.ranked-rules-overlay {
+  position: absolute;
+  z-index: 40;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(11, 37, 31, 0.72);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.ranked-rules-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ranked-rules-card {
+  text-align: left;
+}
+
+.ranked-rules-card h2,
+.ranked-rules-card p {
+  text-align: center;
+}
+
+.ranked-rules-card li {
+  margin: 8px 0;
+  color: #50654f;
+  font-size: 14px;
+  line-height: 1.35;
+}

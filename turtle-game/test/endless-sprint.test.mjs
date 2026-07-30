@@ -189,7 +189,7 @@ test("endless records retain only the best player result per category", () => {
     ...base,
     totalMoves: 75,
     totalTimeSeconds: 200
-  }), false);
+  }), true);
   assert.equal(store.saveEndlessSprint("Mira", {
     ...base,
     totalMoves: 68,
@@ -199,6 +199,7 @@ test("endless records retain only the best player result per category", () => {
   const winners = store.getEndlessWinners();
 
   assert.equal(winners.length, 1);
-  assert.equal(winners[0].username, "Mira");
-  assert.equal(winners[0].totalMoves, 68);
+  assert.equal(winners[0].username, "Ada");
+  assert.equal(winners[0].totalMoves, 75);
+  assert.equal(winners[0].totalTimeSeconds, 200);
 });

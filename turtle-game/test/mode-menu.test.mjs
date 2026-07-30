@@ -47,6 +47,10 @@ test("signed-in menu exposes three isolated mode entries", async () => {
   assert.match(storyPanel, /id="records-btn"/);
   assert.match(html, /id="endless-mode-panel"[^>]*hidden/);
   assert.match(html, /id="daily-mode-panel"[^>]*hidden/);
+  assert.match(html, /data-sprint-kind="training"/);
+  assert.match(html, /data-sprint-kind="ranked"/);
+  assert.match(html, /id="ranked-rules-overlay"/);
+  assert.match(html, /id="start-ranked-btn"/);
 });
 
 test("switching menu modes does not invoke story game actions", () => {

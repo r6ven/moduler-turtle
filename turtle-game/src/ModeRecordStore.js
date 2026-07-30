@@ -10,9 +10,9 @@ function asSafeInteger(value, fallback = 0) {
 
 function compareSprintRecords(first, second) {
   return (
-    first.totalMoves - second.totalMoves ||
-    first.totalHints - second.totalHints ||
     first.totalTimeSeconds - second.totalTimeSeconds ||
+    first.totalHints - second.totalHints ||
+    first.totalMoves - second.totalMoves ||
     first.username.localeCompare(second.username, "tr")
   );
 }
@@ -59,6 +59,10 @@ export class ModeRecordStore {
       totalMoves: asSafeInteger(result.totalMoves),
       totalHints: asSafeInteger(result.totalHints),
       totalTimeSeconds: asSafeInteger(result.totalTimeSeconds),
+      runSeed: asSafeInteger(result.runSeed),
+      generatorVersion: asSafeInteger(result.generatorVersion),
+      puzzleIds: Array.isArray(result.puzzleIds) ? result.puzzleIds.slice(0, 5) : [],
+      puzzleChecksums: Array.isArray(result.puzzleChecksums) ? result.puzzleChecksums.slice(0, 5) : [],
       completedAt: new Date().toISOString()
     };
     const records = this.read();
@@ -66,7 +70,8 @@ export class ModeRecordStore {
       candidate.username.toLocaleLowerCase("tr") ===
         record.username.toLocaleLowerCase("tr") &&
       candidate.boardId === record.boardId &&
-      candidate.difficultyId === record.difficultyId
+      candidate.difficultyId === record.difficultyId &&
+      asSafeInteger(candidate.generatorVersion) === record.generatorVersion
     );
     const existing = records.endless.find(sameCategoryAndPlayer);
 
@@ -87,7 +92,7 @@ export class ModeRecordStore {
     const winners = new Map();
 
     this.read().endless.forEach((record) => {
-      const category = `${record.boardId}:${record.difficultyId}`;
+      const category = `${record.boardId}:${record.difficultyId}:v${asSafeInteger(record.generatorVersion)}`;
       const current = winners.get(category);
 
       if (!current || compareSprintRecords(record, current) < 0) {

@@ -61,6 +61,15 @@ export class UIController {
     this.endlessModePanel = document.getElementById("endless-mode-panel");
     this.startEndlessButton = document.getElementById("start-endless-btn");
     this.endlessSprintStatus = document.getElementById("endless-sprint-status");
+    this.sprintKindButtons = Array.from(document.querySelectorAll("[data-sprint-kind]"));
+    this.trainingSprintPanel = document.getElementById("training-sprint-panel");
+    this.rankedSprintPanel = document.getElementById("ranked-sprint-panel");
+    this.startRankedButton = document.getElementById("start-ranked-btn");
+    this.rankedSprintStatus = document.getElementById("ranked-sprint-status");
+    this.rankedMessage = document.getElementById("ranked-message");
+    this.rankedRulesOverlay = document.getElementById("ranked-rules-overlay");
+    this.confirmRankedButton = document.getElementById("confirm-ranked-btn");
+    this.cancelRankedButton = document.getElementById("cancel-ranked-btn");
 
     this.levelSelectOverlay = document.getElementById("level-select-overlay");
     this.levelList = document.getElementById("level-list");
@@ -76,6 +85,9 @@ export class UIController {
     this.recordData = {
       storyRecords: [],
       endlessRecords: [],
+      rankedDailyRecords: [],
+      rankedMonthlyRecords: [],
+      rankedProvisional: true,
       dailyRecords: [],
       storyMessage: ""
     };
@@ -94,6 +106,8 @@ export class UIController {
     onRegister,
     onContinueGame,
     onStartEndless,
+    onRequestRanked,
+    onConfirmRanked,
     onOpenLevels,
     onOpenRecords,
     onSelectLevel,
@@ -129,6 +143,12 @@ export class UIController {
     this.startEndlessButton.addEventListener("click", () => {
       onStartEndless(this.getEndlessSettings());
     });
+    this.startRankedButton.addEventListener("click", onRequestRanked);
+    this.confirmRankedButton.addEventListener("click", onConfirmRanked);
+    this.cancelRankedButton.addEventListener("click", () => this.hideRankedRules());
+    this.sprintKindButtons.forEach((button) => {
+      button.addEventListener("click", () => this.showSprintKind(button.dataset.sprintKind));
+    });
     this.levelsButton.addEventListener("click", onOpenLevels);
     this.recordsButton.addEventListener("click", onOpenRecords);
     this.restartGameButton.addEventListener("click", onRequestReset);
@@ -159,6 +179,50 @@ export class UIController {
       username: this.usernameInput.value,
       password: this.passwordInput.value
     };
+  }
+
+
+  showSprintKind(kind = "training") {
+    const ranked = kind === "ranked";
+    this.sprintKindButtons.forEach((button) => {
+      const active = button.dataset.sprintKind === (ranked ? "ranked" : "training");
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+    });
+    this.trainingSprintPanel.classList.toggle("hidden", ranked);
+    this.rankedSprintPanel.classList.toggle("hidden", !ranked);
+  }
+
+  showRankedRules() {
+    this.rankedRulesOverlay.classList.add("active");
+  }
+
+  hideRankedRules() {
+    this.rankedRulesOverlay.classList.remove("active");
+  }
+
+  setRankedMessage(message = "", type = "info") {
+    this.rankedMessage.innerText = String(message || "");
+    this.rankedMessage.classList.toggle("error", type === "error");
+  }
+
+  updateRankedSprintStatus(status = {}) {
+    if (!status.active && !status.complete) return;
+    this.startRankedButton.innerText = status.active && !status.complete
+      ? "SER\u0130YE D\u00d6N"
+      : "DERECEL\u0130 KURALLARI";
+    const validity = status.valid ? "Dereceli" : "Derecesiz";
+    const reason = status.invalidReason ? ` - ${status.invalidReason}` : "";
+    this.rankedSprintStatus.innerHTML = `
+      <strong>${validity} - Puzzle ${status.puzzleIndex}/${status.sprintLength}</strong>
+      <span>${status.totalMoves || 0} hamle - ${this.formatDuration(status.totalTimeSeconds || 0)}${reason}</span>
+    `;
+  }
+
+  setHintEnabled(enabled, reason = "") {
+    this.hintButton.disabled = !enabled;
+    this.hintButton.title = enabled ? "" : reason;
+    this.hintButton.setAttribute("aria-disabled", String(!enabled));
   }
 
   getEndlessSettings() {
@@ -328,6 +392,8 @@ export class UIController {
     );
 
     this.showMenuMode("story");
+    this.showSprintKind("training");
+    this.setHintEnabled(true);
 
     this.showMainMenu();
   }
@@ -380,12 +446,18 @@ export class UIController {
   showRecords({
     storyRecords = [],
     endlessRecords = [],
+    rankedDailyRecords = [],
+    rankedMonthlyRecords = [],
+    rankedProvisional = true,
     dailyRecords = [],
     storyMessage = ""
   } = {}) {
     this.recordData = {
       storyRecords: Array.isArray(storyRecords) ? storyRecords : [],
       endlessRecords: Array.isArray(endlessRecords) ? endlessRecords : [],
+      rankedDailyRecords: Array.isArray(rankedDailyRecords) ? rankedDailyRecords : [],
+      rankedMonthlyRecords: Array.isArray(rankedMonthlyRecords) ? rankedMonthlyRecords : [],
+      rankedProvisional: Boolean(rankedProvisional),
       dailyRecords: Array.isArray(dailyRecords) ? dailyRecords : [],
       storyMessage: String(storyMessage || "")
     };
@@ -440,6 +512,19 @@ export class UIController {
     const winners = new Map();
 
     this.recordData.storyRecords.forEach((player) => {
+      if (Number.isInteger(Number(player?.level))) {
+        const candidate = {
+          level: Number(player.level),
+          username: String(player.username || "Oyuncu").slice(0, 48),
+          stars: Math.max(0, Math.min(3, Number(player.stars) || 0)),
+          moves: Math.max(0, Number(player.moves) || 0),
+          timeSeconds: Math.max(0, Number(player.time_seconds ?? player.timeSeconds) || 0)
+        };
+        const current = winners.get(candidate.level);
+        if (!current || this.compareStoryRecords(candidate, current) < 0) winners.set(candidate.level, candidate);
+        return;
+      }
+
       const progressCandidate =
         player?.best_by_level || player?.bestByLevel || {};
       const bestByLevel = progressCandidate &&
@@ -512,27 +597,24 @@ export class UIController {
   }
 
   renderEndlessRecordWinners() {
-    const records = this.recordData.endlessRecords;
-
-    if (!records.length) {
-      this.recordsList.innerHTML = `
-        <div class="records-empty">Henüz tamamlanan Sonsuz Sprint yok.</div>
-      `;
-      return;
-    }
+    const training = this.recordData.endlessRecords;
+    const daily = this.recordData.rankedDailyRecords;
+    const monthly = this.recordData.rankedMonthlyRecords;
+    const trainingRows = training.length ? training.map((record) => `
+      <div class="record-sprint-row"><div><strong>${this.escapeHtml(record.boardLabel)}</strong><small>${this.escapeHtml(record.difficultyLabel)} - v${this.formatRecordInteger(record.generatorVersion)}</small></div><div>${this.escapeHtml(record.username)}</div><div>${this.formatRecordInteger(record.totalMoves)}</div><div>${this.formatDuration(record.totalTimeSeconds)}</div></div>
+    `).join("") : '<div class="records-empty">Hen\u00fcz Antrenman Sprint kayd\u0131 yok.</div>';
+    const rankedRows = daily.length ? daily.map((record) => `
+      <div class="record-sprint-row"><div><strong>Bugun${record.provisional ? " *" : ""}</strong><small>${this.formatRecordInteger(record.weighted_points)} puan - ${this.formatRecordInteger(record.stars)} yildiz</small></div><div>${this.escapeHtml(record.username)}</div><div>${this.formatRecordInteger(record.moves)}</div><div>${this.formatDuration(Math.floor((record.elapsed_ms || 0) / 1000))}</div></div>
+    `).join("") : '<div class="records-empty">Bug\u00fcn tamamlanm\u0131\u015f dereceli ko\u015fu yok.</div>';
+    const monthlyRows = monthly.length ? monthly.map((record) => `
+      <div class="record-sprint-row"><div><strong>${this.formatRecordInteger(record.weighted_points)} puan</strong><small>${this.formatRecordInteger(record.completed_days)} g\u00fcn - ${this.formatRecordInteger(record.stars)} yildiz</small></div><div>${this.escapeHtml(record.username)}</div><div>${this.formatRecordInteger(record.moves)}</div><div>${this.formatDuration(Math.floor((record.elapsed_ms || 0) / 1000))}</div></div>
+    `).join("") : '<div class="records-empty">Bu ay kesinle\u015fmi\u015f dereceli sonu\u00e7 yok.</div>';
 
     this.recordsList.innerHTML = `
-      <div class="record-sprint-row header">
-        <div>Seri</div><div>Oyuncu</div><div>Hamle</div><div>Süre</div>
-      </div>
-      ${records.map((record) => `
-        <div class="record-sprint-row">
-          <div><strong>${this.escapeHtml(record.boardLabel)}</strong><small>${this.escapeHtml(record.difficultyLabel)}</small></div>
-          <div>${this.escapeHtml(record.username)}</div>
-          <div>${this.formatRecordInteger(record.totalMoves)}</div>
-          <div>${this.formatDuration(record.totalTimeSeconds)}</div>
-        </div>
-      `).join("")}
+      <h3>Dereceli - G\u00fcnl\u00fck ${this.recordData.rankedProvisional ? "(ge\u00e7ici)" : ""}</h3>
+      <div class="record-sprint-row header"><div>Seri</div><div>Oyuncu</div><div>Hamle</div><div>S\u00fcre</div></div>${rankedRows}
+      <h3>Dereceli - Ayl\u0131k</h3>${monthlyRows}
+      <h3>Antrenman - Ki\u015fisel</h3>${trainingRows}
     `;
   }
 
@@ -611,6 +693,19 @@ export class UIController {
       this.nextButton.innerText = result.sprintComplete
         ? "SPRINT SONUCUNA DÖN"
         : "SONRAKİ PUZZLE";
+    } else if (result.mode === "ranked") {
+      const rankedLabel = result.ranked ? "Dereceli" : "Antrenman tekrari";
+      this.completeTitleText.innerText = result.sprintComplete
+        ? `${rankedLabel} seri tamamlandi`
+        : `${rankedLabel} ${result.slot}/5`;
+      this.completeText.innerText =
+        `${result.moves} hamle - ${this.formatDuration(result.timeSeconds)} - ${earnedStars} yildiz`;
+      this.completeGoal.innerText = result.ranked
+        ? "Puan gecicidir; UTC gunu kapandiginda yuzdelik dilim kesinlesir."
+        : "Bu tekrar dereceli tabloya gonderilmez.";
+      this.nextButton.innerText = result.sprintComplete
+        ? "SONUCLARA DON"
+        : "SONRAKI PUZZLE";
     } else {
       if (minimumClear && earnedStars === 3) {
         this.completeTitleText.innerText = "Harika bir uyum!";

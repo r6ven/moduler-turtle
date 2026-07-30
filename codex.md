@@ -123,3 +123,16 @@ zamanında kullanılmaz.
    kullanıcıları silmeyen ek Supabase tabloları/RPC migration'ı.
 3. Sprint sonuç ekranına kategori bazlı kişisel en iyi karşılaştırması ve
    paylaşılabilir run kimliği.
+## Dereceli Sprint v2 uygulama notu — 2026-07-30
+
+- Hikâye üretimi `story:v2:<level>` seed'i ve `story-v2-<level>` kimliğiyle
+  sabitlendi; eski `best_by_level` kişisel ilerleme verisi korunuyor.
+- Kilitli karo üretimi bütün modlardan çıkarıldı. Zorluk aktif karo, loop ve
+  final minimum-hamle/başlangıç-bağlantı kalite kapısıyla ölçülüyor.
+- Sonsuz sekmesi Antrenman ve Dereceli olarak ayrıldı. Dereceli: ortak günlük
+  beşli, tek ilk hak, ipucusuz ve kesintide derecesiz.
+- Aylık havuz server-only Edge Function tarafından 155 kimlik olarak hazırlanır;
+  kısa ayların fazla slotları yayımlanmaz.
+- Migration production'a otomatik uygulanmadı. Uygulama/deploy/cron adımları
+  Supabase.md içinde; mevcut kullanıcı satırlarına dokunulmamalı.
+- Günlük Puzzle ana sekmesi hâlâ ayrı iskelet ve bu çalışmanın kapsamı dışında.

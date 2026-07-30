@@ -90,15 +90,6 @@ export const CONFIG = {
       return Math.min(0.14, 0.12 + (level - 12) * 0.002);
     },
 
-    getLockedTileCount(level, activeTileCount) {
-      if (level < 8) return 0;
-
-      const progressionCount = 1 + Math.floor((level - 8) / 8);
-      const safeMaximum = Math.max(0, activeTileCount - 3);
-
-      return Math.min(3, progressionCount, safeMaximum);
-    },
-
     getTargetMoves(activeTileCount, level) {
       return Math.ceil(activeTileCount * 2.2 + Math.min(level, 12));
     }
@@ -162,9 +153,6 @@ export const CONFIG = {
     turtleShellLight: "#4a9c8f",
     turtleShellDark: "#18565a",
     turtleShellSeam: "#d7a33f",
-    lockFill: "#f4d77e",
-    lockStroke: "#71483f",
-    lockKeyhole: "#71483f",
     flowerPetal: "#d98d91",
     flowerCenter: "#d8a13b",
     endpointCenter: "#d28b3d"

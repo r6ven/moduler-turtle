@@ -204,6 +204,12 @@
           </div>
         </header>
 
+        <div class="sprint-kind-switcher" role="tablist" aria-label="Sprint mode">
+          <button class="sprint-kind-btn active" type="button" data-sprint-kind="training" aria-selected="true">Antrenman</button>
+          <button class="sprint-kind-btn" type="button" data-sprint-kind="ranked" aria-selected="false">Dereceli</button>
+        </div>
+
+        <div id="training-sprint-panel">
         <fieldset class="endless-choice-group" id="endless-board-options">
           <legend>Tahta</legend>
           <label class="endless-choice">
@@ -228,11 +234,11 @@
           </label>
           <label class="endless-choice">
             <input type="radio" name="endless-difficulty" value="balanced" checked>
-            <span><strong>Dengeli</strong><small>döngü + 1 kilit</small></span>
+            <span><strong>Dengeli</strong><small>daha &ccedil;ok d&ouml;ng&uuml;</small></span>
           </label>
           <label class="endless-choice">
             <input type="radio" name="endless-difficulty" value="expert">
-            <span><strong>Usta</strong><small>yoğun + 3 kilit</small></span>
+            <span><strong>Usta</strong><small>karma&#351;&#305;k ak&#305;&#351;lar</small></span>
           </label>
         </fieldset>
 
@@ -242,8 +248,21 @@
         </div>
 
         <button class="menu-btn storybook-primary-action endless-start-btn" id="start-endless-btn" type="button">
-          SPRINT’İ BAŞLAT
+          ANTRENMANI BA&#350;LAT
         </button>
+        </div>
+
+        <div id="ranked-sprint-panel" class="ranked-sprint-panel hidden">
+          <div class="ranked-ladder" aria-label="Ranked series order">
+            <span>1 - K&uuml;&ccedil;&uuml;k/Sakin</span><span>2 - Orta/Sakin</span><span>3 - Orta/Dengeli</span><span>4 - Yo&#287;un/Dengeli</span><span>5 - Yo&#287;un/Usta</span>
+          </div>
+          <div id="ranked-sprint-status" class="endless-sprint-status" aria-live="polite">
+            <strong>G&uuml;n&uuml;n ortak 5'li serisi</strong>
+            <span>&#304;lk deneme derecelidir; sonu&ccedil;lar g&uuml;n sonunda kesinle&#351;ir.</span>
+          </div>
+          <div id="ranked-message" class="auth-message" aria-live="polite"></div>
+          <button class="menu-btn storybook-primary-action endless-start-btn" id="start-ranked-btn" type="button">DERECEL&#304; KURALLARI</button>
+        </div>
       </section>
 
       <section id="daily-mode-panel" class="menu-mode-panel future-mode-panel hidden" data-mode-panel="daily">
@@ -293,6 +312,25 @@
 
       <button class="menu-btn ghost" id="records-back-btn">Geri Dön</button>
     </div>
+  </div>
+
+
+  <div id="ranked-rules-overlay" class="ranked-rules-overlay" role="dialog" aria-modal="true" aria-labelledby="ranked-rules-title">
+    <section class="confirm-card ranked-rules-card">
+      <h2 id="ranked-rules-title">Dereceli Sprint Kurallar&#305;</h2>
+      <ul>
+        <li>Bug&uuml;n yaln&#305;zca ilk ba&#351;lat&#305;lan ko&#351;u derecelidir.</li>
+        <li>Be&#351; bulmaca herkes i&ccedil;in ayn&#305;d&#305;r; s&uuml;re &ouml;nce, hamle sonra s&#305;ralan&#305;r.</li>
+        <li>&#304;pucu kullan&#305;lamaz.</li>
+        <li>Men&uuml;y&uuml; a&ccedil;mak, sekmeden ayr&#305;lmak veya sayfay&#305; yenilemek sonucu derecesiz yapar.</li>
+        <li>Ham puan g&uuml;n sonunda y&uuml;zdelik dilime g&ouml;re kesinle&#351;ir; y&#305;ld&#305;zlar ayr&#305;ca g&ouml;sterilir.</li>
+      </ul>
+      <p><strong>Kabul etmek bug&uuml;nk&uuml; dereceli hakk&#305;n&#305; kullan&#305;r.</strong></p>
+      <div class="confirm-actions">
+        <button class="confirm-btn safe" id="confirm-ranked-btn" type="button">KABUL ET VE BA&#350;LA</button>
+        <button class="confirm-btn" id="cancel-ranked-btn" type="button">VAZGE&Ccedil;</button>
+      </div>
+    </section>
   </div>
 
   <div id="reset-confirm-overlay">

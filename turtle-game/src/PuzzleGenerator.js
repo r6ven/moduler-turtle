@@ -12,19 +12,51 @@ import { PuzzleValidator } from "./PuzzleValidator.js";
 import {
   createPuzzleRandomStreams,
   createRuntimePuzzleSeed,
+  derivePuzzleSeed,
   hashStringToSeed,
   normalizePuzzleSeed
 } from "./PuzzleRandom.js";
 
-export const PUZZLE_GENERATOR_VERSION = 1;
+export const PUZZLE_GENERATOR_VERSION = 2;
 
+const MAX_QUALITY_ATTEMPTS = 32;
 const SUPPORTED_MODES = new Set(["story", "endless", "daily"]);
 const MAX_MAP_RADIUS = 6;
 
 export class PuzzleGenerator {
   static generate(request) {
     const options = PuzzleGenerator.resolveGenerationOptions(request);
-    const randomStreams = createPuzzleRandomStreams(options.seed);
+    let lastQualityError = null;
+
+    for (
+      let qualityAttempt = 0;
+      qualityAttempt < options.quality.maxAttempts;
+      qualityAttempt += 1
+    ) {
+      const candidateSeed = qualityAttempt === 0
+        ? options.baseSeed
+        : derivePuzzleSeed(options.baseSeed, `quality-attempt-${qualityAttempt}`);
+
+      try {
+        return PuzzleGenerator.generateCandidate(
+          options,
+          candidateSeed,
+          qualityAttempt
+        );
+      } catch (error) {
+        if (error?.code !== "PUZZLE_QUALITY_REJECTED") throw error;
+        lastQualityError = error;
+      }
+    }
+
+    throw new Error(
+      `Puzzle ${options.puzzleId} failed ${options.quality.maxAttempts} ` +
+      `deterministic quality attempts: ${lastQualityError?.message || "unknown reason"}`
+    );
+  }
+
+  static generateCandidate(options, candidateSeed, qualityAttempt) {
+    const randomStreams = createPuzzleRandomStreams(candidateSeed);
     const coords = buildHexCoordinateList(options.mapRadius);
     const cleanMap = PuzzleGenerator.createCleanSolvedMap(
       coords,
@@ -64,20 +96,25 @@ export class PuzzleGenerator {
       grid,
       randomStreams.get("rotations")
     );
-    PuzzleGenerator.assignLockedTiles(
-      grid,
-      options.lockedTileCount,
-      randomStreams.get("locked-tiles")
-    );
     const tutorialKey = options.tutorial
       ? PuzzleGenerator.prepareTutorialTile(grid, 1)
       : null;
     const activeTiles = Object.values(grid).filter((tile) => tile.active);
     const minimumMoves = PuzzleGenerator.calculateMinimumMoves(grid);
-    const definition = PuzzleGenerator.createPuzzleDefinition(
+    const quality = PuzzleGenerator.inspectInitialQuality(
       grid,
       options,
       minimumMoves
+    );
+
+    PuzzleGenerator.assertInitialQuality(quality, options);
+
+    const definition = PuzzleGenerator.createPuzzleDefinition(
+      grid,
+      options,
+      minimumMoves,
+      candidateSeed,
+      qualityAttempt
     );
     const checksum = PuzzleGenerator.calculateDefinitionChecksum(definition);
 
@@ -89,7 +126,10 @@ export class PuzzleGenerator {
       tutorialKey,
       puzzleId: options.puzzleId,
       mode: options.mode,
-      seed: options.seed,
+      baseSeed: options.baseSeed,
+      seed: candidateSeed,
+      qualityAttempt,
+      quality,
       generatorVersion: PUZZLE_GENERATOR_VERSION,
       checksum,
       definition,
@@ -137,17 +177,10 @@ export class PuzzleGenerator {
       0,
       0.5
     );
-    const defaultLockedTileCount = CONFIG.difficulty.getLockedTileCount(
-      level,
-      activeTileCount
-    );
-    const lockedTileCount = PuzzleGenerator.toBoundedInteger(
-      input.lockedTileCount ?? defaultLockedTileCount,
-      0,
-      Math.max(0, activeTileCount - 2)
-    );
-    const seed = input.seed == null
-      ? createRuntimePuzzleSeed()
+    const baseSeed = input.seed == null
+      ? mode === "story"
+        ? normalizePuzzleSeed(`story:v2:${level}`)
+        : createRuntimePuzzleSeed()
       : normalizePuzzleSeed(input.seed);
     const tutorial = Boolean(
       input.tutorial ?? (mode === "story" && level === 1)
@@ -166,9 +199,27 @@ export class PuzzleGenerator {
       1,
       128
     );
+    const minimumMoves = PuzzleGenerator.toBoundedInteger(
+      input.quality?.minimumMoves ??
+        PuzzleGenerator.getDefaultMinimumMoves(mode, level, activeTileCount),
+      tutorial ? 1 : 2,
+      activeTileCount * 5
+    );
+    const maxInitialConnectedRatio = PuzzleGenerator.toBoundedNumber(
+      input.quality?.maxInitialConnectedRatio ?? 0.25,
+      0,
+      0.8
+    );
+    const maxQualityAttempts = PuzzleGenerator.toBoundedInteger(
+      input.quality?.maxAttempts ?? MAX_QUALITY_ATTEMPTS,
+      1,
+      128
+    );
     const puzzleId = typeof input.puzzleId === "string" && input.puzzleId.trim()
       ? input.puzzleId.trim()
-      : `${mode}-v${PUZZLE_GENERATOR_VERSION}-${seed}`;
+      : mode === "story"
+        ? `story-v2-${level}`
+        : `${mode}-v${PUZZLE_GENERATOR_VERSION}-${baseSeed}`;
 
     return Object.freeze({
       mode,
@@ -176,12 +227,25 @@ export class PuzzleGenerator {
       mapRadius,
       activeTileCount,
       extraLoopChance,
-      lockedTileCount,
-      seed,
+      lockedTileCount: 0,
+      baseSeed,
+      seed: baseSeed,
       puzzleId,
       tutorial,
-      search: Object.freeze({ maxNodeVisits, maxAttempts })
+      search: Object.freeze({ maxNodeVisits, maxAttempts }),
+      quality: Object.freeze({
+        minimumMoves,
+        maxInitialConnectedRatio,
+        maxAttempts: maxQualityAttempts
+      })
     });
+  }
+
+  static getDefaultMinimumMoves(mode, level, activeTileCount) {
+    if (mode === "story" && level === 1) return 1;
+    if (activeTileCount <= 14) return activeTileCount;
+    if (activeTileCount <= 22) return Math.ceil(activeTileCount * 1.1);
+    return Math.ceil(activeTileCount * 1.3);
   }
 
   static toBoundedInteger(value, minimum, maximum) {
@@ -472,57 +536,6 @@ export class PuzzleGenerator {
 
   }
 
-  static assignLockedTiles(grid, requestedCount, random) {
-    const activeTiles = Object.values(grid).filter((tile) => tile.active);
-
-    if (requestedCount <= 0) return [];
-
-    const candidates = shuffled(
-      activeTiles.filter((tile) => (
-        !tile.source &&
-        !tile.sink &&
-        tile.degree() === 2
-      )),
-      random
-    );
-    const lockedTiles = [];
-
-    for (const tile of candidates) {
-      const separated = lockedTiles.every((lockedTile) => {
-        const deltaQ = tile.q - lockedTile.q;
-        const deltaR = tile.r - lockedTile.r;
-        const distance = Math.max(
-          Math.abs(deltaQ),
-          Math.abs(deltaR),
-          Math.abs(deltaQ + deltaR)
-        );
-
-        return distance > 1;
-      });
-
-      if (!separated && candidates.length > requestedCount) continue;
-
-      tile.setRotation(0, { animate: false });
-      tile.locked = true;
-      lockedTiles.push(tile);
-
-      if (lockedTiles.length >= requestedCount) break;
-    }
-
-    if (lockedTiles.length < requestedCount) {
-      candidates
-        .filter((tile) => !tile.locked)
-        .slice(0, requestedCount - lockedTiles.length)
-        .forEach((tile) => {
-          tile.setRotation(0, { animate: false });
-          tile.locked = true;
-          lockedTiles.push(tile);
-        });
-    }
-
-    return lockedTiles.map((tile) => tileKey(tile.q, tile.r));
-  }
-
   static prepareTutorialTile(grid, level) {
     if (level !== 1) return null;
 
@@ -530,8 +543,7 @@ export class PuzzleGenerator {
       .filter((candidate) => (
         candidate.active &&
         !candidate.source &&
-        !candidate.sink &&
-        !candidate.locked
+        !candidate.sink
       ))
       .sort((a, b) => a.victoryIndex - b.victoryIndex)[0];
 
@@ -558,7 +570,54 @@ export class PuzzleGenerator {
     }
   }
 
-  static createPuzzleDefinition(grid, options, minimumMoves) {
+  static inspectInitialQuality(grid, options, minimumMoves) {
+    const status = PuzzleValidator.inspectGrid(grid);
+    const connectedRatio = status.totalActiveTiles > 0
+      ? status.connectedKeys.size / status.totalActiveTiles
+      : 1;
+
+    return Object.freeze({
+      completed: status.completed,
+      activeTileCount: status.totalActiveTiles,
+      connectedCount: status.connectedKeys.size,
+      connectedRatio,
+      minimumMoves,
+      requestedMinimumMoves: options.quality.minimumMoves,
+      maxInitialConnectedRatio: options.quality.maxInitialConnectedRatio
+    });
+  }
+
+  static assertInitialQuality(quality, options) {
+    const reasons = [];
+
+    if (quality.completed) reasons.push("puzzle starts completed");
+    if (quality.activeTileCount !== options.activeTileCount) {
+      reasons.push(`active tiles ${quality.activeTileCount}/${options.activeTileCount}`);
+    }
+    if (quality.minimumMoves < options.quality.minimumMoves) {
+      reasons.push(`minimum moves ${quality.minimumMoves}/${options.quality.minimumMoves}`);
+    }
+    if (quality.connectedRatio > options.quality.maxInitialConnectedRatio) {
+      reasons.push(
+        `connected ratio ${quality.connectedRatio.toFixed(3)}/` +
+        `${options.quality.maxInitialConnectedRatio.toFixed(3)}`
+      );
+    }
+
+    if (!reasons.length) return;
+
+    const error = new Error(reasons.join(", "));
+    error.code = "PUZZLE_QUALITY_REJECTED";
+    throw error;
+  }
+
+  static createPuzzleDefinition(
+    grid,
+    options,
+    minimumMoves,
+    candidateSeed = options.baseSeed,
+    qualityAttempt = 0
+  ) {
     const tiles = Object.values(grid)
       .filter((tile) => tile.active)
       .sort((first, second) => first.q - second.q || first.r - second.r)
@@ -568,7 +627,6 @@ export class PuzzleGenerator {
         r: tile.r,
         exits: tile.exits.map(Boolean),
         rotation: tile.rotation,
-        locked: tile.locked,
         source: tile.source,
         sink: tile.sink,
         victoryIndex: tile.victoryIndex
@@ -578,14 +636,17 @@ export class PuzzleGenerator {
       puzzleId: options.puzzleId,
       mode: options.mode,
       generatorVersion: PUZZLE_GENERATOR_VERSION,
-      seed: options.seed,
+      seed: candidateSeed,
+      baseSeed: options.baseSeed,
+      qualityAttempt,
       board: {
         mapRadius: options.mapRadius,
         activeTileCount: options.activeTileCount
       },
       difficulty: {
         extraLoopChance: options.extraLoopChance,
-        lockedTileCount: options.lockedTileCount,
+        minimumRequiredMoves: options.quality.minimumMoves,
+        maxInitialConnectedRatio: options.quality.maxInitialConnectedRatio,
         minimumMoves
       },
       tutorial: options.tutorial,
@@ -599,7 +660,7 @@ export class PuzzleGenerator {
   }
   static calculateMinimumMoves(grid) {
     return Object.values(grid)
-      .filter((tile) => tile.active && !tile.locked)
+      .filter((tile) => tile.active)
       .reduce((total, tile) => {
         return total + PuzzleGenerator.getMinimumMovesForTile(tile);
       }, 0);
@@ -647,9 +708,7 @@ export class PuzzleGenerator {
   }
 
   static shuffleLevelRotations(grid, random) {
-    const tiles = Object.values(grid).filter(
-      (tile) => tile.active && !tile.locked
-    );
+    const tiles = Object.values(grid).filter((tile) => tile.active);
 
     tiles.forEach((tile) => {
       tile.setRotation(Math.floor(random() * 6), { animate: false });

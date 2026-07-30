@@ -6,6 +6,7 @@ import { InputManager } from "./InputManager.js";
 import { ModeRecordStore } from "./ModeRecordStore.js";
 import { ParticleSystem } from "./ParticleSystem.js";
 import { ProgressSystem } from "./ProgressSystem.js";
+import { RankedSprintSession } from "./RankedSprintSession.js";
 import { PuzzleGenerator } from "./PuzzleGenerator.js";
 import { PuzzleValidator } from "./PuzzleValidator.js";
 import { Renderer } from "./Renderer.js";
@@ -22,6 +23,9 @@ export class Game {
     this.progress = new ProgressSystem(this.auth);
     this.modeRecords = new ModeRecordStore();
     this.endlessSprint = new EndlessSprintSession();
+    this.rankedSprint = new RankedSprintSession();
+    this.currentPuzzle = null;
+    this.rankedSubmissionQueue = Promise.resolve();
     this.gameMode = "story";
 
     this.level = 1;
@@ -98,6 +102,8 @@ export class Game {
       onRegister: () => this.register(),
       onContinueGame: () => this.continueGame(),
       onStartEndless: (settings) => this.startEndlessSprint(settings),
+      onRequestRanked: () => this.requestRankedSprint(),
+      onConfirmRanked: () => void this.startRankedSprint(),
       onOpenLevels: () => this.openLevels(),
       onOpenRecords: () => this.openRecords(),
       onSelectLevel: (level) => this.selectLevel(level),
@@ -119,6 +125,12 @@ export class Game {
 
     document.addEventListener("visibilitychange", () => {
       this.handleVisibilityChange();
+    });
+
+    window.addEventListener("pagehide", () => {
+      if (this.gameMode === "ranked" && this.rankedSprint.active && this.rankedSprint.ranked) {
+        this.invalidateRankedSprint("page_unloaded");
+      }
     });
 
     this.resizeCanvas();
@@ -338,6 +350,10 @@ export class Game {
   }
 
   getActiveProgress() {
+    if (this.gameMode === "ranked" && this.rankedSprint.active) {
+      return this.rankedSprint;
+    }
+
     return this.gameMode === "endless" && this.endlessSprint.active
       ? this.endlessSprint
       : this.progress;
@@ -366,7 +382,11 @@ export class Game {
     this.resumeAnimationClock(now);
 
     if (this.pageHidden) {
-      this.pauseActiveTimer();
+      if (this.gameMode === "ranked" && this.rankedSprint.active && this.rankedSprint.ranked) {
+        this.invalidateRankedSprint("page_hidden");
+      } else {
+        this.pauseActiveTimer();
+      }
       return;
     }
 
@@ -560,8 +580,15 @@ export class Game {
     this.particles.clear();
     this.ui.hideCompletion();
     this.ui.updateLevel(this.level);
+    this.ui.setHintEnabled?.(true);
 
-    const generated = PuzzleGenerator.generate(this.level);
+    const generated = PuzzleGenerator.generate({
+      mode: "story",
+      level: this.level,
+      seed: `story:v2:${this.level}`,
+      puzzleId: `story-v2-${this.level}`
+    });
+    this.currentPuzzle = generated;
     const mapRadiusChanged = this.mapRadius !== generated.mapRadius;
 
     this.mapRadius = generated.mapRadius;
@@ -606,6 +633,7 @@ export class Game {
     this.particles.clear();
     this.ui.hideCompletion();
     this.ui.updateSprintHeader(status.puzzleIndex, status.sprintLength);
+    this.ui.setHintEnabled?.(true);
 
     const generated = PuzzleGenerator.generate(
       this.endlessSprint.getCurrentPuzzleRequest()
@@ -620,9 +648,11 @@ export class Game {
     }
 
     this.renderer.invalidateGrid();
+    this.currentPuzzle = generated;
     this.endlessSprint.beginPuzzle({
       minimumMoves: generated.minimumMoves,
-      activeTileCount: generated.activeTileCount
+      activeTileCount: generated.activeTileCount,
+      puzzle: generated
     });
     this.configureTutorial(null);
 
@@ -633,6 +663,88 @@ export class Game {
     this.turtle.speed = 0.08;
 
     this.checkConnections({ allowCompletion: false });
+  }
+
+
+  generateRankedPuzzle() {
+    const status = this.rankedSprint.getStatus();
+
+    this.gameMode = "ranked";
+    this.levelCompleted = false;
+    this.lastTimerSecond = -1;
+    this.resetPerformanceSamples();
+    this.victoryTour.active = false;
+    this.particles.clear();
+    this.ui.hideCompletion();
+    this.ui.updateRankedSprintStatus(status);
+    this.ui.updateSprintHeader(status.puzzleIndex, status.sprintLength);
+
+    const generated = PuzzleGenerator.generate(
+      this.rankedSprint.getCurrentPuzzleRequest()
+    );
+    const mapRadiusChanged = this.mapRadius !== generated.mapRadius;
+    this.mapRadius = generated.mapRadius;
+    this.grid = generated.grid;
+    this.currentPuzzle = generated;
+
+    if (mapRadiusChanged) this.resizeCanvas();
+    this.renderer.invalidateGrid();
+    this.rankedSprint.beginPuzzle(generated);
+    this.configureTutorial(null);
+    this.ui.updateStats(this.rankedSprint);
+    this.ui.updateTimer(this.rankedSprint.getElapsedSeconds());
+    this.ui.setHintEnabled?.(!this.rankedSprint.ranked, "Dereceli Sprintte ipucu kullan\u0131lamaz.");
+    this.turtle.reset(0, 0, this.hexRadius);
+    this.turtle.speed = 0.08;
+    this.checkConnections({ allowCompletion: false });
+  }
+
+
+  requestRankedSprint() {
+    if (this.rankedSprint.active && !this.rankedSprint.isComplete()) {
+      this.gameMode = "ranked";
+      this.ui.setHintEnabled?.(!this.rankedSprint.ranked, "Dereceli Sprintte ipucu kullan\u0131lamaz.");
+      this.closeMenu();
+      return;
+    }
+    this.ui.showRankedRules();
+  }
+
+  async startRankedSprint() {
+    if (!this.auth.hasCurrentUser()) return;
+
+    this.ui.hideRankedRules();
+    this.ui.showLoading({ variant: "channel", message: "G\u00fcn\u00fcn ortak serisi haz\u0131rlan\u0131yor" });
+
+    try {
+      const claim = await this.auth.claimRankedSprint();
+      if (!claim.ok) {
+        this.ui.setRankedMessage(claim.error || "Bug\u00fcnk\u00fc dereceli hak kullan\u0131lm\u0131\u015f.", "error");
+        return;
+      }
+
+      this.rankedSprint.claim(claim);
+      this.generateRankedPuzzle();
+      if (this.rankedSprint.ranked) {
+        const started = await this.auth.startRankedSprintAttempt(this.rankedSprint.attemptId);
+        if (!started.ok) throw new Error(started.error || "Dereceli s\u00fcre ba\u015flat\u0131lamad\u0131.");
+      }
+      this.rankedSprint.activate();
+      this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
+      this.closeMenu();
+    } catch (error) {
+      this.invalidateRankedSprint("start_failed");
+      this.ui.setRankedMessage(error.message || "Dereceli Sprint ba\u015flat\u0131lamad\u0131.", "error");
+    } finally {
+      await this.ui.hideLoading({ minimumMs: 320 });
+    }
+  }
+
+  invalidateRankedSprint(reason) {
+    if (!this.rankedSprint.ranked || !this.rankedSprint.claimed || this.rankedSprint.complete) return;
+    this.rankedSprint.invalidate(reason);
+    this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
+    void this.auth.invalidateRankedSprint(this.rankedSprint.attemptId, reason);
   }
 
   async login() {
@@ -705,6 +817,7 @@ export class Game {
 
     this.progress.loadForCurrentUser();
     this.endlessSprint.reset();
+    this.rankedSprint.reset();
     this.level = this.progress.getSavedLevel();
 
     this.generateLevel();
@@ -720,6 +833,7 @@ export class Game {
   logout() {
     this.pauseActiveTimer();
     this.endlessSprint.reset();
+    this.rankedSprint.reset();
     this.auth.logout();
     this.progress.loadForCurrentUser();
 
@@ -732,7 +846,11 @@ export class Game {
 
   openMenu() {
     this.menuOpen = true;
-    this.pauseActiveTimer();
+    if (this.gameMode === "ranked" && this.rankedSprint.active && this.rankedSprint.ranked) {
+      this.invalidateRankedSprint("menu_opened");
+    } else {
+      this.pauseActiveTimer();
+    }
     this.resetPerformanceSamples();
     this.ui.hideTutorial();
 
@@ -746,6 +864,10 @@ export class Game {
 
       if (this.gameMode === "endless" && this.endlessSprint.active) {
         this.ui.showMenuMode("endless");
+      } else if (this.gameMode === "ranked" && this.rankedSprint.claimed) {
+        this.ui.showMenuMode("endless");
+        this.ui.showSprintKind("ranked");
+        this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
       }
     } else {
       this.ui.showAuthMenu();
@@ -783,6 +905,10 @@ export class Game {
     ) {
       this.endlessSprint.reset();
     }
+    if (this.gameMode === "ranked" && this.rankedSprint.claimed) {
+      this.invalidateRankedSprint("left_for_story");
+      this.rankedSprint.reset();
+    }
 
     if (
       this.gameMode !== "story" ||
@@ -808,6 +934,11 @@ export class Game {
       return;
     }
 
+    if (this.rankedSprint.claimed && !this.rankedSprint.isComplete()) {
+      this.invalidateRankedSprint("left_for_training");
+      this.rankedSprint.reset();
+    }
+
     this.audio.init();
     this.endlessSprint.start(settings);
     this.generateEndlessPuzzle();
@@ -823,23 +954,22 @@ export class Game {
 
   async openRecords() {
     if (!this.auth.hasCurrentUser()) return;
-
     const modeRecords = this.modeRecords.read();
+    const local = this.modeRecords.getEndlessWinners();
+    this.ui.showRecords({ storyMessage: "Hik\u00e2ye rekorlar\u0131 y\u00fckleniyor...", endlessRecords: local, dailyRecords: modeRecords.daily });
 
+    const [storyV2, ranked] = await Promise.all([
+      this.auth.getStoryV2Leaderboard(),
+      this.auth.getRankedLeaderboards()
+    ]);
+    const legacy = storyV2.ok ? null : await this.auth.getLeaderboard();
     this.ui.showRecords({
-      storyMessage: "Hikâye rekorları yükleniyor...",
-      endlessRecords: this.modeRecords.getEndlessWinners(),
-      dailyRecords: modeRecords.daily
-    });
-
-    const result = await this.auth.getLeaderboard();
-
-    this.ui.showRecords({
-      storyRecords: result.ok ? result.records : [],
-      storyMessage: result.ok
-        ? ""
-        : `Rekorlar alınamadı: ${result.error}`,
-      endlessRecords: this.modeRecords.getEndlessWinners(),
+      storyRecords: storyV2.ok ? storyV2.records : legacy?.ok ? legacy.records : [],
+      storyMessage: storyV2.ok || legacy?.ok ? "" : `Rekorlar al\u0131namad\u0131: ${storyV2.error || legacy?.error}`,
+      endlessRecords: local,
+      rankedDailyRecords: ranked.daily,
+      rankedMonthlyRecords: ranked.monthly,
+      rankedProvisional: ranked.provisional,
       dailyRecords: modeRecords.daily
     });
   }
@@ -855,6 +985,10 @@ export class Game {
 
     if (this.endlessSprint.active && !this.endlessSprint.isComplete()) {
       this.endlessSprint.reset();
+    }
+    if (this.rankedSprint.claimed && !this.rankedSprint.isComplete()) {
+      this.invalidateRankedSprint("left_for_story");
+      this.rankedSprint.reset();
     }
 
     this.level = level;
@@ -1012,9 +1146,34 @@ export class Game {
     this.audio.play("success");
     this.particles.createCelebration(this.displaySize, this.displaySize);
 
-    const result = this.gameMode === "endless"
-      ? this.endlessSprint.completeCurrentPuzzle()
-      : this.progress.completeCurrentLevel();
+    const result = this.gameMode === "ranked"
+      ? this.rankedSprint.completeCurrentPuzzle()
+      : this.gameMode === "endless"
+        ? this.endlessSprint.completeCurrentPuzzle()
+        : this.progress.completeCurrentLevel();
+
+    if (result.mode === "ranked" && result.ranked) {
+      this.rankedSubmissionQueue = this.rankedSubmissionQueue
+        .catch(() => ({ ok: false }))
+        .then(() => this.auth.submitRankedPuzzle(
+          result.attemptId,
+          result.slot,
+          result.moves,
+          result.checksum
+        ))
+        .then((submission) => {
+          if (!submission.ok) this.invalidateRankedSprint("submission_failed");
+          return submission;
+        });
+    }
+
+    if (result.mode === "ranked") {
+      this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
+    }
+
+    if (result.mode === "story") {
+      void this.auth.saveStoryV2Result(this.level, result);
+    }
 
     if (result.mode === "endless" && result.sprintComplete) {
       this.modeRecords.saveEndlessSprint(
@@ -1024,9 +1183,9 @@ export class Game {
     }
 
     this.ui.updateTimer(
-      this.gameMode === "endless"
-        ? result.totalTimeSeconds
-        : result.timeSeconds
+      this.gameMode === "story"
+        ? result.timeSeconds
+        : result.totalTimeSeconds
     );
 
     this.startVictoryTour(result);
@@ -1108,6 +1267,7 @@ export class Game {
 
   useHint() {
     if (this.menuOpen || this.levelCompleted || !this.hasPlayableSession()) return;
+    if (this.gameMode === "ranked" && this.rankedSprint.ranked) return;
 
     if (this.tutorial.active) {
       this.reinforceTutorial();
@@ -1119,7 +1279,6 @@ export class Game {
     const candidates = Object.values(this.grid)
       .filter((tile) => (
         tile.active &&
-        !tile.locked &&
         !tile.isSolvedOrientation()
       ));
 
@@ -1217,6 +1376,22 @@ export class Game {
   }
 
   nextLevel() {
+    if (this.gameMode === "ranked") {
+      if (this.rankedSprint.isComplete()) {
+        this.ui.hideCompletion();
+        this.menuOpen = true;
+        this.ui.showGameMenu(this.auth.getCurrentUsername(), this.progress.getSavedLevel(), this.progress.getCompletedLevels().length);
+        this.ui.showMenuMode("endless");
+        this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
+        return;
+      }
+
+      if (this.rankedSprint.advancePuzzle()) {
+        this.generateRankedPuzzle();
+      }
+      return;
+    }
+
     if (this.gameMode === "endless") {
       if (this.endlessSprint.isComplete()) {
         this.ui.hideCompletion();

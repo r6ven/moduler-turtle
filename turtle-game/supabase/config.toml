@@ -1,0 +1,5 @@
+[functions.generate-ranked-season]
+verify_jwt = false
+
+[functions.finalize-ranked-day]
+verify_jwt = false

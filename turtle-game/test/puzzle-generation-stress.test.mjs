@@ -10,8 +10,7 @@ test("dense endless boards complete across a broad deterministic seed sample", (
       seed,
       mapRadius: 4,
       activeTileCount: 55,
-      extraLoopChance: 0.24,
-      lockedTileCount: 4
+      extraLoopChance: 0.24
     });
 
     assert.equal(generated.activeTileCount, 55);

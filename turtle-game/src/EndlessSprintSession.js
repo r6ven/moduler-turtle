@@ -36,23 +36,20 @@ export const ENDLESS_DIFFICULTY_PROFILES = Object.freeze({
     label: "Sakin",
     description: "Temiz yollar",
     extraLoopChance: 0.03,
-    lockedTileCount: 0,
     starTolerance: 3
   }),
   balanced: Object.freeze({
     id: "balanced",
     label: "Dengeli",
-    description: "Biraz döngü ve kilit",
+    description: "Daha çok döngü",
     extraLoopChance: 0.11,
-    lockedTileCount: 1,
     starTolerance: 5
   }),
   expert: Object.freeze({
     id: "expert",
     label: "Usta",
-    description: "Karmaşık ve kilitli",
+    description: "Karmaşık akışlar",
     extraLoopChance: 0.2,
-    lockedTileCount: 3,
     starTolerance: 6
   })
 });
@@ -92,6 +89,7 @@ export class EndlessSprintSession {
     this.activeTileCount = 0;
 
     this.elapsedMs = 0;
+    this.currentPuzzle = null;
     this.puzzleElapsedMs = 0;
     this.timerStartedAt = 0;
     this.timerRunning = false;
@@ -128,7 +126,7 @@ export class EndlessSprintSession {
 
     const puzzleNumber = this.puzzleIndex + 1;
     const scope = [
-      "endless-sprint-v1",
+      "endless-sprint-v2",
       this.board.id,
       this.difficulty.id,
       puzzleNumber
@@ -137,17 +135,30 @@ export class EndlessSprintSession {
 
     return {
       mode: "endless",
-      puzzleId: `endless-v1-${this.seed}-${this.board.id}-${this.difficulty.id}-${puzzleNumber}`,
+      puzzleId: `endless-v2-${this.seed}-${this.board.id}-${this.difficulty.id}-${puzzleNumber}`,
       seed: puzzleSeed,
       mapRadius: this.board.mapRadius,
       activeTileCount: this.board.activeTileCount,
       extraLoopChance: this.difficulty.extraLoopChance,
-      lockedTileCount: this.difficulty.lockedTileCount,
-      tutorial: false
+      tutorial: false,
+      quality: {
+        minimumMoves: this.getQualityMinimumMoves(),
+        maxInitialConnectedRatio: 0.25
+      }
     };
   }
 
-  beginPuzzle({ minimumMoves, activeTileCount }) {
+  getQualityMinimumMoves() {
+    const multiplier = this.difficulty.id === "expert"
+      ? 1.5
+      : this.difficulty.id === "balanced"
+        ? 1.2
+        : 1;
+
+    return Math.ceil(this.board.activeTileCount * multiplier);
+  }
+
+  beginPuzzle({ minimumMoves, activeTileCount, puzzle = null }) {
     if (!this.active || this.isComplete()) {
       throw new Error("Sprint bulmacası başlatılamıyor.");
     }
@@ -160,6 +171,7 @@ export class EndlessSprintSession {
       0,
       Math.floor(Number(activeTileCount) || 0)
     );
+    this.currentPuzzle = puzzle;
     this.puzzleElapsedMs = 0;
     this.timerStartedAt = 0;
     this.timerRunning = false;
@@ -244,13 +256,21 @@ export class EndlessSprintSession {
       boardId: this.board.id,
       boardLabel: this.board.label,
       difficultyId: this.difficulty.id,
-      difficultyLabel: this.difficulty.label
+      difficultyLabel: this.difficulty.label,
+      runSeed: this.seed,
+      generatorVersion: this.currentPuzzle?.generatorVersion ?? null,
+      puzzleId: this.currentPuzzle?.puzzleId ?? null,
+      puzzleSeed: this.currentPuzzle?.seed ?? null,
+      checksum: this.currentPuzzle?.checksum ?? null
     });
 
     this.results.push(result);
     return {
       ...result,
       sprintComplete: this.isComplete(),
+      generatorVersion: this.results[0]?.generatorVersion ?? null,
+      puzzleIds: this.results.map((item) => item.puzzleId),
+      puzzleChecksums: this.results.map((item) => item.checksum),
       results: [...this.results]
     };
   }
@@ -291,7 +311,11 @@ export class EndlessSprintSession {
       completedPuzzles: this.results.length,
       totalMoves: this.getTotalMoves(),
       totalHints: this.getTotalHints(),
-      totalTimeSeconds: this.getElapsedSeconds()
+      totalTimeSeconds: this.getElapsedSeconds(),
+      runSeed: this.seed,
+      generatorVersion: this.results[0]?.generatorVersion ?? null,
+      puzzleIds: this.results.map((result) => result.puzzleId),
+      puzzleChecksums: this.results.map((result) => result.checksum)
     };
   }
 }

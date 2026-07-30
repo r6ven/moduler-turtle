@@ -29,8 +29,7 @@ test("the same daily request produces the same definition and checksum", () => {
     seed: "2026-07-29:slot-3:hard:v1",
     mapRadius: 3,
     activeTileCount: 28,
-    extraLoopChance: 0.18,
-    lockedTileCount: 2
+    extraLoopChance: 0.18
   };
   const first = PuzzleGenerator.generate(request);
   const second = PuzzleGenerator.generate(request);
@@ -57,8 +56,7 @@ test("different endless seeds create different puzzle identities", () => {
     mode: "endless",
     mapRadius: 3,
     activeTileCount: 26,
-    extraLoopChance: 0.12,
-    lockedTileCount: 1
+    extraLoopChance: 0.12
   };
   const first = PuzzleGenerator.generate({ ...base, seed: 1001 });
   const second = PuzzleGenerator.generate({ ...base, seed: 1002 });
@@ -76,7 +74,6 @@ test("configured endless boards keep their exact size and solved topology", () =
       mapRadius: 4,
       activeTileCount: 48,
       extraLoopChance: 0.2,
-      lockedTileCount: 3
     });
     const status = solvedStatus(generated);
 
@@ -91,11 +88,15 @@ test("configured endless boards keep their exact size and solved topology", () =
   }
 });
 
-test("legacy story generation remains supported", () => {
+test("legacy story generation is deterministic and remains supported", () => {
   const generated = PuzzleGenerator.generate(12);
+  const replay = PuzzleGenerator.generate(12);
 
   assert.equal(generated.mode, "story");
   assert.equal(generated.mapRadius, 3);
   assert.equal(generated.activeTileCount, 26);
+  assert.equal(generated.puzzleId, "story-v2-12");
+  assert.equal(generated.checksum, replay.checksum);
+  assert.deepEqual(generated.definition, replay.definition);
   assert.equal(solvedStatus(generated).completed, true);
 });

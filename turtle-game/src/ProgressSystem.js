@@ -196,6 +196,7 @@ export class ProgressSystem {
     void this.save();
 
     return {
+      mode: "story",
       stars,
       moves: this.moves,
       hintsUsed: this.hintsUsed,

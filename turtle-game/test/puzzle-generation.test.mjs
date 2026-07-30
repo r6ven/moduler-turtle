@@ -66,27 +66,11 @@ test("symmetric channels use the nearest equivalent solved rotation", () => {
     { rotation: 3, moves: 1 }
   );
 });
-test("locked tiles are solved, immutable clues", () => {
-  for (const level of [8, 16, 24, 40]) {
+test("all generated modes are free of locked tiles", () => {
+  for (const level of [1, 8, 16, 24, 40]) {
     const generated = PuzzleGenerator.generate(level);
-    const activeTiles = Object.values(generated.grid).filter(
-      (tile) => tile.active
-    );
-    const lockedTiles = activeTiles.filter((tile) => tile.locked);
-    const expectedCount = CONFIG.difficulty.getLockedTileCount(
-      level,
-      activeTiles.length
-    );
-
-    assert.equal(lockedTiles.length, expectedCount);
-
-    lockedTiles.forEach((tile) => {
-      assert.equal(tile.source, false);
-      assert.equal(tile.sink, false);
-      assert.equal(tile.rotation, 0);
-      assert.equal(tile.rotate(), false);
-      assert.equal(tile.rotation, 0);
-    });
+    assert.equal(Object.values(generated.grid).some((tile) => tile.locked), false);
+    assert.equal("lockedTileCount" in generated.definition.difficulty, false);
   }
 });
 

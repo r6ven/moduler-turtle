@@ -163,9 +163,11 @@ zorunlu değildir. Eklenirse Vite değerleri build sırasında kullandığı iç
    dosyasını çalıştırın.
 3. `turtle-game/supabase/migrations/202607260002_add_login_rate_limits.sql`
    dosyasını çalıştırın.
-4. Project Settings → API bölümünden URL ve anon/publishable key değerlerini
+4. `turtle-game/supabase/migrations/202607300001_add_ranked_sprints.sql`
+   dosyasını çalıştırın.
+5. Project Settings → API bölümünden URL ve anon/publishable key değerlerini
    alın.
-5. Render ortam değişkenlerine `VITE_SUPABASE_URL` ve
+6. Render ortam değişkenlerine `VITE_SUPABASE_URL` ve
    `VITE_SUPABASE_ANON_KEY` değerlerini ekleyin.
 
 Yerel geliştirme için `turtle-game/.env.example` dosyasını `.env` olarak
@@ -179,3 +181,92 @@ Frontend geriye uyumludur ve acil durumda eski RPC akışına dönebilir. Migrat
 geri almak gerekirse önce uygulamayı eski RPC moduna alın; daha sonra yalnızca
 `player_sessions` tablosu ile `*_session` fonksiyonları kaldırılabilir.
 `public.players` tablosuna dokunmayın.
+
+## Dereceli Sprint v2 (uygulama bekliyor)
+
+Aşağıdaki migration **additive** yapıdadır; mevcut `public.players`, ilerleme
+JSON'ları, parolalar ve oturumlar silinmez veya sıfırlanmaz:
+
+```text
+turtle-game/supabase/migrations/202607300001_add_ranked_sprints.sql
+```
+
+Migration şunları ekler:
+
+- aylık sezon ve gizli puzzle havuzu tabloları;
+- oyuncu/gün başına tek ilk dereceli deneme kısıtı;
+- beş puzzle sonucunu sunucu zamanıyla ve sırayla kaydeden RPC'ler;
+- UTC gün sonu yüzdelik puan kesinleştirmesi;
+- günlük ve aylık dereceli leaderboard RPC'leri;
+- eski rastgele hikâye kayıtlarına dokunmadan ayrı `story_level_results_v2`
+  adil hikâye leaderboard'u.
+
+### Uygulama sırası
+
+1. Supabase Database yedeği alın ve oyuncu/oturum sayılarını not edin.
+2. SQL Editor'da `202607300001_add_ranked_sprints.sql` dosyasının tamamını
+   çalıştırın. `fresh_project.sql` dosyasını production'da çalıştırmayın.
+3. Edge Function secret'larını yalnız Supabase tarafına ekleyin:
+
+```bash
+supabase secrets set RANKED_PUZZLE_SECRET="uzun-rastgele-bir-deger" RANKED_CRON_SECRET="ayri-uzun-rastgele-bir-deger"
+```
+
+Bu değerleri `VITE_*`, Render Environment veya GitHub source içine koymayın.
+
+4. Fonksiyonları deploy edin:
+
+```bash
+supabase functions deploy generate-ranked-season --no-verify-jwt
+supabase functions deploy finalize-ranked-day --no-verify-jwt
+```
+
+5. İlk kurulumda içinde bulunulan ayı bir kere elle üretin:
+
+```bash
+curl -X POST "https://PROJECT_REF.supabase.co/functions/v1/generate-ranked-season" \
+  -H "x-cron-secret: RANKED_CRON_SECRET" \
+  -H "content-type: application/json" \
+  -d '{"seasonId":"2026-07"}'
+```
+
+6. Supabase Dashboard'da Edge Functions / Cron entegrasyonundan iki UTC görev
+   kurun:
+
+- her ayın 25'i 00:15 UTC: `generate-ranked-season` (gelecek ayı üretir);
+- her gün 00:10 UTC: `finalize-ranked-day` (kapanan UTC gününü kesinleştirir).
+
+Her aylık manifest 31 x 5 = 155 kimlik saklar. Kısa aylarda fazla günler
+`play_date = null` ve `published = false` kalır. Oyuncu RPC'si yalnız bugünün
+yayımlanmış beş kaydını döndürür. Gelecek seed ve puzzle tanımları doğrudan
+anon/authenticated erişimine kapalıdır.
+
+### Doğrulama sorgusu
+
+```sql
+select count(*) as players_after from public.players;
+select season_id, count(*) as stored_slots,
+       count(*) filter (where published) as published_slots
+from public.ranked_puzzle_slots
+group by season_id
+order by season_id desc;
+
+select
+  has_table_privilege('anon','public.ranked_puzzle_slots','select') as anon_can_read_future,
+  to_regprocedure('public.claim_ranked_sprint_attempt(text)') as claim_rpc,
+  to_regprocedure('public.finalize_ranked_day(date)') as finalize_rpc;
+```
+
+Beklenen: kullanıcı sayısı değişmemiş, sezon başına `stored_slots = 155` ve
+`anon_can_read_future = false`. Temmuzda 155, 30 günlük ayda 150, normal
+şubatta 140 puzzle yayımlanır.
+
+### Puan modeli
+
+- Puzzle sırası: sunucu ölçümlü süre, sonra hamle.
+- Eşit süre+hamle eşit sıra ve puan alır.
+- UTC gün kapanınca ilk yüzde 10 = 10, sonraki dilim = 9, son dilim = 1.
+- Beş zorluk ağırlığı: 1, 2, 2, 3, 5; günlük tavan 130 puan.
+- Gün içi sonuçlar geçicidir; aylık tablo yalnız kesinleşmiş puanları toplar.
+- Aylık eşitlik: toplam puan, toplam süre, toplam hamle.
+- Yıldızlar ayrıca saklanır ve puana eklenmez.

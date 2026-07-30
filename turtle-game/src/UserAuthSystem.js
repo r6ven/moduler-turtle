@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+﻿import { createClient } from "@supabase/supabase-js";
 import { CONFIG } from "./config.js";
 
 const DEVICE_SESSION_KEY = "zen-kaplumbaga-device-session-v1";
@@ -73,7 +73,7 @@ export class UserAuthSystem {
       if (!sessionAttempt.ok) {
         return {
           ok: false,
-          error: sessionAttempt.error || "Kayıt oluşturulamadı."
+          error: sessionAttempt.error || "KayÄ±t oluÅŸturulamadÄ±."
         };
       }
 
@@ -91,7 +91,7 @@ export class UserAuthSystem {
     if (error) {
       return {
         ok: false,
-        error: `Kayıt oluşturulamadı: ${error.message}`
+        error: `KayÄ±t oluÅŸturulamadÄ±: ${error.message}`
       };
     }
 
@@ -100,7 +100,7 @@ export class UserAuthSystem {
     if (!result.ok) {
       return {
         ok: false,
-        error: result.error || "Kayıt oluşturulamadı."
+        error: result.error || "KayÄ±t oluÅŸturulamadÄ±."
       };
     }
 
@@ -126,7 +126,7 @@ export class UserAuthSystem {
       if (!sessionAttempt.ok) {
         return {
           ok: false,
-          error: sessionAttempt.error || "Kullanıcı adı veya şifre hatalı."
+          error: sessionAttempt.error || "KullanÄ±cÄ± adÄ± veya ÅŸifre hatalÄ±."
         };
       }
 
@@ -147,7 +147,7 @@ export class UserAuthSystem {
     if (error) {
       return {
         ok: false,
-        error: `Giriş yapılamadı: ${error.message}`
+        error: `GiriÅŸ yapÄ±lamadÄ±: ${error.message}`
       };
     }
 
@@ -156,7 +156,7 @@ export class UserAuthSystem {
     if (!result.ok) {
       return {
         ok: false,
-        error: result.error || "Kullanıcı adı veya şifre hatalı."
+        error: result.error || "KullanÄ±cÄ± adÄ± veya ÅŸifre hatalÄ±."
       };
     }
 
@@ -226,6 +226,102 @@ export class UserAuthSystem {
       ok: true,
       records: Array.isArray(result) ? result : []
     };
+  }
+
+
+  async callRankedRpc(name, args = {}) {
+    if (!this.currentSessionToken) {
+      return {
+        ok: false,
+        error: "Dereceli Sprint i\u00e7in g\u00fcvenli oturum gerekli."
+      };
+    }
+
+    const { data, error } = await this.supabase.rpc(name, {
+      p_session_token: this.currentSessionToken,
+      ...args
+    });
+
+    if (error) return { ok: false, error: error.message };
+    return this.normalizeRpcResponse(data);
+  }
+
+  claimRankedSprint() {
+    return this.callRankedRpc("claim_ranked_sprint_attempt");
+  }
+
+  startRankedSprintAttempt(attemptId) {
+    return this.callRankedRpc("start_ranked_sprint_attempt", {
+      p_attempt_id: attemptId
+    });
+  }
+
+  submitRankedPuzzle(attemptId, slot, moves, checksum) {
+    return this.callRankedRpc("submit_ranked_puzzle_result", {
+      p_attempt_id: attemptId,
+      p_slot: slot,
+      p_moves: moves,
+      p_checksum: checksum
+    });
+  }
+
+  invalidateRankedSprint(attemptId, reason) {
+    const args = {
+      p_session_token: this.currentSessionToken,
+      p_attempt_id: attemptId,
+      p_reason: String(reason || "client_invalidated")
+    };
+
+    try {
+      void fetch(`${CONFIG.supabase.url}/rest/v1/rpc/invalidate_ranked_sprint_attempt`, {
+        method: "POST",
+        keepalive: true,
+        headers: {
+          apikey: CONFIG.supabase.anonKey,
+          authorization: `Bearer ${CONFIG.supabase.anonKey}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify(args)
+      });
+    } catch {
+      // The unique daily attempt still prevents a reloaded run from ranking.
+    }
+
+    return this.callRankedRpc("invalidate_ranked_sprint_attempt", {
+      p_attempt_id: attemptId,
+      p_reason: args.p_reason
+    });
+  }
+
+  async getRankedLeaderboards() {
+    const daily = await this.callRankedRpc("get_ranked_daily_leaderboard");
+    const monthly = await this.callRankedRpc("get_ranked_monthly_leaderboard");
+    return {
+      ok: Boolean(daily.ok && monthly.ok),
+      daily: Array.isArray(daily.records) ? daily.records : [],
+      monthly: Array.isArray(monthly.records) ? monthly.records : [],
+      provisional: daily.provisional !== false,
+      error: daily.error || monthly.error || ""
+    };
+  }
+
+  async getStoryV2Leaderboard() {
+    const { data, error } = await this.supabase.rpc("get_story_v2_leaderboard");
+    if (error) return { ok: false, error: error.message, records: [] };
+    const result = this.normalizeRpcResponse(data);
+    return { ok: result.ok !== false, error: result.error || "", records: Array.isArray(result.records) ? result.records : Array.isArray(result) ? result : [] };
+  }
+
+  saveStoryV2Result(level, result) {
+    if (!this.currentSessionToken) return Promise.resolve({ ok: false, error: "secure_session_required" });
+    return this.supabase.rpc("save_story_v2_result", {
+      p_session_token: this.currentSessionToken,
+      p_level: level,
+      p_puzzle_id: `story-v2-${level}`,
+      p_stars: result.stars,
+      p_moves: result.moves,
+      p_time_seconds: result.timeSeconds
+    }).then(({ data, error }) => error ? { ok: false, error: error.message } : this.normalizeRpcResponse(data));
   }
 
   logout() {
@@ -534,7 +630,7 @@ export class UserAuthSystem {
     if (!this.hasCurrentUser()) {
       return {
         ok: false,
-        error: "Aktif kullanıcı yok."
+        error: "Aktif kullanÄ±cÄ± yok."
       };
     }
 
@@ -561,17 +657,17 @@ export class UserAuthSystem {
     const { data, error } = await this.supabase.rpc(rpcName, rpcArgs);
 
     if (error) {
-      console.warn("Supabase kayıt hatası:", error.message);
+      console.warn("Supabase kayÄ±t hatasÄ±:", error.message);
       return { ok: false, error: error.message };
     }
 
     const result = this.normalizeRpcResponse(data);
 
     if (!result.ok) {
-      console.warn("Supabase kayıt reddedildi:", result.error);
+      console.warn("Supabase kayÄ±t reddedildi:", result.error);
       return {
         ok: false,
-        error: result.error || "Kayıt güncellenemedi."
+        error: result.error || "KayÄ±t gÃ¼ncellenemedi."
       };
     }
 
@@ -590,7 +686,7 @@ export class UserAuthSystem {
     if (!this.hasCurrentUser()) {
       return {
         ok: false,
-        error: "Aktif kullanıcı yok."
+        error: "Aktif kullanÄ±cÄ± yok."
       };
     }
 
@@ -607,7 +703,7 @@ export class UserAuthSystem {
     const { data, error } = await this.supabase.rpc(rpcName, rpcArgs);
 
     if (error) {
-      console.warn("Supabase reset hatası:", error.message);
+      console.warn("Supabase reset hatasÄ±:", error.message);
       return { ok: false, error: error.message };
     }
 
@@ -616,7 +712,7 @@ export class UserAuthSystem {
     if (!result.ok) {
       return {
         ok: false,
-        error: result.error || "Kayıt sıfırlanamadı."
+        error: result.error || "KayÄ±t sÄ±fÄ±rlanamadÄ±."
       };
     }
 
@@ -662,21 +758,21 @@ export class UserAuthSystem {
     if (!username || username.length < 3) {
       return {
         ok: false,
-        error: "Kullanıcı adı en az 3 karakter olmalı."
+        error: "KullanÄ±cÄ± adÄ± en az 3 karakter olmalÄ±."
       };
     }
 
     if (!/^[a-z0-9_.-]+$/.test(username)) {
       return {
         ok: false,
-        error: "Kullanıcı adında sadece harf, rakam, nokta, tire ve alt çizgi kullan."
+        error: "KullanÄ±cÄ± adÄ±nda sadece harf, rakam, nokta, tire ve alt Ã§izgi kullan."
       };
     }
 
     if (!password || password.length < 4) {
       return {
         ok: false,
-        error: "Şifre en az 4 karakter olmalı."
+        error: "Åifre en az 4 karakter olmalÄ±."
       };
     }
 
@@ -693,7 +789,7 @@ export class UserAuthSystem {
     if (!data) {
       return {
         ok: false,
-        error: "Sunucudan boş cevap geldi."
+        error: "Sunucudan boÅŸ cevap geldi."
       };
     }
 
@@ -703,7 +799,7 @@ export class UserAuthSystem {
       } catch {
         return {
           ok: false,
-          error: "Sunucu cevabı okunamadı."
+          error: "Sunucu cevabÄ± okunamadÄ±."
         };
       }
     }
