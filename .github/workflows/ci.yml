@@ -10,6 +10,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: turtle-game
@@ -36,9 +37,11 @@ jobs:
 
   ranked-database-contract:
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: turtle-game
+
     services:
       postgres:
         image: postgres:16
@@ -61,29 +64,82 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: |
-          psql -h 127.0.0.1 -U postgres -d turtle_test -v ON_ERROR_STOP=1 <<'SQL'
+          psql \
+            -h 127.0.0.1 \
+            -U postgres \
+            -d turtle_test \
+            -v ON_ERROR_STOP=1 <<'SQL'
           create role anon nologin;
           create role authenticated nologin;
           create role service_role nologin;
           SQL
 
-      - name: Apply bootstrap and migrations
+      - name: Apply bootstrap and player migrations
         env:
           PGPASSWORD: postgres
         run: |
-          psql -h 127.0.0.1 -U postgres -d turtle_test -v ON_ERROR_STOP=1 -f supabase/bootstrap/fresh_project.sql
-          psql -h 127.0.0.1 -U postgres -d turtle_test -v ON_ERROR_STOP=1 -f supabase/migrations/202607260001_add_player_sessions.sql
-          psql -h 127.0.0.1 -U postgres -d turtle_test -v ON_ERROR_STOP=1 -f supabase/migrations/202607260002_add_login_rate_limits.sql
-          psql -h 127.0.0.1 -U postgres -d turtle_test -v ON_ERROR_STOP=1 -c "insert into public.players(username,password_hash,last_level) values ('existing_ci_player',crypt('keep-me',gen_salt('bf',4)),73)"
+          psql \
+            -h 127.0.0.1 \
+            -U postgres \
+            -d turtle_test \
+            -v ON_ERROR_STOP=1 \
+            -f supabase/bootstrap/fresh_project.sql
 
-      - name: Apply ranked migration without changing existing players
+          psql \
+            -h 127.0.0.1 \
+            -U postgres \
+            -d turtle_test \
+            -v ON_ERROR_STOP=1 \
+            -f supabase/migrations/202607260001_add_player_sessions.sql
+
+          psql \
+            -h 127.0.0.1 \
+            -U postgres \
+            -d turtle_test \
+            -v ON_ERROR_STOP=1 \
+            -f supabase/migrations/202607260002_add_login_rate_limits.sql
+
+          psql \
+            -h 127.0.0.1 \
+            -U postgres \
+            -d turtle_test \
+            -v ON_ERROR_STOP=1 \
+            -c "insert into public.players(username,password_hash,last_level) values ('existing_ci_player',crypt('keep-me',gen_salt('bf',4)),73)"
+
+      - name: Apply all ranked migrations
         env:
           PGPASSWORD: postgres
         run: |
-          psql -h 127.0.0.1 -U postgres -d turtle_test -v ON_ERROR_STOP=1 -f supabase/migrations/202607300001_add_ranked_sprints.sql
-          psql -h 127.0.0.1 -U postgres -d turtle_test -v ON_ERROR_STOP=1 -Atc "select username || ':' || last_level from public.players where username='existing_ci_player'" | grep -Fx "existing_ci_player:73"
+          for migration in supabase/migrations/202607300*.sql; do
+            echo "Applying ${migration}"
+
+            psql \
+              -h 127.0.0.1 \
+              -U postgres \
+              -d turtle_test \
+              -v ON_ERROR_STOP=1 \
+              -f "${migration}"
+          done
+
+      - name: Verify existing player was preserved
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql \
+            -h 127.0.0.1 \
+            -U postgres \
+            -d turtle_test \
+            -v ON_ERROR_STOP=1 \
+            -Atc "select username || ':' || last_level from public.players where username='existing_ci_player'" \
+            | grep -Fx "existing_ci_player:73"
 
       - name: Exercise ranked transaction and grants
         env:
           PGPASSWORD: postgres
-        run: psql -h 127.0.0.1 -U postgres -d turtle_test -v ON_ERROR_STOP=1 -f test/supabase-ranked-integration.sql
+        run: |
+          psql \
+            -h 127.0.0.1 \
+            -U postgres \
+            -d turtle_test \
+            -v ON_ERROR_STOP=1 \
+            -f test/supabase-ranked-integration.sql
