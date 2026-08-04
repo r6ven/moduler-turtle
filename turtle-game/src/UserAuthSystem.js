@@ -273,7 +273,6 @@ export class UserAuthSystem {
           method: "POST",
           headers: {
             apikey: CONFIG.supabase.anonKey,
-            authorization: `Bearer ${CONFIG.supabase.anonKey}`,
             "content-type": "application/json"
           },
           body: JSON.stringify({
@@ -325,7 +324,6 @@ export class UserAuthSystem {
           keepalive: true,
           headers: {
             apikey: CONFIG.supabase.anonKey,
-            authorization: `Bearer ${CONFIG.supabase.anonKey}`,
             "content-type": "application/json"
           },
           body: JSON.stringify(args)
@@ -365,7 +363,6 @@ export class UserAuthSystem {
         keepalive: true,
         headers: {
           apikey: CONFIG.supabase.anonKey,
-          authorization: `Bearer ${CONFIG.supabase.anonKey}`,
           "content-type": "application/json"
         },
         body: JSON.stringify(args)
