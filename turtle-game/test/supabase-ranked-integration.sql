@@ -58,7 +58,7 @@ begin
     null
   );
 
-  -- Puzzle slotları sezon henüz taslakken eklenir.
+  -- Puzzle slotları sezon taslak durumundayken eklenir.
   insert into public.ranked_puzzle_slots(
     season_id,
     play_date,
@@ -171,7 +171,7 @@ begin
   v_released_at :=
     v_response -> 'puzzle' ->> 'released_at';
 
-  -- Tekrar başlatma attempt ve süreyi değiştirmemeli.
+  -- Başlangıç tekrarlandığında attempt ve süre değişmemeli.
   v_repeat := public.start_ranked_attempt(
     v_primary_token,
     array[1],
@@ -252,7 +252,7 @@ begin
       v_accepted;
   end if;
 
-  -- Aynı submission tekrar gönderildiğinde duplicate dönmeli.
+  -- Aynı submission yeniden gönderildiğinde duplicate dönmeli.
   v_repeat := public.accept_ranked_replay(
     v_primary_token,
     v_attempt_id,
@@ -273,7 +273,7 @@ begin
       v_repeat;
   end if;
 
-  -- Birinci puzzle sonrası ikinci puzzle açılmalı.
+  -- Birinci puzzle sonrasında ikinci puzzle açılmalı.
   v_response := public.release_ranked_slot(
     v_primary_token,
     v_attempt_id,
@@ -296,7 +296,7 @@ begin
   v_released_at :=
     v_response -> 'puzzle' ->> 'released_at';
 
-  -- Aynı slot tekrar istenirse süre sıfırlanmamalı.
+  -- Aynı slot tekrar istendiğinde süre sıfırlanmamalı.
   v_repeat := public.release_ranked_slot(
     v_primary_token,
     v_attempt_id,
@@ -310,7 +310,7 @@ begin
       'idempotent release reset the slot timer';
   end if;
 
-  -- İkinci puzzle yarıda bırakılırsa yalnızca o puzzle puan dışı kalmalı.
+  -- İkinci puzzle yarıda bırakıldığında sadece o puzzle puan dışı kalmalı.
   v_response := public.forfeit_current_ranked_slot(
     v_primary_token,
     v_attempt_id,
@@ -332,7 +332,7 @@ begin
       v_response;
   end if;
 
-  -- İkinci forfeit çağrısı ilk sebebi değiştirmemeli.
+  -- Tekrarlanan forfeit çağrısı ilk sebebi değiştirmemeli.
   v_repeat := public.forfeit_current_ranked_slot(
     v_primary_token,
     v_attempt_id,
@@ -371,7 +371,7 @@ begin
       v_accepted;
   end if;
 
-  -- Üçüncü puzzle tekrar puanlı olmalı.
+  -- Üçüncü puzzle yeniden puanlı olmalı.
   v_response := public.release_ranked_slot(
     v_primary_token,
     v_attempt_id,
