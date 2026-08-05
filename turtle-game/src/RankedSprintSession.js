@@ -218,6 +218,10 @@ export class RankedSprintSession {
     this.timerStartedAt = this.now();
     this.timerRunning = true;
   }
+  
+   startTimer() {
+    this.startLocalTimer();
+  }
 
   pauseTimer() {
     if (this.ranked || !this.timerRunning) return;
