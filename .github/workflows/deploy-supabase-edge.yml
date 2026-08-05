@@ -1,0 +1,50 @@
+name: Deploy Supabase Edge Function
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+    paths:
+      - "turtle-game/supabase/functions/submit-ranked-replay/**"
+      - "turtle-game/supabase/config.toml"
+      - "turtle-game/src/PuzzleDefinition.js"
+      - "turtle-game/src/PuzzleReplayVerifier.js"
+      - "turtle-game/src/PuzzleValidator.js"
+      - "turtle-game/src/PuzzleRandom.js"
+      - "turtle-game/src/HexMath.js"
+      - "turtle-game/src/Tile.js"
+      - ".github/workflows/deploy-supabase-edge.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-submit-ranked-replay:
+    name: Deploy submit-ranked-replay
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: turtle-game
+
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: dcpmbjmjlaafrwzxlmsx
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v2
+        with:
+          version: latest
+          github-token: ${{ github.token }}
+
+      - name: Deploy submit-ranked-replay
+        run: |
+          supabase functions deploy submit-ranked-replay \
+            --project-ref "$SUPABASE_PROJECT_ID" \
+            --no-verify-jwt
