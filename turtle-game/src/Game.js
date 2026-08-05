@@ -18,6 +18,38 @@ import { Turtle } from "./Turtle.js";
 import { UIController } from "./UIController.js";
 import { UserAuthSystem } from "./UserAuthSystem.js";
 
+const PERMANENT_RANKED_SUBMISSION_CODES = new Set([
+  "invalid_replay",
+  "unsolved",
+  "inactive_or_unknown_tile",
+  "invalid_move_key",
+  "replay_length_out_of_range",
+  "invalid_definition",
+  "unsupported_definition_schema",
+  "unsupported_rules_version",
+  "server_definition_mismatch"
+]);
+
+function isPermanentRankedSubmissionFailure(result = {}) {
+  return PERMANENT_RANKED_SUBMISSION_CODES.has(
+    String(result.code || "")
+  );
+}
+
+function formatRankedFailureReference(result = {}) {
+  const parts = [];
+
+  if (result.code) parts.push(String(result.code));
+  if (Number(result.httpStatus) > 0) {
+    parts.push(`HTTP ${Number(result.httpStatus)}`);
+  }
+  if (result.requestId) {
+    parts.push(`İstek ${String(result.requestId)}`);
+  }
+
+  return parts.length ? ` (${parts.join(" · ")})` : "";
+}
+
 export function getRankedStartErrorMessage(result = {}) {
   const messages = {
     client_update_required:
@@ -699,7 +731,6 @@ export class Game {
     this.checkConnections({ allowCompletion: false });
   }
 
-
   generateRankedPuzzle() {
     const status = this.rankedSprint.getStatus();
     const payload = this.rankedSprint.getCurrentPuzzlePayload();
@@ -793,6 +824,7 @@ export class Game {
 
     this.ui.showRankedRules();
   }
+
   async startRankedSprint() {
     if (!this.auth.hasCurrentUser()) return;
 
@@ -837,11 +869,22 @@ export class Game {
       }
     }
   }
+
   invalidateRankedSprint(reason) {
-    if (!this.rankedSprint.ranked || !this.rankedSprint.claimed || this.rankedSprint.complete) return;
+    if (
+      !this.rankedSprint.ranked ||
+      !this.rankedSprint.claimed ||
+      this.rankedSprint.complete
+    ) {
+      return;
+    }
+
     this.rankedSprint.invalidate(reason);
     this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
-    void this.auth.invalidateRankedSprint(this.rankedSprint.attemptId, reason);
+    void this.auth.invalidateRankedSprint(
+      this.rankedSprint.attemptId,
+      reason
+    );
   }
 
   forfeitCurrentRankedPuzzle(reason) {
@@ -1143,7 +1186,11 @@ export class Game {
     if (!this.auth.hasCurrentUser()) return;
     const modeRecords = this.modeRecords.read();
     const local = this.modeRecords.getEndlessWinners();
-    this.ui.showRecords({ storyMessage: "Hik\u00e2ye rekorlar\u0131 y\u00fckleniyor...", endlessRecords: local, dailyRecords: modeRecords.daily });
+    this.ui.showRecords({
+      storyMessage: "Hik\u00e2ye rekorlar\u0131 y\u00fckleniyor...",
+      endlessRecords: local,
+      dailyRecords: modeRecords.daily
+    });
 
     const [storyV2, ranked] = await Promise.all([
       this.auth.getStoryV2Leaderboard(),
@@ -1151,8 +1198,14 @@ export class Game {
     ]);
     const legacy = storyV2.ok ? null : await this.auth.getLeaderboard();
     this.ui.showRecords({
-      storyRecords: storyV2.ok ? storyV2.records : legacy?.ok ? legacy.records : [],
-      storyMessage: storyV2.ok || legacy?.ok ? "" : `Rekorlar al\u0131namad\u0131: ${storyV2.error || legacy?.error}`,
+      storyRecords: storyV2.ok
+        ? storyV2.records
+        : legacy?.ok
+          ? legacy.records
+          : [],
+      storyMessage: storyV2.ok || legacy?.ok
+        ? ""
+        : `Rekorlar al\u0131namad\u0131: ${storyV2.error || legacy?.error}`,
       endlessRecords: local,
       rankedDailyRecords: ranked.daily,
       rankedMonthlyRecords: ranked.monthly,
@@ -1271,7 +1324,13 @@ export class Game {
   }
 
   handleTilePress(hex) {
-    if (this.menuOpen || this.levelCompleted || !this.hasPlayableSession()) return;
+    if (
+      this.menuOpen ||
+      this.levelCompleted ||
+      !this.hasPlayableSession()
+    ) {
+      return;
+    }
 
     this.audio.init();
 
@@ -1330,7 +1389,10 @@ export class Game {
     this.levelCompleted = true;
 
     this.audio.play("success");
-    this.particles.createCelebration(this.displaySize, this.displaySize);
+    this.particles.createCelebration(
+      this.displaySize,
+      this.displaySize
+    );
 
     if (this.gameMode === "ranked") {
       void this.completeRankedLevel().catch((error) => {
@@ -1375,7 +1437,9 @@ export class Game {
     const pending = this.rankedSprint.completeCurrentPuzzle();
 
     if (!pending.ranked) {
-      this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
+      this.ui.updateRankedSprintStatus(
+        this.rankedSprint.getStatus()
+      );
       this.ui.updateTimer(pending.totalTimeSeconds);
       this.startVictoryTour(pending);
       return;
@@ -1385,14 +1449,47 @@ export class Game {
   }
 
   handleRankedCompletionFailure(error) {
-    console.error("Ranked completion failed", error);
-    const reason = error?.code || "ranked_completion_failed";
+    const code = String(
+      error?.code || "ranked_completion_failed"
+    );
+    const message = String(
+      error?.message || "Beklenmeyen dereceli doğrulama hatası."
+    );
+    const pending = this.rankedSprint.pendingResult;
 
-    this.invalidateRankedSprint(reason);
-    this.rankedSprint.reset();
+    console.error("Ranked completion failed", {
+      code,
+      message,
+      stack: error?.stack || null,
+      attemptId: this.rankedSprint.attemptId,
+      slot: this.rankedSprint.getStatus().puzzleIndex,
+      hasPendingSubmission: Boolean(pending)
+    });
+
+    this.ui.hideCompletion();
+    this.ui.updateRankedSprintStatus(
+      this.rankedSprint.getStatus()
+    );
+    this.ui.setRankedMessage(
+      `Dereceli doğrulama tamamlanamadı (${code}). ` +
+      "Sonuç korunuyor; tekrar doğrula.",
+      "error"
+    );
+
+    if (pending) {
+      this.levelCompleted = true;
+      this.menuOpen = false;
+      this.ui.showCompletion({
+        ...pending,
+        validationPending: true
+      });
+      return;
+    }
+
+    // Sonuç nesnesi oluşmadan hata olduysa server denemesi geçersiz
+    // sayılmaz. Kullanıcı aynı slotu yeniden açıp çözebilir.
     this.levelCompleted = false;
     this.menuOpen = true;
-    this.ui.hideCompletion();
     this.ui.showGameMenu(
       this.auth.getCurrentUsername(),
       this.progress.getSavedLevel(),
@@ -1400,11 +1497,11 @@ export class Game {
     );
     this.ui.showMenuMode("endless");
     this.ui.showSprintKind("ranked");
-    this.ui.setRankedMessage(
-      "Dereceli tamamlama do\u011frulanamad\u0131. Ko\u015fu yeniden ba\u015flat\u0131labilir.",
-      "error"
+    this.ui.updateRankedSprintStatus(
+      this.rankedSprint.getStatus()
     );
   }
+
   async submitPendingRankedResult() {
     const pending = this.rankedSprint.completeCurrentPuzzle();
 
@@ -1418,8 +1515,17 @@ export class Game {
       try {
         await this.ensureCurrentRankedForfeit();
       } catch (error) {
+        console.error("Ranked forfeit sync failed", {
+          code: error?.code || "forfeit_failed",
+          message: error?.message || String(error),
+          attemptId: pending.attemptId,
+          slot: pending.slot,
+          submissionId: pending.submissionId
+        });
+
         this.ui.setRankedMessage(
-          "Puan d\u0131\u015f\u0131 durumu sunucuya ula\u015fmad\u0131. Hakk\u0131n korunuyor; tekrar dene.",
+          "Puan dışı durumu sunucuya ulaşmadı. " +
+          "Hakkın korunuyor; tekrar dene.",
           "error"
         );
         this.ui.showCompletion({
@@ -1432,9 +1538,22 @@ export class Game {
       const submission = await this.auth.submitRankedReplay(pending);
 
       if (!submission.ok) {
-        if (["network_error", "server_error"].includes(submission.code)) {
+        const reference = formatRankedFailureReference(submission);
+
+        if (!isPermanentRankedSubmissionFailure(submission)) {
+          console.error("Ranked replay will remain pending", {
+            code: submission.code || "unknown_error",
+            httpStatus: submission.httpStatus || 0,
+            requestId: submission.requestId || null,
+            error: submission.error || null,
+            attemptId: pending.attemptId,
+            slot: pending.slot,
+            submissionId: pending.submissionId
+          });
+
           this.ui.setRankedMessage(
-            "Bağlantı kurulamadı. Günlük hakkın korunuyor; tekrar dene.",
+            `${submission.error || "Doğrulama servisine ulaşılamadı."}` +
+            `${reference} Günlük hakkın ve çözümün korunuyor.`,
             "error"
           );
           this.ui.showCompletion({
@@ -1450,9 +1569,12 @@ export class Game {
         const rejected = this.rankedSprint.rejectSubmission(
           submission.code || "submission_rejected"
         );
-        this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
+        this.ui.updateRankedSprintStatus(
+          this.rankedSprint.getStatus()
+        );
         this.ui.setRankedMessage(
-          submission.error || "Dereceli çözüm reddedildi.",
+          `${submission.error || "Dereceli çözüm reddedildi."}` +
+          reference,
           "error"
         );
         this.startVictoryTour(rejected);
@@ -1462,16 +1584,20 @@ export class Game {
       const accepted = this.rankedSprint.acceptSubmission(submission);
       this.rankedForfeitPromise = null;
       this.rankedForfeitSlot = null;
-      this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
+      this.ui.updateRankedSprintStatus(
+        this.rankedSprint.getStatus()
+      );
       this.ui.updateRankedPuzzleEligibility?.(
         this.rankedSprint.getStatus()
       );
+      this.ui.setRankedMessage("", "info");
       this.ui.updateTimer(accepted.totalTimeSeconds);
       this.startVictoryTour(accepted);
     } finally {
       await this.ui.hideLoading({ minimumMs: 240 });
     }
   }
+
   startVictoryTour(result) {
     const path = this.buildVictoryPath();
 
@@ -1547,7 +1673,13 @@ export class Game {
   }
 
   useHint() {
-    if (this.menuOpen || this.levelCompleted || !this.hasPlayableSession()) return;
+    if (
+      this.menuOpen ||
+      this.levelCompleted ||
+      !this.hasPlayableSession()
+    ) {
+      return;
+    }
     if (this.gameMode === "ranked" && this.rankedSprint.ranked) return;
 
     if (this.tutorial.active) {
@@ -1584,7 +1716,9 @@ export class Game {
       tile.rotation = target.rotation;
 
       const status = PuzzleValidator.inspectGrid(this.grid);
-      const score = status.connectedCount * 10 - status.danglingExitCount;
+      const score =
+        status.connectedCount * 10 -
+        status.danglingExitCount;
 
       tile.rotation = oldRotation;
       tile.visualRotation = oldVisualRotation;
@@ -1593,7 +1727,10 @@ export class Game {
       if (
         !bestChoice ||
         score > bestChoice.score ||
-        (score === bestChoice.score && target.moves < bestChoice.moves)
+        (
+          score === bestChoice.score &&
+          target.moves < bestChoice.moves
+        )
       ) {
         bestChoice = {
           tile,
@@ -1623,7 +1760,11 @@ export class Game {
     const status = this.checkConnections();
 
     if (bestTile.flowerBloomed) {
-      this.turtle.moveTo(bestTile.q, bestTile.r, this.hexRadius);
+      this.turtle.moveTo(
+        bestTile.q,
+        bestTile.r,
+        this.hexRadius
+      );
     }
 
     if (status.completed) {
@@ -1672,7 +1813,9 @@ export class Game {
           this.progress.getCompletedLevels().length
         );
         this.ui.showMenuMode("endless");
-        this.ui.updateRankedSprintStatus(this.rankedSprint.getStatus());
+        this.ui.updateRankedSprintStatus(
+          this.rankedSprint.getStatus()
+        );
         return;
       }
 
@@ -1689,7 +1832,8 @@ export class Game {
       });
 
       try {
-        const nextSlot = this.rankedSprint.getStatus().puzzleIndex + 1;
+        const nextSlot =
+          this.rankedSprint.getStatus().puzzleIndex + 1;
         const released = await this.auth.releaseRankedPuzzle(
           this.rankedSprint.attemptId,
           nextSlot
@@ -1697,7 +1841,8 @@ export class Game {
 
         if (!released.ok) {
           this.ui.setRankedMessage(
-            released.error || "Sıradaki puzzle yayımlanamadı; tekrar dene.",
+            released.error ||
+            "Sıradaki puzzle yayımlanamadı; tekrar dene.",
             "error"
           );
           return;
@@ -1722,7 +1867,9 @@ export class Game {
           this.progress.getSavedLevel(),
           this.progress.getCompletedLevels().length
         );
-        this.ui.updateEndlessSprintMenu(this.endlessSprint.getStatus());
+        this.ui.updateEndlessSprintMenu(
+          this.endlessSprint.getStatus()
+        );
         this.ui.showMenuMode("endless");
         return;
       }
@@ -1738,9 +1885,12 @@ export class Game {
     this.generateLevel();
     this.progress.startTimer();
   }
+
   loop(timestamp = performance.now()) {
     if (this.pageHidden) {
-      requestAnimationFrame((nextTimestamp) => this.loop(nextTimestamp));
+      requestAnimationFrame(
+        (nextTimestamp) => this.loop(nextTimestamp)
+      );
       return;
     }
 
@@ -1753,7 +1903,9 @@ export class Game {
       this.menuOpen &&
       timestamp - this.lastRenderAt < menuFrameInterval
     ) {
-      requestAnimationFrame((nextTimestamp) => this.loop(nextTimestamp));
+      requestAnimationFrame(
+        (nextTimestamp) => this.loop(nextTimestamp)
+      );
       return;
     }
 
@@ -1766,8 +1918,13 @@ export class Game {
     this.lastRenderAt = timestamp;
     this.updateVictoryTour(timestamp);
 
-    if (!this.menuOpen && !this.levelCompleted && this.hasPlayableSession()) {
-      const elapsedSeconds = this.getActiveProgress().getElapsedSeconds();
+    if (
+      !this.menuOpen &&
+      !this.levelCompleted &&
+      this.hasPlayableSession()
+    ) {
+      const elapsedSeconds =
+        this.getActiveProgress().getElapsedSeconds();
 
       if (elapsedSeconds !== this.lastTimerSecond) {
         this.lastTimerSecond = elapsedSeconds;
@@ -1787,6 +1944,8 @@ export class Game {
       victoryTourActive: this.victoryTour.active
     });
 
-    requestAnimationFrame((nextTimestamp) => this.loop(nextTimestamp));
+    requestAnimationFrame(
+      (nextTimestamp) => this.loop(nextTimestamp)
+    );
   }
 }
