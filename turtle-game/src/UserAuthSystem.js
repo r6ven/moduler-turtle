@@ -7,6 +7,25 @@ const DEVICE_KEY_STORE = "crypto-keys";
 const DEVICE_KEY_ID = "auth-session-key-v1";
 const DEVICE_SESSION_AAD = "zen-kaplumbaga-auth-v1";
 const PERSISTENT_SESSION_USERS = new Set(["seydayilmaz"]);
+const RANKED_CLIENT_INFO = "zen-kaplumbaga-ranked/1.0";
+
+function parseJsonResponse(responseText) {
+  if (!responseText) return {};
+
+  try {
+    const parsed = JSON.parse(responseText);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function truncateDiagnosticText(value, maximumLength = 600) {
+  const text = String(value || "");
+  return text.length > maximumLength
+    ? `${text.slice(0, maximumLength)}…`
+    : text;
+}
 
 export class UserAuthSystem {
   constructor({ supabase = null } = {}) {
@@ -228,7 +247,6 @@ export class UserAuthSystem {
     };
   }
 
-
   async callRankedRpc(name, args = {}) {
     if (!this.currentSessionToken) {
       return {
@@ -263,8 +281,21 @@ export class UserAuthSystem {
 
   async submitRankedReplay(result) {
     if (!this.currentSessionToken) {
-      return { ok: false, code: "secure_session_required" };
+      return {
+        ok: false,
+        code: "secure_session_required",
+        error: "Dereceli doğrulama için güvenli oturum gerekli."
+      };
     }
+
+    const requestMeta = {
+      attemptId: result?.attemptId || null,
+      slot: Number(result?.slot) || null,
+      submissionId: result?.submissionId || null,
+      replayLength: Array.isArray(result?.replay)
+        ? result.replay.length
+        : null
+    };
 
     try {
       const response = await fetch(
@@ -273,7 +304,8 @@ export class UserAuthSystem {
           method: "POST",
           headers: {
             apikey: CONFIG.supabase.anonKey,
-            "content-type": "application/json"
+            "content-type": "application/json",
+            "x-client-info": RANKED_CLIENT_INFO
           },
           body: JSON.stringify({
             sessionToken: this.currentSessionToken,
@@ -284,22 +316,80 @@ export class UserAuthSystem {
           })
         }
       );
-      const payload = await response.json().catch(() => ({}));
 
-      if (!response.ok || payload.ok === false) {
+      const responseText = await response.text();
+      const payload = parseJsonResponse(responseText);
+      const requestId =
+        payload.request_id ||
+        response.headers.get("x-ranked-request-id") ||
+        null;
+
+      if (!response.ok) {
+        const code = payload.code || (
+          response.status >= 500
+            ? "server_error"
+            : `http_${response.status}`
+        );
+
+        console.error("Ranked replay HTTP request failed", {
+          ...requestMeta,
+          requestId,
+          status: response.status,
+          code,
+          response: truncateDiagnosticText(responseText)
+        });
+
         return {
           ok: false,
-          code: payload.code || (response.status >= 500 ? "server_error" : "rejected"),
-          error: payload.error || `Replay doğrulanamadı (${response.status}).`
+          code,
+          httpStatus: response.status,
+          requestId,
+          error:
+            payload.error ||
+            `Replay doğrulanamadı (${response.status}).`
         };
       }
 
-      return payload;
+      if (payload.ok !== true) {
+        const code = payload.code || "invalid_response";
+
+        console.error("Ranked replay returned an invalid response", {
+          ...requestMeta,
+          requestId,
+          status: response.status,
+          code,
+          response: truncateDiagnosticText(responseText)
+        });
+
+        return {
+          ok: false,
+          code,
+          httpStatus: response.status,
+          requestId,
+          error:
+            payload.error ||
+            "Replay doğrulama servisi geçersiz cevap verdi."
+        };
+      }
+
+      return {
+        ...payload,
+        requestId
+      };
     } catch (error) {
+      console.error("Ranked replay network failure", {
+        ...requestMeta,
+        error: error?.message || String(error)
+      });
+
       return {
         ok: false,
         code: "network_error",
-        error: error?.message || "Replay doğrulama servisine ulaşılamadı."
+        httpStatus: 0,
+        requestId: null,
+        error:
+          error?.message ||
+          "Replay doğrulama servisine ulaşılamadı."
       };
     }
   }
