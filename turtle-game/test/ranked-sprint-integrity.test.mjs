@@ -329,6 +329,10 @@ test("ranked migration is additive and future manifests stay private", async () 
   const sql = bytes.toString("utf8").toLowerCase();
   const edge = await readFile(new URL("../supabase/functions/generate-ranked-season/index.ts", import.meta.url), "utf8");
   const verifierEdge = await readFile(new URL("../supabase/functions/submit-ranked-replay/index.ts", import.meta.url), "utf8");
+  const automationSql = await readFile(
+    new URL("../supabase/migrations/20260901111648_automate_ranked_operations.sql", import.meta.url),
+    "utf8"
+  );
   assert.notDeepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
   assert.match(sql, /create table if not exists public\.ranked_puzzle_slots/);
   assert.match(sql, /unique \(username, play_date\)/);
@@ -345,7 +349,16 @@ test("ranked migration is additive and future manifests stay private", async () 
   assert.match(sql, /where excluded\.stars > story_level_results_v2\.stars/);
   assert.doesNotMatch(sql, /stars=greatest\(story_level_results_v2\.stars/);
   assert.match(edge, /PuzzleGenerator/);
-  assert.match(edge, /RANKED_PUZZLE_SECRET/);
+  assert.match(edge, /get_ranked_server_config/);
+  assert.match(edge, /puzzle_secret/);
+  assert.doesNotMatch(edge, /Deno\.env\.get\("RANKED_PUZZLE_SECRET"\)/);
+  assert.match(automationSql, /vault\.create_secret/);
+  assert.match(
+    automationSql,
+    /revoke all on function public\.get_ranked_server_config\(\) from public, anon, authenticated/
+  );
+  assert.match(automationSql, /ranked-finalize-previous-day/);
+  assert.match(automationSql, /ranked-generate-next-season/);
   assert.match(edge, /presentation_definition/);
   assert.match(edge, /published_season_is_immutable/);
   assert.match(edge, /storedSlots: slots\.length/);
