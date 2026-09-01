@@ -27,6 +27,9 @@ Belge, bulundugu Git commit'indeki uygulama durumunu anlatir.
 - `UserAuthSystem.js` icindeki Turkce metin kodlama bozulmalari duzeltilmis ve
   tekrarini engelleyen UTF-8 regresyon testi eklenmistir.
 - Render Static Site `main` dalina bagli ve otomatik deploy aciktir.
+- Production `pg_net` mevcut kurulumda `public` semasindadir. Drop/recreate islemi
+  kisa kesinti ve HTTP is kaydi kaybi riski nedeniyle bakim penceresine
+  ertelenmistir; repo migration'i yeni kurulumlarda `extensions` semasini kullanir.
 
 ## 1. Proje Ozeti
 

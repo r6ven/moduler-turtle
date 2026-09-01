@@ -242,6 +242,12 @@ Yeni bir Supabase projesine taşırken migration içindeki proje URL'sini hedef
 proje URL'siyle değiştirin. Var olan Vault secret isimlerini koruyun; migration
 mevcut isimleri yeniden üretmez.
 
+Mevcut production projesinde `pg_net` daha önce `public` şemasına kurulmuştur.
+`extensions` şemasına taşıma, eklentiyi drop/recreate etmeyi ve kısa süreli cron
+HTTP kesintisini gerektirdiği için bakım penceresine ertelenmiştir. Bu işlem oyun
+verilerine dokunmaz; ancak bekleyen ve geçmiş `pg_net` HTTP kayıtlarını silebilir.
+Repo migration'ı yeni kurulumlarda doğrudan `extensions` şemasını kullanır.
+
 ### Doğrulama sorgusu
 
 ```sql
