@@ -1,4 +1,4 @@
-name: Deploy Supabase Edge Function
+name: Deploy Supabase Edge Functions
 
 on:
   workflow_dispatch:
@@ -7,12 +7,15 @@ on:
     branches:
       - main
     paths:
-      - "turtle-game/supabase/functions/submit-ranked-replay/**"
+      - "turtle-game/supabase/functions/**"
       - "turtle-game/supabase/config.toml"
       - "turtle-game/src/PuzzleDefinition.js"
+      - "turtle-game/src/PuzzleGenerator.js"
       - "turtle-game/src/PuzzleReplayVerifier.js"
       - "turtle-game/src/PuzzleValidator.js"
       - "turtle-game/src/PuzzleRandom.js"
+      - "turtle-game/src/RankedCalendar.js"
+      - "turtle-game/src/RankedSprintConfig.js"
       - "turtle-game/src/HexMath.js"
       - "turtle-game/src/Tile.js"
       - ".github/workflows/deploy-supabase-edge.yml"
@@ -21,8 +24,8 @@ permissions:
   contents: read
 
 jobs:
-  deploy-submit-ranked-replay:
-    name: Deploy submit-ranked-replay
+  deploy-ranked-functions:
+    name: Deploy ranked Edge Functions
     runs-on: ubuntu-latest
 
     defaults:
@@ -40,11 +43,17 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v2
         with:
-          version: latest
+          version: 2.116.0
           github-token: ${{ github.token }}
 
-      - name: Deploy submit-ranked-replay
+      - name: Deploy ranked Edge Functions
         run: |
+          supabase functions deploy generate-ranked-season \
+            --project-ref "$SUPABASE_PROJECT_ID" \
+            --no-verify-jwt
           supabase functions deploy submit-ranked-replay \
+            --project-ref "$SUPABASE_PROJECT_ID" \
+            --no-verify-jwt
+          supabase functions deploy finalize-ranked-day \
             --project-ref "$SUPABASE_PROJECT_ID" \
             --no-verify-jwt

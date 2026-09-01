@@ -1,8 +1,9 @@
 # Supabase kurulumu
 
-> Durum (30 Temmuz 2026): session ve login rate-limit migration'ları
-> production'da uygulanmış ve doğrulanmıştır. Mevcut kullanıcılar, ilerleme
-> ve oturumlar korunmaktadır.
+> Durum (1 Eylül 2026): session, login rate-limit ve Ranked Sprint v2
+> production'da aktiftir. `2026-09` sezonu 155 saklanan / 150 yayımlanan
+> slotla oluşturulmuştur. İki UTC cron görevi çalışır; mevcut kullanıcılar,
+> ilerleme ve oturumlar korunmaktadır.
 
 ## Production durumu
 
@@ -133,8 +134,8 @@ yapmaz. Mevcut hesaplar, şifre hashleri ve ilerleme JSON'ları yerinde kalır.
 ## Render yapılandırması
 
 Production Render Static Site doğru şekilde `r6ven/moduler-turtle` reposunun
-`main` dalına bağlıdır. 26 Temmuz 2026 kontrolünde `7400239` commit'i `Live`
-durumundaydı.
+`main` dalına bağlıdır. 1 Eylül 2026 kontrolünde servis `Live` durumundadır ve
+automatik deploy açıktır.
 
 Render servisinde şu anda özel environment variable tanımlı değildir:
 
@@ -160,15 +161,13 @@ zorunlu değildir. Eklenirse Vite değerleri build sırasında kullandığı iç
    dosyasını çalıştırın.
 3. `turtle-game/supabase/migrations/202607260002_add_login_rate_limits.sql`
    dosyasını çalıştırın.
-4. `turtle-game/supabase/migrations/202607300001_add_ranked_sprints.sql`
-   dosyasını çalıştırın.
-5. `turtle-game/supabase/migrations/202607300002_remove_legacy_ranked_rpcs.sql`
-   dosyasını çalıştırın.
-6. `turtle-game/supabase/migrations/202607300003_harden_ranked_rpc_grants.sql`
-   dosyasını çalıştırın.
-7. Project Settings → API bölümünden URL ve anon/publishable key değerlerini
+4. `202607300001` ile başlayan Ranked migration'ları dosya sırasıyla
+   `202607300007_recover_ranked_start_failures.sql` dahil çalıştırın.
+5. `20260901111648_automate_ranked_operations.sql` içindeki proje URL'sini
+   hedef projeye göre değiştirip migration'ı çalıştırın.
+6. Project Settings → API bölümünden URL ve anon/publishable key değerlerini
    alın.
-8. Render ortam değişkenlerine `VITE_SUPABASE_URL` ve
+7. Render ortam değişkenlerine `VITE_SUPABASE_URL` ve
    `VITE_SUPABASE_ANON_KEY` değerlerini ekleyin.
 
 Yerel geliştirme için `turtle-game/.env.example` dosyasını `.env` olarak
@@ -185,13 +184,10 @@ geri almak gerekirse önce uygulamayı eski RPC moduna alın; daha sonra yalnız
 
 ## Dereceli Sprint v2 güvenli slot/replay akışı
 
-> Production durumu (30 Temmuz 2026): üç Ranked migration uygulanmıştır ve
-> `generate-ranked-season`, `submit-ranked-replay`, `finalize-ranked-day`
-> Edge Function'ları `ACTIVE` durumundadır. Oyuncu, oturum ve ilerleme verileri
-> korunmuştur. Dereceli modu açmak için yalnız `RANKED_PUZZLE_SECRET` ile
-> `RANKED_CRON_SECRET` Supabase Edge Function Secrets bölümüne eklenmeli ve
-> ilk sezon üretilmelidir. Sezon bulunmadığı sürece istemci güvenli biçimde
-> `series_unavailable` alır.
+> Production durumu (1 Eylül 2026): üç Ranked Edge Function aktiftir.
+> `2026-09` sezonu yayımlanmıştır. Sunucu sırları Supabase Vault'ta tutulur;
+> `pg_cron` + `pg_net` gelecek sezon üretimini ve önceki gün
+> finalizasyonunu otomatik çalıştırır.
 
 Aşağıdaki migration **additive** yapıdadır; mevcut `public.players`, ilerleme
 JSON'ları, parolalar ve oturumlar silinmez veya sıfırlanmaz:
@@ -219,49 +215,32 @@ Migration şunları ekler:
 - eski rastgele hikâye kayıtlarına dokunmadan ayrı `story_level_results_v2`
   casual/istemci bildirimli hikâye leaderboard'u.
 
-### Uygulama sırası
+### Production operasyonu
 
-1. Supabase Database yedeği alın ve oyuncu/oturum sayılarını not edin.
-2. SQL Editor'da `202607300001_add_ranked_sprints.sql` dosyasının tamamını
-   çalıştırın. `fresh_project.sql` dosyasını production'da çalıştırmayın.
-3. Edge Function secret'larını yalnız Supabase tarafına ekleyin:
+Uygulanan otomasyon migration'ı:
 
-```bash
-supabase secrets set RANKED_PUZZLE_SECRET="uzun-rastgele-bir-deger" RANKED_CRON_SECRET="ayri-uzun-rastgele-bir-deger"
+```text
+turtle-game/supabase/migrations/20260901111648_automate_ranked_operations.sql
 ```
 
-Bu değerleri `VITE_*`, Render Environment veya GitHub source içine koymayın.
+Bu migration:
 
-4. Fonksiyonları deploy edin:
+- `pg_net` ve `pg_cron` eklentilerini etkinleştirir;
+- `ranked_cron_secret`, `ranked_puzzle_secret` ve
+  `ranked_project_url` değerlerini Supabase Vault'ta oluşturur;
+- yapılandırmayı yalnız `service_role` rolüne açan
+  `get_ranked_server_config()` RPC'sini kurar;
+- her gün 00:10 UTC'de önceki günü finalize eder;
+- her ayın 25'i 00:15 UTC'de gelecek sezonu üretir.
 
-```bash
-supabase functions deploy generate-ranked-season --no-verify-jwt
-supabase functions deploy submit-ranked-replay --no-verify-jwt
-supabase functions deploy finalize-ranked-day --no-verify-jwt
-```
+Edge Function'lar kaynakta sabitlenmiş `@supabase/supabase-js@2.110.8`
+sürümünü kullanır. GitHub Actions üç fonksiyonu birlikte deploy eder ve
+Supabase CLI `2.116.0` sürümüne sabitlenmiştir. Vault değerlerini `VITE_*`,
+Render Environment veya GitHub source içine koymayın.
 
-5. İlk kurulumda içinde bulunulan ayı bir kere elle üretin:
-
-```bash
-curl -X POST "https://PROJECT_REF.supabase.co/functions/v1/generate-ranked-season" \
-  -H "x-cron-secret: RANKED_CRON_SECRET" \
-  -H "content-type: application/json" \
-  -d '{"seasonId":"2026-07"}'
-```
-
-6. Supabase Dashboard'da Edge Functions / Cron entegrasyonundan iki UTC görev
-   kurun:
-
-- her ayın 25'i 00:15 UTC: `generate-ranked-season` (gelecek ayı üretir);
-- her gün 00:10 UTC: `finalize-ranked-day` (kapanan UTC gününü kesinleştirir).
-
-Her aylık manifest 31 x 5 = 155 kimlik saklar. Kısa aylarda fazla günler
-`play_date = null` ve `published = false` kalır. Oyuncu RPC'si yalnız bugünün
-yayımlanmış ilk slotunu döndürür; sonraki definition yalnız önceki replay Edge
-Function tarafından doğrulandıktan sonra açılır. Gelecek seed ve puzzle
-tanımları doğrudan anon/authenticated erişimine kapalıdır. Tamamlanmış veya
-geçersiz günlük hak tekrar açıldığında beşli seri yalnız derecesiz antrenman
-olarak verilir.
+Yeni bir Supabase projesine taşırken migration içindeki proje URL'sini hedef
+proje URL'siyle değiştirin. Var olan Vault secret isimlerini koruyun; migration
+mevcut isimleri yeniden üretmez.
 
 ### Doğrulama sorgusu
 

@@ -1,10 +1,32 @@
 # Zen Kaplumbaga - Proje Durumu
 
-Son guncelleme: 21 Temmuz 2026
+Son guncelleme: 1 Eylul 2026
 Uygulama surumu: `0.1.0`  
 GitHub: `r6ven/moduler-turtle`  
 Uygulama dizini: `turtle-game/`  
 Belge, bulundugu Git commit'indeki uygulama durumunu anlatir.
+
+## Guncel Production Durumu (1 Eylul 2026)
+
+- Supabase Ranked Sprint v2 production'da aktif ve `2026-09` sezonu
+  `published` durumundadir: 155 slot saklanmis, 150 slot yayinlanmis, 5 rezerv
+  slot yayin disinda tutulmustur.
+- `generate-ranked-season`, `submit-ranked-replay` ve `finalize-ranked-day`
+  Edge Function'lari aktiftir. Sunucu sirlari Supabase Vault'ta saklanir ve
+  yalniz `service_role` tarafindan okunabilir.
+- `pg_cron` + `pg_net` ile her gun 00:10 UTC'de onceki gunu finalize eden ve
+  her ayin 25'i 00:15 UTC'de gelecek sezonu ureten iki gorev aktiftir.
+- 5-6 Agustos 2026 dereceli gunleri kapatilmistir: puana uygun 14 sonuc
+  kesinlestirilmis, `score_eligible = false` olan bir forfeit sonucu siralama
+  ve puanlamanin disinda birakilmistir.
+- Login session ve kullanici-adi bazli brute-force rate-limit migration'lari
+  production'da aktiftir; legacy parola RPC'si anonim erisime kapatilmistir.
+- GitHub Actions frontend test/build, ranked veritabani kontrati ve uc Ranked
+  Edge Function deploy akisini calistirir. Supabase CLI `2.116.0`, Edge
+  fonksiyonlarindaki Supabase JS `2.110.8` surumune sabitlenmistir.
+- `UserAuthSystem.js` icindeki Turkce metin kodlama bozulmalari duzeltilmis ve
+  tekrarini engelleyen UTF-8 regresyon testi eklenmistir.
+- Render Static Site `main` dalina bagli ve otomatik deploy aciktir.
 
 ## 1. Proje Ozeti
 
@@ -344,7 +366,7 @@ Liderlik tablosunda her kayit icin `username`, `last_level` ve `best_by_level` b
 - [ ] Ayri ses seviyesi ve efekt/muzik ayarlari.
 - [ ] Oyun ici kaplumbagayi sprite sheet/WebP animasyonuna gecirme; mevcut karar Canvas stilinde kalmaktir.
 - [ ] E-posta kurtarma, sifre yenileme ve kalici guvenli oturum.
-- [ ] Otomatik testler, CI ve tarayici E2E testleri.
+- [~] Node unit testleri ve GitHub CI aktiftir; tarayici tabanli Playwright E2E kapsami halen planlidir.
 - [x] Olculmus dusuk donanim profili ve dinamik efekt kalitesi.
 
 ## 7. Onemli Siniflar ve Gorevleri
@@ -391,7 +413,7 @@ Simdilik yildiz ve skor hesabina etkisi yoktur.
 
 ### Teknik riskler
 
-- Token migration production Supabase projesinde uygulanmis ve aktif token kaydi ile dogrulanmistir. Kullanici-adi bazli login rate-limit migration'i repo icinde hazirdir; production'a uygulanmasi beklenmektedir.
+- Token ve kullanici-adi bazli login rate-limit migration'lari production Supabase projesinde uygulanmis; session, yetki ve kilit davranisi dogrulanmistir.
 - Rate-limit migration'i once session/legacy RPC kontratini kontrol eder, transaction icinde calisir ve legacy parola RPC'lerinin anonim erisimini kapatarak bypass'i engeller. IP bazli bot korumasi/CAPTCHA icin ileride Edge Function katmani gerekir.
 - Supabase URL/anon key icin Vite ortam degiskenleri desteklenir; geriye uyumlu kaynak kod fallback'i Render ortam degiskenleri tanimlandiktan sonra kaldirilmalidir.
 - Uzak ilerleme kayitlari sirali kuyruk, degismez snapshot ve kullaniciya ozel yerel pending kaydi kullanir; backend token RPC'si kayitlari atomik ve monoton birlestirir.
@@ -447,7 +469,7 @@ Build Command: npm install && npm run build
 Publish Directory: dist
 ```
 
-Render ayarlari repoda `render.yaml` olarak tutulmaz; Render Dashboard'da elle yapilandirilmistir. GitHub `main` branchine push sonrasinda otomatik deploy beklenir. Bu belgenin olusturulmasi yalnizca local commit ister; push/deploy ayri islemdir.
+Render ayarlari repoda `render.yaml` olarak tutulmaz; Render Dashboard'da elle yapilandirilmistir. GitHub `main` dalina push sonrasi otomatik deploy aciktir. Supabase Edge Function deploy'u ayri GitHub Actions workflow'u ile yapilir.
 
 ## 11. Dogrulama Kontrol Listesi
 
@@ -473,29 +495,25 @@ Her buyuk degisiklikten sonra en az su akislari elle kontrol edilmelidir:
 
 Oncelik onerisi:
 
-1. Login rate-limit migration'ini production Supabase projesinde uygulayip yetki ve kilit davranisini dogrulamak.
-2. Login'i Supabase Edge Function arkasina alip IP bazli rate-limit ve Turnstile/CAPTCHA korumasi eklemek.
-3. `.gitignore` ve izlenen tek bir lockfile ekleyerek build tekrar edilebilirligini saglamak.
-4. PuzzleGenerator/PuzzleValidator/ProgressSystem icin unit testler yazmak.
-5. Playwright ile giris, puzzle tamamlama, sonuc ve mobil layout smoke testleri kurmak.
-6. Kaplumbaganin dogru baglanti ziyaretini odullendirme kararini vermek.
-7. Kilitli tas ve ozel cicek tasi ile ilk yeni oynanis paketini tasarlamak.
-8. Dusuk donanimli Android ve iOS Safari'de FPS/fullscreen/manual test matrisi cikarmak.
+1. Playwright ile kayit/giris, dereceli besli seri, forfeit ve mobil viewport
+   smoke testlerini CI'a eklemek.
+2. Login RPC'sini Edge Function arkasina alip IP bazli rate-limit ile
+   Turnstile/CAPTCHA korumasi eklemek.
+3. Cron ve Edge Function hatalari icin uyarilabilir operasyon gorunurlugu
+   kurmak; `cron.job_run_details`, HTTP yanitlari ve Edge loglarini izlemek.
+4. Render'da `VITE_SUPABASE_URL` ve `VITE_SUPABASE_ANON_KEY` tanimlandiktan
+   sonra kaynak kod fallback'ini kaldirmak.
+5. Dusuk donanimli Android ve iOS Safari'de FPS, fullscreen ve uzun oturum
+   test matrisini tamamlamak.
+6. Kilitli tas, ozel cicek tasi ve dogru baglanti odulu arasindan ilk yeni
+   oynanis paketini secip prototiplemek.
 
-## 13. Production Build Kaydi
+## 13. Production Build ve Operasyon Kaydi
 
-- Standart proje komutu: `npm run build`
-- Bu ortamda kullanilan esdeger dogrulama: paketli Node ile `node_modules/vite/bin/vite.js build`
-- Vite: `5.4.21`
-- Sonuc: Basarili; 60 modul donusturuldu.
-- Cikti: `dist/index.html`, `dist/assets/index-ivgZlclz.css`, `dist/assets/index-30bd3KC2.js`
-- Boyutlar: HTML 10.35 kB, CSS 47.16 kB, JS 304.81 kB.
-- Tarih: 21 Temmuz 2026
-- Guncel gorsel dogrulama: keskinlestirilmis kanal virajlari, kaynak-bitis portal bogazlari,
-  guclendirilmis beyaz akis izleri, HUD'suz giris overlay'i ve metne tasmayan menu kaplumbagasi
-  tarayici ekraninda kontrol edildi.
-- Cihaz oturumu dogrulamasi: kayitsiz acilisin normal giris ekranina hatasiz dustugu,
-  yalniz `seydayilmaz` kullanicisinin sifreli cihaz kaydina uygun oldugu ve production
-  derlemesinin basarili oldugu kontrol edildi.
-
-Not: Sistem PATH'inde `npm` bulunmadigi icin ayni `build` scriptinin calistirdigi Vite production girisi Codex'in paketli Node runtime'i ile dogrudan yurutuldu. Derleme basariyla tamamlandi.
+- Standart dogrulama: `npm ci`, `npm test`, `npm run build`.
+- GitHub CI: frontend test/build ve PostgreSQL ranked kontrat testi.
+- Supabase Edge deploy: uc Ranked fonksiyon, CLI `2.116.0`.
+- Supabase production: `2026-09` published, 155/150 slot; iki cron aktif.
+- Render: Static Site, `main` dali, otomatik deploy.
+- Son operasyon tarihi: 1 Eylul 2026.
+- Fiziksel Android/iOS ve tarayici E2E matrisi sonraki kalite adimidir.

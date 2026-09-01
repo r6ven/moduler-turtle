@@ -92,7 +92,7 @@ export class UserAuthSystem {
       if (!sessionAttempt.ok) {
         return {
           ok: false,
-          error: sessionAttempt.error || "KayÄ±t oluÅŸturulamadÄ±."
+          error: sessionAttempt.error || "Kayıt oluşturulamadı."
         };
       }
 
@@ -110,7 +110,7 @@ export class UserAuthSystem {
     if (error) {
       return {
         ok: false,
-        error: `KayÄ±t oluÅŸturulamadÄ±: ${error.message}`
+        error: `Kayıt oluşturulamadı: ${error.message}`
       };
     }
 
@@ -119,7 +119,7 @@ export class UserAuthSystem {
     if (!result.ok) {
       return {
         ok: false,
-        error: result.error || "KayÄ±t oluÅŸturulamadÄ±."
+        error: result.error || "Kayıt oluşturulamadı."
       };
     }
 
@@ -145,7 +145,7 @@ export class UserAuthSystem {
       if (!sessionAttempt.ok) {
         return {
           ok: false,
-          error: sessionAttempt.error || "KullanÄ±cÄ± adÄ± veya ÅŸifre hatalÄ±."
+          error: sessionAttempt.error || "Kullanıcı adı veya şifre hatalı."
         };
       }
 
@@ -166,7 +166,7 @@ export class UserAuthSystem {
     if (error) {
       return {
         ok: false,
-        error: `GiriÅŸ yapÄ±lamadÄ±: ${error.message}`
+        error: `Giriş yapılamadı: ${error.message}`
       };
     }
 
@@ -175,7 +175,7 @@ export class UserAuthSystem {
     if (!result.ok) {
       return {
         ok: false,
-        error: result.error || "KullanÄ±cÄ± adÄ± veya ÅŸifre hatalÄ±."
+        error: result.error || "Kullanıcı adı veya şifre hatalı."
       };
     }
 
@@ -804,7 +804,7 @@ export class UserAuthSystem {
     if (!this.hasCurrentUser()) {
       return {
         ok: false,
-        error: "Aktif kullanÄ±cÄ± yok."
+        error: "Aktif kullanıcı yok."
       };
     }
 
@@ -831,17 +831,17 @@ export class UserAuthSystem {
     const { data, error } = await this.supabase.rpc(rpcName, rpcArgs);
 
     if (error) {
-      console.warn("Supabase kayÄ±t hatasÄ±:", error.message);
+      console.warn("Supabase kayıt hatası:", error.message);
       return { ok: false, error: error.message };
     }
 
     const result = this.normalizeRpcResponse(data);
 
     if (!result.ok) {
-      console.warn("Supabase kayÄ±t reddedildi:", result.error);
+      console.warn("Supabase kayıt reddedildi:", result.error);
       return {
         ok: false,
-        error: result.error || "KayÄ±t gÃ¼ncellenemedi."
+        error: result.error || "Kayıt güncellenemedi."
       };
     }
 
@@ -860,7 +860,7 @@ export class UserAuthSystem {
     if (!this.hasCurrentUser()) {
       return {
         ok: false,
-        error: "Aktif kullanÄ±cÄ± yok."
+        error: "Aktif kullanıcı yok."
       };
     }
 
@@ -877,7 +877,7 @@ export class UserAuthSystem {
     const { data, error } = await this.supabase.rpc(rpcName, rpcArgs);
 
     if (error) {
-      console.warn("Supabase reset hatasÄ±:", error.message);
+      console.warn("Supabase reset hatası:", error.message);
       return { ok: false, error: error.message };
     }
 
@@ -886,7 +886,7 @@ export class UserAuthSystem {
     if (!result.ok) {
       return {
         ok: false,
-        error: result.error || "KayÄ±t sÄ±fÄ±rlanamadÄ±."
+        error: result.error || "Kayıt sıfırlanamadı."
       };
     }
 
@@ -932,21 +932,21 @@ export class UserAuthSystem {
     if (!username || username.length < 3) {
       return {
         ok: false,
-        error: "KullanÄ±cÄ± adÄ± en az 3 karakter olmalÄ±."
+        error: "Kullanıcı adı en az 3 karakter olmalı."
       };
     }
 
     if (!/^[a-z0-9_.-]+$/.test(username)) {
       return {
         ok: false,
-        error: "KullanÄ±cÄ± adÄ±nda sadece harf, rakam, nokta, tire ve alt Ã§izgi kullan."
+        error: "Kullanıcı adında sadece harf, rakam, nokta, tire ve alt çizgi kullan."
       };
     }
 
     if (!password || password.length < 4) {
       return {
         ok: false,
-        error: "Åifre en az 4 karakter olmalÄ±."
+        error: "Şifre en az 4 karakter olmalı."
       };
     }
 
@@ -963,7 +963,7 @@ export class UserAuthSystem {
     if (!data) {
       return {
         ok: false,
-        error: "Sunucudan boÅŸ cevap geldi."
+        error: "Sunucudan boş cevap geldi."
       };
     }
 
@@ -973,7 +973,7 @@ export class UserAuthSystem {
       } catch {
         return {
           ok: false,
-          error: "Sunucu cevabÄ± okunamadÄ±."
+          error: "Sunucu cevabı okunamadı."
         };
       }
     }

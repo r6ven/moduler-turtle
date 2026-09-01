@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.110.8";
 import {
   PUZZLE_DEFINITION_SCHEMA_VERSION,
   RANKED_RULES_VERSION
@@ -19,12 +19,22 @@ function nextMonthSeason(now = new Date()) {
 }
 
 Deno.serve(async (request) => {
-  const cronSecret = Deno.env.get("RANKED_CRON_SECRET") || "";
-  if (!cronSecret || request.headers.get("x-cron-secret") !== cronSecret) return json({ ok: false, error: "unauthorized" }, 401);
   const url = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const puzzleSecret = Deno.env.get("RANKED_PUZZLE_SECRET");
-  if (!url || !serviceKey || !puzzleSecret) return json({ ok: false, error: "missing_server_secret" }, 500);
+  if (!url || !serviceKey) return json({ ok: false, error: "missing_server_config" }, 500);
+
+  const supabase = createClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+  const { data: serverConfig, error: configError } = await supabase.rpc("get_ranked_server_config");
+  const cronSecret = serverConfig?.cron_secret || "";
+  const puzzleSecret = serverConfig?.puzzle_secret || "";
+  if (configError || !cronSecret || !puzzleSecret) {
+    return json({ ok: false, error: "missing_ranked_server_config" }, 500);
+  }
+  if (request.headers.get("x-cron-secret") !== cronSecret) {
+    return json({ ok: false, error: "unauthorized" }, 401);
+  }
 
   const body = request.method === "POST" ? await request.json().catch(() => ({})) : {};
   const seasonId = typeof body.seasonId === "string" ? body.seasonId : nextMonthSeason();
@@ -41,9 +51,6 @@ Deno.serve(async (request) => {
     }, 400);
   }
 
-  const supabase = createClient(url, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
   const { data: existing, error: lookupError } = await supabase
     .from("ranked_seasons")
     .select("status")
@@ -117,3 +124,4 @@ Deno.serve(async (request) => {
     generationMs
   });
 });
+
