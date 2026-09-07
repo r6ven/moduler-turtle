@@ -1,5 +1,11 @@
 # Codex Project Notes
 
+## Continuity
+
+- Read `CODEX_NOTES.local.md` when present before starting work. It contains the
+  current task status, user authorization, and remaining work. Update it at handoff;
+  keep it local and do not store secrets in it.
+
 ## Working principle
 
 - These notes are reliability guardrails, not restrictions on architecture, coding style, tools, or implementation strategy.

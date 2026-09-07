@@ -173,10 +173,67 @@ export class Renderer {
 
     this.drawTurtle(ctx, turtle, hexRadius, flowState);
     particleSystem.draw(ctx);
+    // Fixed signs remain legible above the moving character and water.
+    tiles.forEach((entry) => this.drawBoardSign(ctx, entry, hexRadius));
 
     ctx.restore();
 
     this.waterFlowPhase += deltaMs * 0.0033;
+  }
+
+  drawBoardSign(ctx, { tile, x, y }, radius) {
+    if (!tile.source && !tile.sink && !tile.tutorialTarget) return;
+    ctx.save();
+    ctx.translate(x, y);
+    if (tile.tutorialTarget) {
+      ctx.strokeStyle = "#fff8e8";
+      ctx.lineWidth = 5;
+      this.drawHexShape(ctx, radius * 0.94);
+      ctx.stroke();
+      ctx.strokeStyle = "#155963";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.translate(0, -radius * 0.42);
+      ctx.beginPath();
+      ctx.moveTo(-7, -19);
+      ctx.lineTo(7, -19);
+      ctx.lineTo(7, -9);
+      ctx.lineTo(13, -9);
+      ctx.lineTo(0, 4);
+      ctx.lineTo(-13, -9);
+      ctx.lineTo(-7, -9);
+      ctx.closePath();
+      ctx.fillStyle = "#155963";
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#fff8e8";
+      ctx.stroke();
+      ctx.fill();
+    } else {
+      const size = Math.max(9, Math.min(13, radius * 0.27));
+      ctx.translate(0, -radius * 0.64);
+      ctx.beginPath();
+      if (tile.source) {
+        ctx.arc(0, 0, size, 0, Math.PI * 2);
+      } else {
+        ctx.rect(-size, -size, size * 2, size * 2);
+      }
+      ctx.fillStyle = tile.source ? "#155963" : "#754820";
+      ctx.fill();
+      ctx.strokeStyle = "#fff8e8";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      if (tile.source) {
+        ctx.moveTo(0, 6); ctx.lineTo(0, -6);
+        ctx.moveTo(-4, -2); ctx.lineTo(0, -6); ctx.lineTo(4, -2);
+      } else {
+        ctx.moveTo(-4, 6); ctx.lineTo(-4, -6);
+        ctx.lineTo(5, -3); ctx.lineTo(-4, 0);
+      }
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   getTileLayout(grid, hexRadius) {

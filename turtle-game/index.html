@@ -74,35 +74,35 @@
           </div>
 
           <div class="top-actions">
-            <div id="menu-btn" class="hud-element icon-btn">☰ Menü</div>
-            <div id="sound-toggle" class="hud-element icon-btn">🎵 Ses: Açık</div>
+            <button type="button" id="menu-btn" class="hud-element icon-btn">☰ Menü</button>
+            <button type="button" id="sound-toggle" class="hud-element icon-btn">🎵 Ses: Açık</button>
+            <button type="button" id="fullscreen-btn" class="fullscreen-btn" aria-label="Tam ekran">⛶</button>
           </div>
         </div>
-        <button id="fullscreen-btn" class="fullscreen-btn" aria-label="Tam ekran">
-          ⛶
-        </button>
 
         <div class="stats-bar">
           <div id="move-counter" class="hud-element compact">👣 Hamle: <span id="move-val">0</span></div>
           <div id="hint-counter" class="hud-element compact">✨ İpucu: <span id="hint-val">0</span></div>
           <div id="time-counter" class="hud-element compact">⏱ Süre: <span id="time-val">00:00</span></div>
         </div>
-      </div>
-
-      <div id="tutorial-callout" class="tutorial-callout" role="status" aria-live="polite">
-        <span class="tutorial-eyebrow">İlk akış</span>
-        <strong>Parlayan karoya dokun</strong>
-        <span>Her dokunuş karoyu 60° döndürür. Suyu komşu kanala bağla.</span>
-      </div>
-
-      <div id="ranked-score-callout" class="ranked-score-callout" role="status" aria-live="polite" aria-hidden="true">
+        <div class="guide-slot">
+        <div id="tutorial-callout" class="tutorial-callout" role="status" aria-live="polite">
+          <span class="tutorial-eyebrow" id="tutorial-step">ADA REHBERİ</span>
+          <strong id="tutorial-title">Suyu kaynaktan hedefe ulaştır</strong>
+          <span id="tutorial-description">Tüm kanalları bağla; açık uç bırakma.</span>
+          <button type="button" id="tutorial-next-btn" hidden>Sonraki</button>
+        </div>
+        <div id="ranked-score-callout" class="ranked-score-callout" role="status" aria-live="polite" aria-hidden="true">
         <span class="ranked-score-eyebrow">PUAN DIŞI PUZZLE</span>
         <strong>Bu puzzle puan kazandırmayacak</strong>
         <span>Aynı puzzle'ı tamamla; sonraki puzzle'lar dereceli devam edecek.</span>
+        </div>
+        </div>
       </div>
 
       <div class="bottom-bar">
-        <div id="hint-btn" class="hud-element">✨ Akış İpucu</div>
+        <div class="flow-legend" aria-label="Tahta işaretleri"><span><b>↑</b> Kaynak</span><span><b>⚑</b> Hedef</span></div>
+        <button type="button" id="hint-btn" class="hud-element">✨ Akış İpucu</button>
       </div>
     </div>
   </div>
@@ -406,6 +406,7 @@
         </h2>
         <p id="complete-text">Kaplumbağa adadaki tüm su yollarını birleştirdi.</p>
         <p id="complete-goal" class="completion-goal"></p>
+        <p id="complete-explanation" class="completion-explanation"></p>
       </header>
 
       <div id="star-result" class="star-result" aria-live="polite">
