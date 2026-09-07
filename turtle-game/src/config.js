@@ -1,9 +1,9 @@
 const runtimeEnv = import.meta.env || {};
 
 export const CONFIG = {
-  canvasMaxSize: 800,
-  desktopHexRadius: 46,
-  mobileHexRadius: 34,
+  canvasMaxSize: 960,
+  desktopHexRadius: 80,
+  mobileHexRadius: 44,
   mobileBreakpoint: 500,
   boardLayout: {
     edgePadding: 12,
@@ -134,9 +134,9 @@ export const CONFIG = {
     matchedWater: "#18a9b5",
     matchedWaterDeep: "#0b7883",
     matchedWaterLight: "#49bfbd",
-    idleWater: "#78c8c7",
-    idleWaterDeep: "#58a5a7",
-    idleWaterLight: "#9fd8d1",
+    idleWater: "#8eaaa4",
+    idleWaterDeep: "#6b8d88",
+    idleWaterLight: "#b3c9bd",
     waterHighlight: "rgba(255, 253, 232, 0.86)",
     waterRefraction: "rgba(180, 245, 232, 0.38)",
     waterShade: "rgba(4, 74, 84, 0.24)",

@@ -6,6 +6,7 @@ class MockGradient {
 }
 
 class MockContext {
+  rect() {}
   save() {}
   restore() {}
   beginPath() {}

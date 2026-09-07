@@ -1,5 +1,20 @@
 import { LoadingScreen } from "./LoadingScreen.js";
 
+export function describeStoryResult(result) {
+  const hints = Math.max(0, Number(result.hintsUsed) || 0);
+  const moves = Math.max(0, Number(result.moves) || 0);
+  const stars = Math.max(1, Math.min(3, Number(result.stars) || 1));
+  const hintNote = hints > 0
+    ? `${hints} ipucuyla karo düzeltildi; bu düzeltmeler manuel hamleye dahil değil. `
+    : "";
+  if (moves === 0) return `${hintNote}Manuel hamle yapılmadığı için 1 yıldız.`;
+  if (stars === 3) return "İpucusuz, hamle hedefi içinde bitirdin: 3 yıldız!";
+  if (stars === 2 && hints > 0) {
+    return `${hintNote}İpucu kullanıldığı için en fazla 2 yıldız.`;
+  }
+  return `${hintNote}${stars === 2 ? "3" : "2"} yıldızın hamle sınırı aşıldı; ${stars} yıldız kazandın.`;
+}
+
 export class UIController {
   constructor() {
     this.loadingScreen = new LoadingScreen(
@@ -16,6 +31,7 @@ export class UIController {
     this.completeTitleText = document.getElementById("completion-title-text");
     this.completeText = document.getElementById("complete-text");
     this.completeGoal = document.getElementById("complete-goal");
+    this.completeExplanation = document.getElementById("complete-explanation");
     this.starResult = document.getElementById("star-result");
     this.starSlots = Array.from(
       this.starResult.querySelectorAll("[data-star-slot]")
@@ -30,6 +46,10 @@ export class UIController {
     this.menuButton = document.getElementById("menu-btn");
     this.fullscreenButton = document.getElementById("fullscreen-btn");
     this.tutorialCallout = document.getElementById("tutorial-callout");
+    this.tutorialStep = document.getElementById("tutorial-step");
+    this.tutorialTitle = document.getElementById("tutorial-title");
+    this.tutorialDescription = document.getElementById("tutorial-description");
+    this.tutorialNextButton = document.getElementById("tutorial-next-btn");
     this.rankedScoreCallout = document.getElementById("ranked-score-callout");
     this.mainMenuOverlay = document.getElementById("main-menu-overlay");
     this.authCard = document.getElementById("auth-card");
@@ -116,13 +136,15 @@ export class UIController {
     onConfirmReset,
     onLogout,
     onOpenMenu,
-    onToggleFullscreen
+    onToggleFullscreen,
+    onAdvanceTutorial
   }) {
     this.nextButton.addEventListener("click", onNextLevel);
     this.hintButton.addEventListener("click", onHint);
     this.soundToggle.addEventListener("click", onToggleSound);
     this.menuButton.addEventListener("click", onOpenMenu);
     this.fullscreenButton.addEventListener("click", onToggleFullscreen);
+    this.tutorialNextButton.addEventListener("click", onAdvanceTutorial);
     this.loginButton.addEventListener("click", onLogin);
     this.registerButton.addEventListener("click", onRegister);
 
@@ -234,6 +256,8 @@ export class UIController {
     );
     this.rankedScoreCallout.classList.toggle("active", visible);
     this.rankedScoreCallout.setAttribute("aria-hidden", String(!visible));
+    this.tutorialCallout?.classList.toggle("ranked-hidden", visible);
+    this.tutorialCallout?.setAttribute("aria-hidden", String(visible));
   }
 
   setHintEnabled(enabled, reason = "") {
@@ -336,12 +360,27 @@ export class UIController {
     );
   }
 
-  showTutorial() {
+  showTutorial(step = 1) {
+    const steps = {
+      1: ["İşaretli karoya dokun", "Her dokunuş karoyu 60° döndürür. Okun gösterdiği kanalı çevir."],
+      2: ["Su kaynaktan başlar", "↑ işareti kaynağı gösterir. Ona bağlı kanallarda su ilerler."],
+      3: ["Bütün adayı canlandır", "⚑ hedefe ulaş; tüm kanalları bağla ve açık uç bırakma."]
+    };
+    const safeStep = steps[step] ? step : 1;
+    this.tutorialStep.textContent = `İLK AKIŞ · ${safeStep}/3`;
+    this.tutorialTitle.textContent = steps[safeStep][0];
+    this.tutorialDescription.textContent = steps[safeStep][1];
+    this.tutorialNextButton.hidden = safeStep === 1;
+    this.tutorialNextButton.textContent = safeStep === 3 ? "Oynamaya devam et" : "Sonraki";
     this.tutorialCallout.classList.add("active");
   }
 
   hideTutorial() {
     this.tutorialCallout.classList.remove("active", "nudge");
+    this.tutorialStep.textContent = "ADA REHBERİ";
+    this.tutorialTitle.textContent = "Suyu kaynaktan hedefe ulaştır";
+    this.tutorialDescription.textContent = "Tüm kanalları bağla; açık uç bırakma.";
+    this.tutorialNextButton.hidden = true;
   }
 
   pulseTutorial() {
@@ -684,7 +723,9 @@ export class UIController {
 
   showCompletion(result) {
     const earnedStars = Math.max(0, Math.min(3, Number(result.stars) || 0));
-    const minimumClear = Number(result.moves) === Number(result.minimumMoves);
+    const minimumClear = Number(result.moves) === Number(result.minimumMoves) &&
+      Number(result.hintsUsed || 0) === 0;
+    if (this.completeExplanation) this.completeExplanation.textContent = "";
 
     if (this.completionReadyTimer) {
       window.clearTimeout(this.completionReadyTimer);
@@ -746,9 +787,12 @@ export class UIController {
       }
 
       this.completeText.innerText =
-        `${result.moves} hamle · ${this.formatDuration(result.timeSeconds)} · ${result.hintsUsed} ipucu`;
+        `${result.moves} manuel hamle · ${this.formatDuration(result.timeSeconds)}`;
       this.completeGoal.innerText =
-        `En kısa çözüm ${result.minimumMoves} · 3 deniz yıldızı hedefi ${result.targetMoves} hamle`;
+        `3 yıldız: ipucusuz, en fazla ${result.targetMoves} hamle. İpucusuz en kısa çözüm: ${result.minimumMoves} hamle.`;
+      if (this.completeExplanation) {
+        this.completeExplanation.textContent = describeStoryResult(result);
+      }
       this.nextButton.innerText = "Sonraki Adaya Yüz";
     }
 

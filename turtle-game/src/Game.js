@@ -120,7 +120,8 @@ export class Game {
     };
     this.tutorial = {
       active: false,
-      targetKey: null
+      targetKey: null,
+      step: 1
     };
 
     this.audio = new AudioSystem();
@@ -149,6 +150,7 @@ export class Game {
         : "Ada hazırlanıyor"
     });
     this.ui.bind({
+      onAdvanceTutorial: () => this.advanceTutorial(),
       onNextLevel: () => this.nextLevel(),
       onHint: () => this.useHint(),
       onToggleSound: () => this.toggleSound(),
@@ -491,6 +493,7 @@ export class Game {
     const baseHexRadius = window.innerWidth < CONFIG.mobileBreakpoint
       ? CONFIG.mobileHexRadius
       : CONFIG.desktopHexRadius;
+    this.positionCanvasBetweenHud();
     const hudInsets = this.measureBoardHudInsets();
     const boardLayout = this.calculateBoardLayout(
       this.mapRadius,
@@ -528,6 +531,25 @@ export class Game {
     );
     this.renderer.invalidateGrid();
     this.renderer.resetClock();
+  }
+
+  positionCanvasBetweenHud() {
+    // Center the canvas in the usable play area. On portrait phones this also
+    // uses the space below the square canvas, instead of shrinking dense boards.
+    this.canvas.style.top = "0px";
+    const canvasRect = this.canvas.getBoundingClientRect();
+    const containerRect = this.canvas.parentElement.getBoundingClientRect();
+    const topRect = document.querySelector(".top-cluster")?.getBoundingClientRect();
+    const bottomRect = document.querySelector(".bottom-bar")?.getBoundingClientRect();
+    const overlapsHorizontally = (rect) => rect &&
+      rect.right > canvasRect.left && rect.left < canvasRect.right;
+    const gap = CONFIG.boardLayout.hudGap;
+    const top = overlapsHorizontally(topRect)
+      ? Math.max(containerRect.top, topRect.bottom + gap) : containerRect.top;
+    const bottom = overlapsHorizontally(bottomRect)
+      ? Math.min(containerRect.bottom, bottomRect.top - gap) : containerRect.bottom;
+    const center = (top + Math.max(top, bottom)) / 2;
+    this.canvas.style.top = `${center - (canvasRect.top + canvasRect.height / 2)}px`;
   }
 
   measureBoardHudInsets() {
@@ -1274,6 +1296,7 @@ export class Game {
 
     this.tutorial.active = eligible;
     this.tutorial.targetKey = eligible ? targetKey : null;
+    this.tutorial.step = 1;
   }
 
   showTutorialIfNeeded() {
@@ -1286,8 +1309,8 @@ export class Game {
       return;
     }
 
-    tile.hintGlow = 1;
-    this.ui.showTutorial();
+    if (this.tutorial.step === 1) tile.hintGlow = 1;
+    this.ui.showTutorial(this.tutorial.step);
     this.resizeCanvas();
   }
 
@@ -1301,7 +1324,7 @@ export class Game {
   }
 
   updateTutorialHighlight() {
-    if (!this.tutorial.active || this.menuOpen) return;
+    if (!this.tutorial.active || this.menuOpen || this.tutorial.step !== 1) return;
 
     const tile = this.grid[this.tutorial.targetKey];
 
@@ -1309,7 +1332,6 @@ export class Game {
   }
 
   completeTutorial() {
-    const wasActive = this.tutorial.active;
     const tile = this.grid[this.tutorial.targetKey];
 
     if (tile) tile.tutorialTarget = false;
@@ -1317,10 +1339,21 @@ export class Game {
     this.tutorial.active = false;
     this.tutorial.targetKey = null;
     this.ui.hideTutorial();
+  }
 
-    if (wasActive && !this.menuOpen) {
-      this.resizeCanvas();
+  advanceTutorial() {
+    if (!this.tutorial.active || this.menuOpen) return;
+    const tile = this.grid[this.tutorial.targetKey];
+    if (tile) {
+      tile.tutorialTarget = false;
+      tile.hintGlow = 0;
     }
+    if (this.tutorial.step >= 3) {
+      this.completeTutorial();
+      return;
+    }
+    this.tutorial.step += 1;
+    this.ui.showTutorial(this.tutorial.step);
   }
 
   handleTilePress(hex) {
@@ -1336,7 +1369,7 @@ export class Game {
 
     const key = tileKey(hex.q, hex.r);
 
-    if (this.tutorial.active && key !== this.tutorial.targetKey) {
+    if (this.tutorial.active && this.tutorial.step === 1 && key !== this.tutorial.targetKey) {
       this.reinforceTutorial();
       return;
     }
@@ -1358,8 +1391,8 @@ export class Game {
     activeProgress.addMove(key);
     this.ui.updateStats(activeProgress);
 
-    if (this.tutorial.active && key === this.tutorial.targetKey) {
-      this.completeTutorial();
+    if (this.tutorial.active && this.tutorial.step === 1 && key === this.tutorial.targetKey) {
+      this.advanceTutorial();
     }
 
     const status = this.checkConnections();
@@ -1682,7 +1715,7 @@ export class Game {
     }
     if (this.gameMode === "ranked" && this.rankedSprint.ranked) return;
 
-    if (this.tutorial.active) {
+    if (this.tutorial.active && this.tutorial.step === 1) {
       this.reinforceTutorial();
       return;
     }
