@@ -1,5 +1,23 @@
 # Zen Kaplumbağa — üç görevli geliştirme planı
 
+## 25 Eylül 2026 — oynanış paketi
+
+Bu dal, ikinci ve üçüncü görevlerden küçük, yayınlanabilir bir oyun döngüsü
+iyileştirmesi seçer. Kaynaktan erişilen karo sayısı ve açık kanal ucu sayısı
+oyun sırasında görünür; hedefe su geldiğinde, tüm ada henüz bitmediyse bu
+ayrıca belirtilir. Hikâye ve antrenmanda son manuel dönüş geri alınabilir.
+Geri alma da **bir hamle** sayılır; ipucu kullanımı önceki geri alma geçmişini
+temizler. Öğreticinin ilk adımında ve dereceli sprintte geri alma yoktur.
+Zafer turu geçilebilir; sonuç kaydı ve dereceli sunucu doğrulaması atlanmaz.
+Kutlama parçacıkları mevcut kum/su paletine taşındı.
+
+Doğrulama: `npm test` 68/68 geçti ve `npm run build` başarılı. Yerel tarayıcı
+önizlemesi bu çalışma ortamındaki tarayıcı bağlantısı tarafından engellendi;
+özellikle 360×640 ve yatay telefon düzeninin gerçek cihazda görsel kontrolü
+yayın öncesi gereklidir. Supabase şeması, RPC, Edge Function ve dereceli skor
+kuralları değişmedi.
+
+
 Tarih: 7 Eylül 2026. Kaynak: canlı oyundaki masaüstü denemesi ve repo incelemesi.
 Ana yön: su bağlantısı kurdukça canlanan ada bahçesi.
 

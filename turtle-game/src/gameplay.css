@@ -103,15 +103,30 @@
   transform: translateX(-50%);
   bottom: calc(12px + env(safe-area-inset-bottom));
   width: min(100% - 24px, 780px);
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #c8b995;
+  border-radius: 16px;
+  background: rgba(255, 248, 232, 0.96);
+  box-shadow: 0 8px 28px rgba(79, 57, 44, 0.09);
 }
+.flow-progress-copy { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; color: #155963; font-size: 12px; }
+.flow-progress-copy strong { font-size: 13px; }
+.flow-progress-copy span { color: #555e51; text-align: right; }
+.flow-progress-track { height: 6px; margin-top: 6px; border-radius: 99px; background: #ded9c4; overflow: hidden; }
+.flow-progress-track span { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #197b8a, #53c6a4); transition: width 300ms ease; }
+.play-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .flow-legend { display: flex; gap: 14px; font-size: 12px; color: #4e5844; }
 .flow-legend span { display: flex; align-items: center; gap: 5px; }
 .flow-legend b { display: grid; place-items: center; width: 23px; height: 23px; background: #155963; color: #fff8e8; border-radius: 50%; }
 .flow-legend span:last-child b { background: #754820; border-radius: 2px; }
-#hint-btn { min-height: 44px; border-radius: 10px; font-size: 13px; }
+#hint-btn, #undo-btn { min-height: 44px; border-radius: 10px; font-size: 13px; }
+#undo-btn:disabled { opacity: 0.48; cursor: not-allowed; }
+#skip-tour-btn { position: fixed; z-index: 35; left: 50%; bottom: calc(135px + env(safe-area-inset-bottom)); transform: translateX(-50%); border: 1px solid #155963; border-radius: 99px; padding: 11px 17px; background: #fff8e8; color: #155963; font-family: inherit; font-size: 13px; font-weight: 700; box-shadow: 0 5px 18px #26494333; cursor: pointer; }
+#skip-tour-btn[hidden] { display: none; }
 button:focus-visible { outline: 3px solid #155963; outline-offset: 4px; }
 
 /* Results stay legible over the decorative shore, including long ranked messages. */
@@ -161,6 +176,10 @@ button:focus-visible { outline: 3px solid #155963; outline-offset: 4px; }
   .top-cluster .tutorial-callout strong { font-size: 14px; }
   #tutorial-next-btn { min-height: 36px; }
   .flow-legend { gap: 8px; font-size: 11px; }
+  .play-actions { flex-wrap: wrap; }
+  .flow-legend { flex: 1 1 100%; justify-content: center; }
+  #hint-btn, #undo-btn { flex: 1; }
+  .flow-progress-copy { font-size: 11px; }
   .completion-beach { padding: 12px; }
   .completion-heading { padding: 12px; }
 }
@@ -178,6 +197,14 @@ button:focus-visible { outline: 3px solid #155963; outline-offset: 4px; }
   .stats-bar .hud-element.compact { font-size: 10px; padding: 5px 2px; gap: 3px; }
   .top-cluster .tutorial-callout { height: 130px; }
   .top-cluster .tutorial-callout strong { font-size: 13px; }
-  .bottom-bar { width: 216px; left: 12px; transform: none; flex-direction: column; gap: 6px; }
-  .bottom-bar #hint-btn { width: 100%; }
+  .bottom-bar { width: 216px; left: 12px; transform: none; gap: 6px; padding: 8px; }
+  .play-actions { flex-wrap: wrap; }
+  .flow-legend { flex: 1 1 100%; justify-content: center; }
+  .bottom-bar #hint-btn, .bottom-bar #undo-btn { min-height: 36px; padding: 5px; font-size: 11px; }
+  .flow-progress-copy { display: block; text-align: center; }
+  .flow-progress-copy span { display: block; text-align: center; }
+  #skip-tour-btn { left: 252px; bottom: 10px; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-progress-track span { transition: none; }
 }

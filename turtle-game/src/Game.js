@@ -81,6 +81,7 @@ export class Game {
     this.rankedForfeitSlot = null;
     this.currentPuzzle = null;
     this.gameMode = "story";
+    this.undoHistory = [];
 
     this.level = 1;
     this.mapRadius = CONFIG.difficulty.getMapRadius(this.level);
@@ -153,6 +154,8 @@ export class Game {
       onAdvanceTutorial: () => this.advanceTutorial(),
       onNextLevel: () => this.nextLevel(),
       onHint: () => this.useHint(),
+      onUndo: () => this.undoLastMove(),
+      onSkipTour: () => this.skipVictoryTour(),
       onToggleSound: () => this.toggleSound(),
       onLogin: () => this.login(),
       onRegister: () => this.register(),
@@ -653,6 +656,9 @@ export class Game {
 
   generateLevel() {
     this.gameMode = "story";
+    this.undoHistory = [];
+    this.ui.setUndoEnabled?.(false, "Henüz geri alınacak hamle yok.");
+    this.ui.showSkipTour?.(false);
     this.levelCompleted = false;
     this.lastTimerSecond = -1;
     this.resetPerformanceSamples();
@@ -707,6 +713,9 @@ export class Game {
     const status = this.endlessSprint.getStatus();
 
     this.gameMode = "endless";
+    this.undoHistory = [];
+    this.ui.setUndoEnabled?.(false, "Henüz geri alınacak hamle yok.");
+    this.ui.showSkipTour?.(false);
     this.levelCompleted = false;
     this.lastTimerSecond = -1;
     this.resetPerformanceSamples();
@@ -754,6 +763,9 @@ export class Game {
   }
 
   generateRankedPuzzle() {
+    this.undoHistory = [];
+    this.ui.setUndoEnabled?.(false, "Dereceli sprintte geri alma kapalıdır.");
+    this.ui.showSkipTour?.(false);
     const status = this.rankedSprint.getStatus();
     const payload = this.rankedSprint.getCurrentPuzzlePayload();
     const generated = hydratePuzzleDefinition(
@@ -1378,9 +1390,17 @@ export class Game {
 
     if (!tile || !tile.active) return;
 
+    const previousRotation = tile.rotation;
     const rotated = tile.rotate();
 
     if (!rotated) return;
+
+    if (this.gameMode !== "ranked" && !this.tutorial.active) {
+      this.undoHistory ??= [];
+      this.undoHistory.push({ key, rotation: previousRotation });
+      if (this.undoHistory.length > 40) this.undoHistory.shift();
+      this.ui.setUndoEnabled?.(true);
+    }
 
     this.renderer.invalidateConnections();
 
@@ -1409,6 +1429,7 @@ export class Game {
   checkConnections({ allowCompletion = true } = {}) {
     const status = PuzzleValidator.inspectGrid(this.grid);
     PuzzleValidator.applyBloomState(this.grid, status);
+    this.ui.updateFlowProgress?.(status);
 
     if (allowCompletion && status.completed && !this.levelCompleted) {
       return status;
@@ -1420,6 +1441,7 @@ export class Game {
   completeLevel() {
     this.completeTutorial();
     this.levelCompleted = true;
+    this.ui.setUndoEnabled?.(false, "Bölüm tamamlandı.");
 
     this.audio.play("success");
     this.particles.createCelebration(
@@ -1636,6 +1658,7 @@ export class Game {
 
     this.victoryTour.result = result;
     this.victoryTour.revealAt = 0;
+    this.ui.showSkipTour?.(true);
 
     if (path.length <= 1) {
       this.finishVictoryTour(performance.now());
@@ -1670,6 +1693,7 @@ export class Game {
         timestamp >= this.victoryTour.revealAt
       ) {
         this.ui.showCompletion(this.victoryTour.result);
+        this.ui.showSkipTour?.(false);
         this.victoryTour.result = null;
         this.victoryTour.revealAt = 0;
       }
@@ -1703,6 +1727,36 @@ export class Game {
     this.victoryTour.revealAt = timestamp + 720;
     this.turtle.speed = 0.08;
     this.turtle.celebrate(720);
+  }
+
+  skipVictoryTour() {
+    if (!this.levelCompleted || !this.victoryTour.result) return;
+    this.victoryTour.active = false;
+    this.victoryTour.revealAt = 0;
+    this.turtle.speed = 0.08;
+    this.ui.showSkipTour?.(false);
+    this.ui.showCompletion(this.victoryTour.result);
+    this.victoryTour.result = null;
+  }
+
+  undoLastMove() {
+    if (this.menuOpen || this.levelCompleted || this.gameMode === "ranked" ||
+        this.tutorial.active || !this.hasPlayableSession()) return;
+    const previous = this.undoHistory?.pop();
+    if (!previous) return;
+    const tile = this.grid[previous.key];
+    if (!tile?.active) return;
+    tile.setRotation(previous.rotation, { animate: true });
+    this.renderer.invalidateConnections();
+    // A reverse turn is still a player action, so it cannot improve a scored run.
+    const progress = this.getActiveProgress();
+    progress.addMove(previous.key);
+    this.ui.updateStats(progress);
+    this.ui.setUndoEnabled?.(this.undoHistory.length > 0,
+      "Henüz geri alınacak hamle yok.");
+    this.audio.play("click");
+    const status = this.checkConnections();
+    if (status.completed) this.completeLevel();
   }
 
   useHint() {
@@ -1775,6 +1829,9 @@ export class Game {
     });
 
     if (!bestChoice) return;
+
+    this.undoHistory = [];
+    this.ui.setUndoEnabled?.(false, "İpucundan önceki hamleler geri alınamaz.");
 
     const bestTile = bestChoice.tile;
 

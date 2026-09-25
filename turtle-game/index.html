@@ -101,11 +101,20 @@
       </div>
 
       <div class="bottom-bar">
-        <div class="flow-legend" aria-label="Tahta işaretleri"><span><b>↑</b> Kaynak</span><span><b>⚑</b> Hedef</span></div>
-        <button type="button" id="hint-btn" class="hud-element">✨ Akış İpucu</button>
+        <div class="flow-progress" role="status" aria-live="off" aria-label="Su akışı ilerlemesi">
+          <div class="flow-progress-copy"><strong id="flow-progress-title">Ada uyanıyor</strong><span id="flow-progress-detail">Kanalları birbirine bağla</span></div>
+          <div class="flow-progress-track" role="progressbar" aria-label="Suyun ulaştığı karolar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="flow-progress-fill"></span></div>
+        </div>
+        <div class="play-actions">
+          <div class="flow-legend" aria-label="Tahta işaretleri"><span><b>↑</b> Kaynak</span><span><b>⚑</b> Hedef</span></div>
+          <button type="button" id="undo-btn" class="hud-element" disabled title="Yalnızca hikâye ve antrenmanda kullanılabilir">↶ Geri Al</button>
+          <button type="button" id="hint-btn" class="hud-element">✨ Akış İpucu</button>
+        </div>
       </div>
     </div>
   </div>
+
+  <button type="button" id="skip-tour-btn" hidden>Zafer turunu geç →</button>
 
   <div id="main-menu-overlay" class="active">
     <div id="auth-card" class="main-menu-card storybook-auth-menu">
