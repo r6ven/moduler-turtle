@@ -27,7 +27,7 @@ export class ParticleSystem {
   }
 
   createCelebration(canvasWidth, canvasHeight) {
-    const count = Math.max(24, Math.round(70 * this.particleScale));
+    const count = Math.max(20, Math.round(52 * this.particleScale));
 
     for (let i = 0; i < count; i += 1) {
       this.particles.push({
@@ -35,8 +35,11 @@ export class ParticleSystem {
         y: (Math.random() - 0.5) * canvasHeight * 0.45,
         vx: (Math.random() - 0.5) * 4,
         vy: (Math.random() - 0.5) * 4 - 2,
-        radius: Math.random() * 5 + 3,
-        color: `hsl(${Math.random() * 60 + 320}, 90%, 75%)`,
+        radius: Math.random() * 3.5 + 2.5,
+        shape: i % 3 === 0 ? "petal" : "drop",
+        angle: Math.random() * Math.PI,
+        spin: (Math.random() - 0.5) * 0.075,
+        color: i % 3 === 0 ? "#f1bd71" : i % 2 === 0 ? "#55c6bd" : "#a1ddca",
         alpha: 1
       });
     }
@@ -53,7 +56,7 @@ export class ParticleSystem {
         vx: (Math.random() - 0.5) * 1.6,
         vy: (Math.random() - 0.5) * 1.6 - 0.5,
         radius: Math.random() * 3 + 2,
-        color: "hsl(48, 95%, 70%)",
+        color: "#edc373",
         alpha: 0.9
       });
     }
@@ -68,6 +71,7 @@ export class ParticleSystem {
       particle.x += particle.vx * frameScale;
       particle.y += particle.vy * frameScale;
       particle.alpha -= 0.015 * frameScale;
+      particle.angle = (particle.angle || 0) + (particle.spin || 0) * frameScale;
 
       if (particle.alpha <= 0) {
         this.particles.splice(i, 1);
@@ -82,7 +86,12 @@ export class ParticleSystem {
       ctx.globalAlpha = particle.alpha;
       ctx.fillStyle = particle.color;
       ctx.beginPath();
-      ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+      if (particle.shape) {
+        ctx.ellipse(particle.x, particle.y, particle.radius * 0.65,
+          particle.radius * 1.55, particle.angle, 0, Math.PI * 2);
+      } else {
+        ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+      }
       ctx.fill();
     });
 

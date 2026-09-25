@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Game } from "../src/Game.js";
-import { describeStoryResult } from "../src/UIController.js";
+import { describeStoryResult, UIController } from "../src/UIController.js";
 import { Tile } from "../src/Tile.js";
 import { ProgressSystem } from "../src/ProgressSystem.js";
 import { InputManager } from "../src/InputManager.js";
@@ -67,6 +67,55 @@ test("a dense phone board fits between the HUD and bottom controls without chang
   assert.equal(layout.mapRadius, 3);
   assert.ok(layout.hexRadius >= 26);
   assert.ok(layout.hexRadius * 11 <= layout.availableHeight);
+});
+
+test("undo reverses a story turn but charges a move; ranked cannot undo", () => {
+  const tile = new Tile(0, 0, [true, false, true, false, false, false], true);
+  tile.setRotation(1, { animate: false });
+  const progress = { moves: 1, addMove() { this.moves += 1; } };
+  const game = {
+    menuOpen: false, levelCompleted: false, gameMode: "story",
+    tutorial: { active: false }, undoHistory: [{ key: "0,0", rotation: 0 }],
+    grid: { "0,0": tile }, hasPlayableSession: () => true,
+    getActiveProgress: () => progress,
+    renderer: { invalidateConnections() {} }, audio: { play() {} },
+    ui: { updateStats() {}, setUndoEnabled() {} },
+    checkConnections: () => ({ completed: false })
+  };
+  Game.prototype.undoLastMove.call(game);
+  assert.equal(tile.rotation, 0);
+  assert.equal(progress.moves, 2);
+  assert.equal(game.undoHistory.length, 0);
+
+  game.gameMode = "ranked";
+  game.undoHistory.push({ key: "0,0", rotation: 1 });
+  Game.prototype.undoLastMove.call(game);
+  assert.equal(tile.rotation, 0);
+  assert.equal(progress.moves, 2);
+});
+
+test("flow feedback distinguishes reaching the goal from completing every channel", () => {
+  const ui = {
+    flowProgressTitle: { textContent: "" },
+    flowProgressDetail: { textContent: "" },
+    flowProgressFill: { style: {} },
+    flowProgressTrack: { setAttribute(name, value) { this[name] = value; } }
+  };
+  const status = {
+    connectedKeys: new Set(["0,0", "1,0"]),
+    activeTiles: [{ q: 0, r: 0 }, { q: 1, r: 0, sink: true }, { q: 2, r: 0 }],
+    totalActiveTiles: 3, danglingExitCount: 2, completed: false
+  };
+  UIController.prototype.updateFlowProgress.call(ui, status);
+  assert.equal(ui.flowProgressTitle.textContent, "Hedefe su ulaştı");
+  assert.match(ui.flowProgressDetail.textContent, /2 açık uç/);
+  assert.equal(ui.flowProgressFill.style.width, "67%");
+  status.connectedKeys.add("2,0");
+  status.completed = true;
+  status.danglingExitCount = 0;
+  UIController.prototype.updateFlowProgress.call(ui, status);
+  assert.equal(ui.flowProgressTitle.textContent, "Ada canlandı!");
+  assert.equal(ui.flowProgressTrack["aria-valuenow"], "100");
 });
 
 test("HUD centering is stable and pointer mapping follows the moved canvas on portrait and landscape", () => {

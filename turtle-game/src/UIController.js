@@ -42,6 +42,12 @@ export class UIController {
 
     this.nextButton = document.getElementById("next-lvl-btn");
     this.hintButton = document.getElementById("hint-btn");
+    this.undoButton = document.getElementById("undo-btn");
+    this.skipTourButton = document.getElementById("skip-tour-btn");
+    this.flowProgressTitle = document.getElementById("flow-progress-title");
+    this.flowProgressDetail = document.getElementById("flow-progress-detail");
+    this.flowProgressFill = document.getElementById("flow-progress-fill");
+    this.flowProgressTrack = document.querySelector(".flow-progress-track");
     this.soundToggle = document.getElementById("sound-toggle");
     this.menuButton = document.getElementById("menu-btn");
     this.fullscreenButton = document.getElementById("fullscreen-btn");
@@ -122,6 +128,8 @@ export class UIController {
   bind({
     onNextLevel,
     onHint,
+    onUndo,
+    onSkipTour,
     onToggleSound,
     onLogin,
     onRegister,
@@ -141,6 +149,8 @@ export class UIController {
   }) {
     this.nextButton.addEventListener("click", onNextLevel);
     this.hintButton.addEventListener("click", onHint);
+    this.undoButton.addEventListener("click", onUndo);
+    this.skipTourButton.addEventListener("click", onSkipTour);
     this.soundToggle.addEventListener("click", onToggleSound);
     this.menuButton.addEventListener("click", onOpenMenu);
     this.fullscreenButton.addEventListener("click", onToggleFullscreen);
@@ -264,6 +274,33 @@ export class UIController {
     this.hintButton.disabled = !enabled;
     this.hintButton.title = enabled ? "" : reason;
     this.hintButton.setAttribute("aria-disabled", String(!enabled));
+  }
+
+  setUndoEnabled(enabled, reason = "") {
+    this.undoButton.disabled = !enabled;
+    this.undoButton.title = enabled
+      ? "Son döndürmeyi geri alır; geri alma da bir hamle sayılır."
+      : reason;
+  }
+
+  showSkipTour(visible) {
+    this.skipTourButton.hidden = !visible;
+  }
+
+  updateFlowProgress(status) {
+    const total = Math.max(1, status.totalActiveTiles || 1);
+    const reached = Math.min(total, status.connectedKeys.size);
+    const percent = Math.round(reached / total * 100);
+    const sink = status.activeTiles.find((tile) => tile.sink);
+    const sinkReached = Boolean(sink && status.connectedKeys.has(`${sink.q},${sink.r}`));
+    this.flowProgressTitle.textContent = status.completed
+      ? "Ada canlandı!"
+      : sinkReached ? "Hedefe su ulaştı" : reached > 1 ? "Su ilerliyor" : "Kaynağı uyandır";
+    this.flowProgressDetail.textContent = status.completed
+      ? `${total} karo bağlı · Açık uç yok`
+      : `${reached}/${total} karoya su ulaştı · ${status.danglingExitCount} açık uç`;
+    this.flowProgressFill.style.width = `${percent}%`;
+    this.flowProgressTrack.setAttribute("aria-valuenow", String(percent));
   }
 
   getEndlessSettings() {
